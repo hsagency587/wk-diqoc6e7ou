@@ -819,3 +819,11 @@ body.ed-aperto{overflow:hidden}
 .egg-nota{padding:var(--s2) 0 var(--s3);border-bottom:1px solid var(--line)}
 .egg-nota .postilla{margin:0 0 var(--s2);animation:none}
 .ed-pane{padding-bottom:88px}
+
+/* ---------- Every day: quando si vede ---------- */
+.ed-giorni-sett{margin-top:var(--s2)}
+.ed-ogni{display:flex;flex-wrap:wrap;gap:var(--s3);margin-top:var(--s2)}
+.ed-ogni .ed-campo{flex:1 1 160px}
+.ed-prossimi{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 var(--s3)}
+.ed-pross{padding:4px 8px;border-radius:6px;border:1px solid var(--line);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.ed-pross.si{background:var(--accent);border-color:var(--accent);color:#0d0f12;font-weight:700}

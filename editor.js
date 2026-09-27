@@ -43,7 +43,7 @@ function edWorkout(f) {
       for (const v of (w.workout[g] || []).slice(0, w.conti[g] || 0)) if (v && v !== MORNING && out.indexOf(v) < 0) out.push(v);
     }
   }
-  for (const k of Object.keys(f.schede)) if (k !== MORNING && out.indexOf(k) < 0) out.push(k);
+  for (const k of Object.keys(f.schede)) if (k.indexOf('__') !== 0 && out.indexOf(k) < 0) out.push(k);
   return out;
 }
 
@@ -145,7 +145,24 @@ function edVociFonte(box, ctx) {
   /* la lista di tutti i giorni sta nella sua categoria: Every day */
   if (edTendina(box, ctx, 'every', 'Every day')) {
     box.appendChild(edVoce(nomeMattinaDi(f.obj) + (f.obj.mattinaVia ? ' (hidden)' : ''), { pag: 'morning', ctx: ctx },
-      v.pag === 'morning' && v.ctx === ctx, f.obj.mattinaVia ? 'spenta' : ''));
+      v.pag === 'morning' && v.ctx === ctx && !v.lista, f.obj.mattinaVia ? 'spenta' : ''));
+    for (const a of f.obj.altre) {
+      box.appendChild(edVoce((a.nome || 'Every day') + (a.via ? ' (hidden)' : ''), { pag: 'morning', ctx: ctx, lista: a.id },
+        v.pag === 'morning' && v.ctx === ctx && v.lista === a.id, a.via ? 'spenta' : ''));
+    }
+    /* una lista nuova: nasce vuota, con il suo nome da scrivere */
+    if (f.obj.altre.length < 10) {
+      const nuova = el('button', 'ed-voce piu', '+ New list');
+      nuova.type = 'button';
+      nuova.addEventListener('click', () => {
+        const id = Date.now().toString(36).slice(-6) + Math.random().toString(36).slice(2, 5);
+        f.obj.altre.push({ id: id, nome: 'List ' + (f.obj.altre.length + 2), via: false, quando: { modo: 'sempre' } });
+        f.schede[EV(id)] = { es: [], rec: '' };
+        edCambio(true);
+        edVai({ pag: 'morning', ctx: ctx, lista: id });
+      });
+      box.appendChild(nuova);
+    }
   }
   /* i workout nuovi non hanno un bottone: nascono scrivendoli in un giorno della settimana */
   const nomi = edWorkout(f);
@@ -235,7 +252,7 @@ function edPagina() {
   pane.textContent = '';
   const v = edVista;
   if (v.pag === 'week') edPagSettimana(pane, v.ctx, v.sett || 0);
-  else if (v.pag === 'morning') edPagMattina(pane, v.ctx);
+  else if (v.pag === 'morning') edPagMattina(pane, v.ctx, v.lista);
   else if (v.pag === 'workout') edPagWorkout(pane, v.ctx, v.nome);
   else if (v.pag === 'new') edPagNuovo(pane, v.ctx);
   else if (v.pag === 'prep') edPagPrep(pane, v.ctx);
@@ -533,30 +550,142 @@ function edDescrizione(r) {
 
 /* --- FIRST 15' ---------------------------------------------------------- */
 
-function edPagMattina(box, ctx) {
+function edPagMattina(box, ctx, listaId) {
   const f = edFonte(ctx);
   const o = f.obj;
+  /* la prima lista sta nei campi di sempre; le altre nell'elenco `altre` */
+  const a = listaId ? o.altre.find(x => x.id === listaId) : null;
+  if (listaId && !a) { edVista = { pag: 'morning', ctx: ctx }; edPagina(); return; }
+  const L = a ? {
+    nome: () => a.nome || 'Every day', scrivi: v => { a.nome = v; }, ph: 'List name', valore: a.nome,
+    via: () => a.via, spegni: v => { a.via = v; }, quando: a.quando, chiave: EV(a.id)
+  } : {
+    nome: () => nomeMattinaDi(o), scrivi: v => { o.mattina = v && v !== MATTINA_BASE ? v : ''; }, ph: MATTINA_BASE, valore: o.mattina,
+    via: () => o.mattinaVia, spegni: v => { o.mattinaVia = v; }, quando: o.mattinaQuando, chiave: MORNING
+  };
   edDove(box, ctx);
   box.appendChild(el('p', 'ed-sez-pag ed-cat', 'EVERY DAY'));
-  edTitolo(box, nomeMattinaDi(o), 'The list shown every day, above the workouts. Untick "Show it in the app" to hide it: what is written stays.');
+  edTitolo(box, L.nome(), 'A fixed list shown above the workouts, on the days you choose below. Untick "Show it in the app" to hide it: what is written stays.');
   const l = el('label', 'ed-spunta');
   const c = el('input', 'schsel');
   c.type = 'checkbox';
-  c.checked = !o.mattinaVia;
-  c.addEventListener('change', () => { o.mattinaVia = !c.checked; edCambio(true); });
+  c.checked = !L.via();
+  c.addEventListener('change', () => { L.spegni(!c.checked); edCambio(true); });
   l.appendChild(c);
   l.appendChild(el('span', null, 'Show it in the app'));
   box.appendChild(l);
-  edCampo(box, 'Name', o.mattina, { max: 40, ph: MATTINA_BASE }, (val) => {
-    const v = validMattina(val);
-    if (v && v !== MATTINA_BASE) o.mattina = v; else o.mattina = '';
+  edCampo(box, 'Name', L.valore, { max: 40, ph: L.ph }, (val) => {
+    L.scrivi(validMattina(val));
     edCambio(true);
     edPagina();
   });
-  if (!f.schede[MORNING]) f.schede[MORNING] = { es: [], rec: '' };
+
+  edQuando(box, L.quando);
+
+  if (!f.schede[L.chiave]) f.schede[L.chiave] = { es: [], rec: '' };
   box.appendChild(el('p', 'ed-sez-pag', 'EXERCISES'));
-  edEsercizi(box, ctx, MORNING, f.schede[MORNING]);
-  edGruppiBottone(box, ctx, MORNING);
+  edEsercizi(box, ctx, L.chiave, f.schede[L.chiave]);
+  edGruppiBottone(box, ctx, L.chiave);
+
+  if (a) {
+    const az = el('div', 'ed-azioni');
+    edConferma(az, 'Delete this list', () => {
+      o.altre = o.altre.filter(x => x !== a);
+      delete f.schede[L.chiave];
+      edVista = { pag: 'morning', ctx: ctx };
+      edCambio(true);
+      edRidisegna();
+    });
+    box.appendChild(az);
+  }
+}
+
+/* Quando si vede una lista: tutti i giorni, certi giorni della settimana, un
+   giorno si' e uno no (o ogni N), oppure date precise. Sotto, i prossimi 14
+   giorni, per vedere subito il risultato. L'oggetto `q` si cambia sul posto. */
+function edQuando(box, q) {
+  box.appendChild(el('p', 'ed-sez-pag', 'WHEN'));
+  const modi = [['sempre', 'Every day'], ['giorni', 'Days of the week'], ['ogni', 'Every N days'], ['date', 'Specific dates']];
+  const chips = el('div', 'chips');
+  for (const [m, n] of modi) {
+    const b = el('button', 'chip' + (q.modo === m ? ' sel' : ''), n);
+    b.type = 'button';
+    b.addEventListener('click', () => {
+      if (q.modo === m) return;
+      for (const k of Object.keys(q)) delete q[k];
+      q.modo = m;
+      if (m === 'giorni') q.giorni = [1, 2, 3, 4, 5, 6, 0];
+      if (m === 'ogni') { q.n = 2; q.dal = chiaveData(today()); }
+      if (m === 'date') q.date = [];
+      edCambio(false);
+      edPagina();
+    });
+    chips.appendChild(b);
+  }
+  box.appendChild(chips);
+
+  if (q.modo === 'giorni') {
+    const g = el('div', 'chips ed-giorni-sett');
+    for (const d of SETTIMANA) {
+      const on = q.giorni.indexOf(d) >= 0;
+      const b = el('button', 'chip' + (on ? ' sel' : ''), GIORNI2[d]);
+      b.type = 'button';
+      b.addEventListener('click', () => {
+        q.giorni = on ? q.giorni.filter(x => x !== d) : q.giorni.concat([d]).sort();
+        edCambio(false);
+        edPagina();
+      });
+      g.appendChild(b);
+    }
+    box.appendChild(g);
+  }
+  if (q.modo === 'ogni') {
+    const r = el('div', 'ed-ogni');
+    const n = edCampo(r, 'Every how many days', String(q.n), { type: 'number' }, val => {
+      const x = Math.round(+val);
+      q.n = x >= 2 && x <= 14 ? x : q.n;
+      edCambio(false);
+      edPagina();
+    });
+    n.min = 2; n.max = 14; n.inputMode = 'numeric';
+    edCampo(r, 'Starting from', q.dal, { type: 'date' }, val => {
+      if (dataOk(val)) { q.dal = val; edCambio(false); }
+      edPagina();
+    });
+    box.appendChild(r);
+    box.appendChild(el('p', 'ed-sotto', q.n === 2 ? 'One day yes, one day no.' : 'One day yes, then ' + (q.n - 1) + ' days no.'));
+  }
+  if (q.modo === 'date') {
+    const lista = el('div', 'chips');
+    for (const d of q.date) {
+      const b = el('button', 'chip sel', dataCorta(d) + ' ' + daChiave(d).getFullYear() + '  ×');
+      b.type = 'button';
+      b.setAttribute('aria-label', 'Remove ' + d);
+      b.addEventListener('click', () => { q.date = q.date.filter(x => x !== d); edCambio(false); edPagina(); });
+      lista.appendChild(b);
+    }
+    if (!q.date.length) lista.appendChild(el('span', 'ed-sotto', 'No dates yet: the list is not shown.'));
+    box.appendChild(lista);
+    const r = el('div', 'ed-ogni');
+    const nuova = edCampo(r, 'Add a date', '', { type: 'date' }, val => {
+      if (dataOk(val) && q.date.indexOf(val) < 0) { q.date = q.date.concat([val]).sort(); edCambio(false); }
+      edPagina();
+    });
+    nuova.value = '';
+    box.appendChild(r);
+  }
+
+  /* i prossimi 14 giorni: acceso dove la lista si vede */
+  box.appendChild(el('p', 'ed-sotto', 'Next 14 days:'));
+  const prossimi = el('div', 'ed-prossimi');
+  const t0 = today();
+  for (let i = 0; i < 14; i++) {
+    const d = piuGiorni(t0, i);
+    const k = chiaveData(d);
+    const si = quandoVale(q, k);
+    prossimi.appendChild(el('span', 'ed-pross' + (si ? ' si' : ''), GIORNI2[d.getDay()] + ' ' + d.getDate()));
+  }
+  box.appendChild(prossimi);
 }
 
 /* --- un workout --------------------------------------------------------- */
@@ -691,7 +820,8 @@ function edNuovaPrep(nome, dal, al) {
     nome: nome, dal: dal, al: al,
     settimane: [{ workout: copia(tstore.workout), conti: copia(tstore.conti) }],
     schede: copia(tstore.schede),
-    mattina: tstore.mattina, mattinaVia: tstore.mattinaVia
+    mattina: tstore.mattina, mattinaVia: tstore.mattinaVia,
+    mattinaQuando: copia(tstore.mattinaQuando), altre: copia(tstore.altre)
   };
   tstore.prep.push(p);
   tstore.prep.sort((a, b) => a.dal < b.dal ? -1 : 1);

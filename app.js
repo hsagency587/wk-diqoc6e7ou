@@ -89,6 +89,39 @@ const MATTINA_BASE = 'Morning activity';
 const validMattina = v => String(v == null ? '' : v).slice(0, 40).trim();
 const nomeMattina = () => tstore.mattina || MATTINA_BASE;
 
+/* Quando si vede una lista Every day:
+   { modo: 'sempre' }                         tutti i giorni
+   { modo: 'giorni', giorni: [1, 3, 5] }      certi giorni della settimana (0 domenica)
+   { modo: 'ogni', n: 2, dal: 'aaaa-mm-gg' }  un giorno si' e n-1 no, a partire da una data
+   { modo: 'date', date: ['aaaa-mm-gg'] }     solo in certe date */
+function validQuando(q) {
+  if (!q || typeof q !== 'object') return { modo: 'sempre' };
+  if (q.modo === 'giorni') {
+    const g = [...new Set((Array.isArray(q.giorni) ? q.giorni : []).map(Number).filter(x => x >= 0 && x <= 6))].sort();
+    return { modo: 'giorni', giorni: g };
+  }
+  if (q.modo === 'ogni') {
+    const n = Math.round(+q.n);
+    return { modo: 'ogni', n: n >= 2 && n <= 14 ? n : 2, dal: /^\d{4}-\d{2}-\d{2}$/.test(q.dal) ? q.dal : '2026-01-05' };
+  }
+  if (q.modo === 'date') {
+    const d = [...new Set((Array.isArray(q.date) ? q.date : []).filter(x => /^\d{4}-\d{2}-\d{2}$/.test(x)))].sort().slice(-200);
+    return { modo: 'date', date: d };
+  }
+  return { modo: 'sempre' };
+}
+
+/* Le liste Every day in piu', oltre alla prima: ognuna con la sua scheda,
+   sotto la chiave __ev_ e il suo id. */
+const EV = id => '__ev_' + id;
+function validAltre(l) {
+  if (!Array.isArray(l)) return [];
+  return l.slice(0, 10).map(x => {
+    if (!x || typeof x !== 'object' || typeof x.id !== 'string' || !/^[a-z0-9]{3,20}$/.test(x.id)) return null;
+    return { id: x.id, nome: validMattina(x.nome), via: !!x.via, quando: validQuando(x.quando) };
+  }).filter(Boolean);
+}
+
 /* La via dei gruppi, ripulita: al massimo quattro scatole una dentro l'altra,
    nomi corti, niente vuoti in mezzo. */
 function viaGruppi(v) {
@@ -165,7 +198,9 @@ function validPrep(l) {
       settimane: sett,
       schede: validSchede(x.schede),
       mattina: validMattina(x.mattina),
-      mattinaVia: !!x.mattinaVia
+      mattinaVia: !!x.mattinaVia,
+      mattinaQuando: validQuando(x.mattinaQuando),
+      altre: validAltre(x.altre)
     };
   }).filter(Boolean).sort((a, b) => a.dal < b.dal ? -1 : 1);
 }
@@ -198,6 +233,7 @@ function validSorprese(l) {
 const contenuto = s => JSON.stringify({ workout: validWorkout(s.workout), schede: validSchede(s.schede),
                                          conti: validConti(s.conti, s.slot), mattina: validMattina(s.mattina),
                                          mattinaVia: !!s.mattinaVia, prep: validPrep(s.prep),
+                                         mattinaQuando: validQuando(s.mattinaQuando), altre: validAltre(s.altre),
                                          sorprese: validSorprese(s.sorprese) });
 
 /* ------------------------------------------------------- lo stato ---- */
@@ -212,6 +248,8 @@ tstore.conti   = validConti(tstore.conti, tstore.slot);
 tstore.prep    = validPrep(tstore.prep);
 /* la scheda del mattino si puo' togliere: nascosta per tutti, sta nel file */
 tstore.mattinaVia = !!tstore.mattinaVia;
+tstore.mattinaQuando = validQuando(tstore.mattinaQuando);
+tstore.altre = validAltre(tstore.altre);
 /* le sorprese restano come sono scritte: si ripuliscono solo quando si salva */
 if (!Array.isArray(tstore.sorprese)) tstore.sorprese = [];
 tstore.dirty   = !!tstore.dirty;
@@ -264,6 +302,8 @@ function ripescaLocale() {
   tstore.conti   = validConti(tstore.conti, tstore.slot);
   tstore.prep    = validPrep(tstore.prep);
   tstore.mattinaVia = !!tstore.mattinaVia;
+  tstore.mattinaQuando = validQuando(tstore.mattinaQuando);
+  tstore.altre = validAltre(tstore.altre);
   if (!Array.isArray(tstore.sorprese)) tstore.sorprese = [];
   if (!Array.isArray(tstore.daCaricare)) tstore.daCaricare = [];
   return true;
@@ -337,11 +377,13 @@ function settimanaDi(p, k) {
 function pianoDi(k) {
   const p = prepDi(k);
   if (!p) return { src: 'base', prep: null, workout: tstore.workout, conti: tstore.conti,
-                   schede: tstore.schede, mattina: tstore.mattina, mattinaVia: tstore.mattinaVia };
+                   schede: tstore.schede, mattina: tstore.mattina, mattinaVia: tstore.mattinaVia,
+                   mattinaQuando: tstore.mattinaQuando, altre: tstore.altre };
   const i = settimanaDi(p, k);
   const w = p.settimane[i];
   return { src: p.id, prep: p, sett: i, workout: w.workout, conti: w.conti,
-           schede: p.schede, mattina: p.mattina, mattinaVia: p.mattinaVia };
+           schede: p.schede, mattina: p.mattina, mattinaVia: p.mattinaVia,
+           mattinaQuando: p.mattinaQuando, altre: p.altre };
 }
 
 /* Le schede di una fonte: il piano di sempre o una preparazione. */
@@ -474,9 +516,9 @@ function disegnaW() {
   box.appendChild(tab);
 
   if (!pAnt) postille(box, 'every');
-  paintMorning(box, oggi);
+  paintMorning(box, oggi, kOggi);
   if (!pAnt) postille(box, 'oggi');
-  paintOggi(box, oggi, t0.getDay(), pAnt ? 'ALLENAMENTI DI ' + GIORNI_IT[t0.getDay()].toUpperCase() + ' ' + t0.getDate() : 'ALLENAMENTI DI OGGI');
+  paintOggi(box, oggi, kOggi, t0.getDay(), pAnt ? 'ALLENAMENTI DI ' + GIORNI_IT[t0.getDay()].toUpperCase() + ' ' + t0.getDate() : 'ALLENAMENTI DI OGGI');
   if (!pAnt) postille(dx, 'wk');
   paintSchede(dx, oggi);
 }
@@ -583,17 +625,38 @@ Pila.prototype.vai = function (g) {
 const MORNING = '__morning';
 const nomeMattinaDi = pi => (pi && pi.mattina) || MATTINA_BASE;
 
-function paintMorning(box, pi) {
-  if (pi.mattinaVia) return;               /* tolta: non la vede nessuno */
-  const sc = pi.schede[MORNING] || { es: [], rec: '' };
-  if (!sc.es.length) return;               /* vuota: niente da far vedere */
-  const tab = tabScheda(nomeMattinaDi(pi), sc);
-  box.appendChild(righeScheda(tab, { es: sc.es, rec: '' }, pi.src, MORNING));
+/* Se una lista Every day si vede in una data. */
+function quandoVale(q, k) {
+  q = q || { modo: 'sempre' };
+  if (q.modo === 'giorni') return q.giorni.indexOf(daChiave(k).getDay()) >= 0;
+  if (q.modo === 'ogni') { const d = giorniFra(q.dal, k); return d >= 0 && d % q.n === 0; }
+  if (q.modo === 'date') return q.date.indexOf(k) >= 0;
+  return true;
+}
+
+/* Tutte le liste Every day di un piano: la prima e quelle in piu'. */
+function listeDi(pi) {
+  return [{ chiave: MORNING, nome: nomeMattinaDi(pi), via: !!pi.mattinaVia, quando: pi.mattinaQuando }]
+    .concat((pi.altre || []).map(a => ({ chiave: EV(a.id), nome: a.nome || 'Every day', via: a.via, quando: a.quando })));
+}
+
+/* Le liste Every day che si vedono in una data: accese, del giorno giusto, e
+   con qualcosa dentro. */
+function listeDelGiorno(pi, k) {
+  return listeDi(pi).filter(l => !l.via && quandoVale(l.quando, k) && pi.schede[l.chiave] && pi.schede[l.chiave].es.length);
+}
+
+function paintMorning(box, pi, k) {
+  for (const l of listeDelGiorno(pi, k)) {
+    const sc = pi.schede[l.chiave];
+    const tab = tabScheda(l.nome, sc);
+    box.appendChild(righeScheda(tab, { es: sc.es, rec: '' }, pi.src, l.chiave));
+  }
 }
 
 /* Quello che si fa oggi, senza aprire niente: le schede del giorno, solo se
    hanno degli esercizi scritti. */
-function paintOggi(box, pi, g, titolo) {
+function paintOggi(box, pi, k, g, titolo) {
   let capo = false;
   for (const nome of workoutDelGiorno(pi, g)) {
     if (!nome) continue;
@@ -601,7 +664,7 @@ function paintOggi(box, pi, g, titolo) {
        la lista compare qui; se e' acceso c'e' gia' */
     if (nome === MORNING) {
       const scm = pi.schede[MORNING];
-      if (!pi.mattinaVia || !scm || !scm.es.length) continue;
+      if (!scm || !scm.es.length || listeDelGiorno(pi, k).some(l => l.chiave === MORNING)) continue;
       if (!capo) { box.appendChild(el('p', 'grp', titolo || 'ALLENAMENTI DI OGGI')); capo = true; }
       const tm = tabScheda(nomeMattinaDi(pi), scm);
       tm.classList.add('tab-oggi');
@@ -835,7 +898,8 @@ function apriDesc(src, nome, i) {
   const sc = schedeDi(src)[nome];
   const r = sc && sc.es[i];
   if (!r) return;
-  $('descTit').textContent = r[0] || (nome === MORNING ? 'FIRST 15\'' : nome);
+  const lista = nome.indexOf('__') === 0 ? listeDi(src === 'base' ? tstore : tstore.prep.find(p => p.id === src) || tstore).find(l => l.chiave === nome) : null;
+  $('descTit').textContent = r[0] || (lista ? lista.nome : nome);
   /* i link video scritti nel testo salgono nello slot, dopo i video caricati */
   testoDesc($('descTesto'), r[3], true);
   dlgDesc.showModal();
@@ -1685,6 +1749,7 @@ async function pullTasks() {
   const remoto = { workout: validWorkout(data.workout), schede: validSchede(data.schede),
                    conti: validConti(data.conti, data.slot), mattina: validMattina(data.mattina),
                    mattinaVia: !!data.mattinaVia, prep: validPrep(data.prep),
+                   mattinaQuando: validQuando(data.mattinaQuando), altre: validAltre(data.altre),
                    sorprese: validSorprese(data.sorprese) };
 
   if (tstore.dirty) {
@@ -1703,6 +1768,8 @@ async function pullTasks() {
   tstore.prep = remoto.prep;
   tstore.mattina = remoto.mattina;
   tstore.mattinaVia = remoto.mattinaVia;
+  tstore.mattinaQuando = remoto.mattinaQuando;
+  tstore.altre = remoto.altre;
   tstore.sorprese = remoto.sorprese;
   if (typeof edRidisegna === 'function') edRidisegna();
   rememberSha(j.sha);
@@ -1747,6 +1814,8 @@ async function pushTasks(opts) {
                                  schede: validSchede(tstore.schede),
                                  mattina: tstore.mattina || undefined,
                                  mattinaVia: tstore.mattinaVia || undefined,
+                                 mattinaQuando: tstore.mattinaQuando.modo === 'sempre' ? undefined : validQuando(tstore.mattinaQuando),
+                                 altre: tstore.altre.length ? validAltre(tstore.altre) : undefined,
                                  prep: tstore.prep.length ? validPrep(tstore.prep) : undefined,
                                  sorprese: validSorprese(tstore.sorprese).length ? validSorprese(tstore.sorprese) : undefined }, null, 2) + '\n';
   let corpo;
