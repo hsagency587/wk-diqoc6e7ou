@@ -35,7 +35,7 @@
   <div class="bar">
     <h1 class="titolo">Workout</h1>
     <button type="button" class="salva" id="salva" hidden>Save</button>
-    <button type="button" class="schbtn wedit" id="wMod">edit</button>
+    <button type="button" class="schbtn wedit" id="wMod" hidden>Editor</button>
     <button type="button" class="menu" id="impostazioniBtn" aria-label="Settings">⚙</button>
   </div>
   <p class="sync" id="sync"></p>
@@ -113,8 +113,8 @@
 
 <!-- La descrizione di un esercizio: si apre a tutto schermo, con il testo
      grande, perche' e' fatta per essere letta mentre ci si allena. Un link
-     scritto da solo su una riga diventa un video. In modifica la stessa
-     finestra si scrive. -->
+     scritto da solo su una riga diventa un video. Qui si legge e basta: si
+     scrive nell'editor. -->
 <dialog class="descbox" id="descrizione" aria-labelledby="descTit">
   <div class="descbox-in">
     <h2 class="desctit" id="descTit"></h2>
@@ -125,27 +125,31 @@
       <button type="button" class="vfull" id="vFull" aria-label="Full screen" hidden>⛶</button>
       <p class="vstato" id="vStato"></p>
     </div>
-    <div class="vedit" id="vEdit" hidden>
-      <button type="button" class="schbtn" id="vScegli">+ video</button>
-      <button type="button" class="schbtn btn-del" id="vTogli">remove video</button>
-      <input type="file" id="vFile" accept="video/*" hidden>
-    </div>
     <div class="desctesto" id="descTesto"></div>
-    <textarea class="desccampo" id="descCampo" rows="10"
-              placeholder="How it goes, what to watch out for. A video link on its own line becomes a video."></textarea>
-    <div class="wrow descvideo" id="descVideo">
-      <input class="wcampo" id="descLink" type="url" inputmode="url" autocomplete="off"
-             placeholder="or paste a video link (YouTube…)" aria-label="Video link">
-      <button type="button" class="schbtn" id="descLinkOk">+ link</button>
-    </div>
     <div class="chiusura-btn">
       <button type="button" class="btn" id="descChiudi">Close</button>
-      <button type="button" class="btn btn-ok" id="descOk">Confirm</button>
     </div>
   </div>
 </dialog>
 
+<!-- L'editor: una schermata a parte, solo per chi ha il token. A sinistra
+     l'elenco, a destra la pagina; sul telefono uno dopo l'altra. -->
+<div class="ed" id="ed" hidden role="dialog" aria-modal="true" aria-labelledby="edTit">
+  <header class="ed-top">
+    <button type="button" class="ed-indietro" id="edIndietro" aria-label="Back to the list">&lsaquo;</button>
+    <h2 class="ed-tit" id="edTit">Editor</h2>
+    <span class="ed-stato" id="edStato"></span>
+    <button type="button" class="salva" id="edSalva" hidden>Save</button>
+    <button type="button" class="schbtn" id="edChiudi">Close</button>
+  </header>
+  <div class="ed-corpo">
+    <nav class="ed-nav" id="edNav" aria-label="What to edit"></nav>
+    <section class="ed-pane" id="edPane"></section>
+  </div>
+</div>
+
 <script src="app.js"></script>
+<script src="editor.js"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));

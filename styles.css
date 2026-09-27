@@ -550,3 +550,163 @@ body.vland .vslot{
 .sviluppo-tit::before{content:'\25b8';color:var(--muted)}
 .sviluppo[open] .sviluppo-tit::before{content:'\25be'}
 .sviluppo-corpo .commento-lab:first-child{margin-top:var(--s1)}
+
+/* ---------- la pagina: preparazione, settimana, tendina ---------- */
+
+/* la preparazione in corso: una banda in cima, con le date e quanto manca */
+.prepbanda{
+  margin:0 var(--s3) var(--s3);padding:var(--s2) var(--s3);
+  border:1px solid var(--accent);border-left-width:5px;border-radius:var(--radius);
+  background:rgba(61,220,132,.08);
+}
+.prepbanda-eti{margin:0;font-size:14px;font-weight:700;letter-spacing:.08em;color:var(--accent)}
+.prepbanda-date{margin:2px 0 0;font-size:17px;color:var(--text)}
+/* i giorni della settimana che vengono dalla preparazione: una striscia a sinistra */
+.tabr.inprep .tabc.eti{box-shadow:inset 4px 0 0 var(--accent)}
+/* le caselle in piu' di un giorno con meno workout: vuote, senza trattino */
+.tabc.fuori{background:var(--surface)}
+.tab-w .tabc.eti{font-variant-numeric:tabular-nums}
+.tab-w .tabr{grid-template-columns:88px repeat(var(--wcol,2),minmax(0,1fr))}
+.tab-w .tabc.eti{overflow:visible}
+
+/* La tendina WORKOUTS: una barra vera, con bordo, il numero e la freccia che
+   gira. Si riconosce come una cosa che si apre. */
+.wkbar{
+  display:flex;align-items:center;gap:var(--s2);
+  width:calc(100% - 2 * var(--s3));margin:var(--s3) var(--s3) var(--s3);
+  min-height:56px;padding:0 var(--s3) 0 var(--s4);
+  background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius);
+  text-align:left;cursor:pointer;
+}
+.wkbar-nome{flex:1;font-size:16px;font-weight:700;letter-spacing:.08em;color:var(--text)}
+.wkbar-num{
+  min-width:30px;height:30px;padding:0 8px;border-radius:15px;
+  display:inline-flex;align-items:center;justify-content:center;
+  background:var(--bg);border:1px solid var(--line);
+  font-size:15px;font-weight:700;color:var(--accent);
+}
+.wkbar-frec{
+  width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;
+  font-size:22px;color:var(--text-2);transform:rotate(-90deg);transition:transform 160ms ease;
+}
+.wkbar.open .wkbar-frec{transform:none}
+.wkbar.open{border-color:var(--accent)}
+@media (hover:hover){ .wkbar:hover{border-color:var(--accent)} }
+@media (min-width:1000px){ .col .wkbar{width:100%;margin-left:0;margin-right:0} .col .prepbanda{margin-left:0;margin-right:0} }
+
+/* ---------- l'editor ---------- */
+
+body.ed-aperto{overflow:hidden}
+.ed{
+  position:fixed;inset:0;z-index:30;
+  display:flex;flex-direction:column;
+  background:var(--bg);color:var(--text);
+}
+.ed-top{
+  display:flex;align-items:center;gap:var(--s2);
+  padding:var(--s2) var(--s3);padding-top:calc(var(--s2) + env(safe-area-inset-top));
+  border-bottom:1px solid var(--line);background:var(--bg);
+}
+.ed-indietro{width:44px;height:44px;border-radius:var(--radius);font-size:32px;line-height:1;color:var(--text-2);display:none}
+.ed-tit{margin:0;font-size:22px;font-weight:700}
+.ed-stato{flex:1;min-width:0;font-size:14px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ed-stato.err{color:var(--danger)}
+.ed-corpo{flex:1;min-height:0;display:grid;grid-template-columns:300px minmax(0,1fr)}
+.ed-nav{overflow-y:auto;border-right:1px solid var(--line);padding:var(--s2) var(--s2) var(--s5);background:var(--surface)}
+.ed-pane{overflow-y:auto;padding:var(--s4) var(--s5) calc(var(--s5) * 3)}
+.ed-pane > *{max-width:760px}
+
+/* l'elenco */
+.ed-sez{margin:var(--s4) var(--s2) var(--s1);font-size:13px;font-weight:700;letter-spacing:.1em;color:var(--muted)}
+.ed-sez:first-child{margin-top:var(--s2)}
+.ed-voce{
+  display:block;width:100%;text-align:left;
+  min-height:44px;padding:var(--s2) var(--s3);margin:1px 0;
+  border-radius:var(--radius);font-size:17px;color:var(--text-2);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.ed-voce:hover{background:var(--surface-2)}
+.ed-voce.on{background:var(--surface-2);color:var(--accent);font-weight:700;box-shadow:inset 3px 0 0 var(--accent)}
+.ed-voce.wk{padding-left:var(--s5)}
+.ed-voce.piu{color:var(--muted);font-weight:600}
+.ed-voce.spenta{color:var(--muted);text-decoration:line-through}
+.ed-figli{margin-left:var(--s3);border-left:1px solid var(--line);padding-left:var(--s1)}
+.ed-prep{white-space:normal}
+.ed-prep-nome{display:block;font-weight:700;color:var(--text)}
+.ed-prep-date{display:block;font-size:14px;color:var(--muted)}
+.ed-prep.incorso .ed-prep-date{color:var(--accent)}
+.ed-prep.fatta{opacity:.6}
+
+/* la pagina */
+.ed-dove{margin:0 0 var(--s1);font-size:13px;font-weight:700;letter-spacing:.08em;color:var(--muted)}
+.ed-dove.prep{color:var(--accent)}
+.ed-h{margin:0;font-size:26px;font-weight:700;overflow-wrap:anywhere}
+.ed-sotto{margin:var(--s1) 0 var(--s4);font-size:16px;color:var(--muted);line-height:1.45}
+.ed-sez-pag{margin:var(--s5) 0 var(--s2);font-size:14px;font-weight:700;letter-spacing:.1em;color:var(--muted)}
+.ed-campo{display:block;margin:0 0 var(--s3)}
+.ed-eti{display:block;margin-bottom:var(--s1);font-size:14px;font-weight:600;color:var(--text-2)}
+.ed-spunta{display:flex;align-items:center;gap:var(--s2);min-height:44px;margin:0 0 var(--s2);font-size:17px;cursor:pointer}
+.ed-azioni{display:flex;flex-wrap:wrap;gap:var(--s2);margin:var(--s4) 0}
+.ed-azioni .schbtn{margin-left:0}
+.ed-ok{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.ed .schbtn.btn-del{color:var(--danger);border-color:rgba(255,69,58,.45)}
+.ed input[type=date]{min-height:48px}
+
+/* la settimana: un giorno per riga, il contatore e i campi */
+.ed-giorno{display:grid;grid-template-columns:240px minmax(0,1fr);gap:var(--s3);align-items:start;padding:var(--s3) 0;border-bottom:1px solid var(--line)}
+.ed-giorno-testa{display:flex;align-items:center;justify-content:space-between;gap:var(--s2);min-height:48px}
+.ed-giorno-nome{font-size:17px;font-weight:700}
+.ed-giorno.riposo .ed-giorno-nome{color:var(--muted)}
+.ed-conta{display:flex;align-items:center;gap:4px}
+.ed-piumeno{margin-left:0;min-width:40px;min-height:40px;padding:0;font-size:20px;color:var(--text)}
+.ed-piumeno:disabled{opacity:.3}
+.ed-conta-num{min-width:22px;text-align:center;font-size:18px;font-weight:700;color:var(--accent)}
+.ed-giorno-campi{display:grid;gap:var(--s2)}
+.ed-riposo{display:flex;align-items:center;min-height:48px;font-size:16px;color:var(--muted);font-style:italic}
+
+/* gli esercizi */
+.ed-es{border:1px solid var(--line);border-radius:var(--radius);margin-bottom:var(--s2);background:var(--surface)}
+.ed-es.aperto{border-color:var(--accent)}
+.ed-es-riga{display:flex;align-items:center;gap:var(--s1);padding:var(--s1)}
+.ed-es-nome{flex:1 1 auto;min-width:0}
+.ed-es-qta{flex:0 1 140px;min-width:70px}
+.ed-es-tasti{display:flex;gap:2px;flex:0 0 auto}
+.ed-tasto{margin-left:0;min-width:40px;min-height:44px;padding:0 6px;font-size:18px;color:var(--text-2)}
+.ed-tasto:disabled{opacity:.25}
+.ed-desc.piena{color:var(--accent);border-color:var(--accent)}
+.ed-x:hover{color:var(--danger)}
+.ed-es-grp{margin:0 var(--s3) var(--s2);font-size:13px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--accent)}
+.ed-desc-box{padding:0 var(--s2) var(--s2)}
+.ed-video{margin-bottom:var(--s2)}
+.ed-video video{display:block;width:100%;max-height:50vh;background:#000;border-radius:var(--radius);margin-bottom:var(--s2)}
+.ed-video-stato{margin:0 0 var(--s2);font-size:15px;color:var(--muted)}
+.ed-video-tasti{display:flex;flex-wrap:wrap;gap:var(--s2)}
+.ed-video-tasti .schbtn{margin-left:0}
+.ed-desc-testo{font-size:17px}
+.ed-aggiungi{display:block;width:100%;margin:var(--s2) 0 0;min-height:48px;border-style:dashed;font-size:17px}
+.ed-lista-sett .ed-voce{border:1px solid var(--line);margin-bottom:var(--s1)}
+
+/* Telefono: prima l'elenco, poi la pagina, con la freccia per tornare. */
+@media (max-width: 899px){
+  .ed-corpo{grid-template-columns:1fr}
+  .ed-nav{border-right:0;background:var(--bg);padding:var(--s2) var(--s3) var(--s5)}
+  .ed-pane{display:none;padding:var(--s3) var(--s3) calc(var(--s5) * 3)}
+  .ed.in-pagina .ed-nav{display:none}
+  .ed.in-pagina .ed-pane{display:block}
+  .ed.in-pagina .ed-indietro{display:inline-flex;align-items:center;justify-content:center}
+  .ed-giorno{grid-template-columns:1fr;gap:var(--s2)}
+  .ed-es-riga{flex-wrap:wrap}
+  .ed-es-nome{flex:1 1 100%}
+  .ed-es-qta{flex:1 1 90px}
+  .ed-tit{font-size:20px}
+}
+
+.ed-sub{margin:var(--s2) var(--s3) 2px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.ed-desc-testo{
+  display:block;width:100%;padding:var(--s2) var(--s3);
+  background:var(--bg);color:var(--text);
+  border:1px solid var(--line);border-radius:var(--radius);
+  font:inherit;font-size:17px;line-height:1.45;resize:vertical;
+}
+.ed-desc-testo:focus{outline:none;border-color:var(--accent)}
+.ed-desc-testo::placeholder{color:var(--muted)}

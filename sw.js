@@ -4,13 +4,14 @@
    l'app nel telefono. */
 
 /* Il numero della cache: si alza quando un telefono resta indietro. */
-const CACHE = 'wk-v4';
+const CACHE = 'wk-v5';
 
 const SHELL = [
   './',
   'index.html',
   'styles.css',
   'app.js',
+  'editor.js',
   'manifest.webmanifest',
   'icon-192.png',
   'icon-512.png'

@@ -125,10 +125,52 @@ function validSchede(w) {
    l'app quando si carica il file, e non cambia piu'. */
 const nomeVideoOk = v => typeof v === 'string' && /^[a-z0-9]{6,30}\.(mp4|webm|mov|m4v)$/.test(v);
 
+/* Quanti workout ha ogni giorno: da zero a quattro, giorno per giorno. Zero
+   e' un giorno senza allenamenti. I file di prima avevano un numero solo per
+   tutta la settimana (`slot`): se manca, vale quello per tutti i giorni. */
+function validConti(c, vecchio) {
+  const out = {};
+  const base = vecchio == null ? SLOT_BASE : validSlot(vecchio);
+  for (let g = 0; g < 7; g++) {
+    const n = c && typeof c === 'object' ? Math.round(+c[g]) : NaN;
+    out[g] = n >= 0 && n <= MAX_SLOT ? n : base;
+  }
+  return out;
+}
+
+/* Una data scritta come nel file: anno-mese-giorno. */
+const dataOk = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+
+/* Le preparazioni: un periodo da una data a un'altra, con un piano suo. Il
+   piano di una preparazione e' fatto a settimane: la settimana 1 e' quella
+   del calendario (lunedi'-domenica) in cui cade l'inizio, la 2 quella dopo, e
+   cosi' via. Se le settimane scritte sono meno di quelle del periodo, l'ultima
+   si ripete. Le schede e FIRST 15' della preparazione sono copie sue. */
+function validPrep(l) {
+  if (!Array.isArray(l)) return [];
+  return l.map(x => {
+    if (!x || typeof x !== 'object' || !dataOk(x.dal) || !dataOk(x.al) || x.al < x.dal) return null;
+    const sett = (Array.isArray(x.settimane) ? x.settimane : []).slice(0, 26).map(w => ({
+      workout: validWorkout(w && w.workout),
+      conti: validConti(w && w.conti, 1)
+    }));
+    if (!sett.length) sett.push({ workout: {}, conti: validConti(null, 1) });
+    return {
+      id: typeof x.id === 'string' && /^[\w-]{3,30}$/.test(x.id) ? x.id : 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      nome: String(x.nome == null ? '' : x.nome).slice(0, 50).trim(),
+      dal: x.dal, al: x.al,
+      settimane: sett,
+      schede: validSchede(x.schede),
+      mattina: validMattina(x.mattina),
+      mattinaVia: !!x.mattinaVia
+    };
+  }).filter(Boolean).sort((a, b) => a.dal < b.dal ? -1 : 1);
+}
+
 /* Il contenuto del file, e basta: serve a capire se due versioni sono uguali. */
 const contenuto = s => JSON.stringify({ workout: validWorkout(s.workout), schede: validSchede(s.schede),
-                                         slot: validSlot(s.slot), mattina: validMattina(s.mattina),
-                                         mattinaVia: !!s.mattinaVia });
+                                         conti: validConti(s.conti, s.slot), mattina: validMattina(s.mattina),
+                                         mattinaVia: !!s.mattinaVia, prep: validPrep(s.prep) });
 
 /* ------------------------------------------------------- lo stato ---- */
 
@@ -138,6 +180,8 @@ tstore.workout = validWorkout(tstore.workout);
 tstore.schede  = validSchede(tstore.schede);
 tstore.slot    = validSlot(tstore.slot);
 tstore.mattina = validMattina(tstore.mattina);
+tstore.conti   = validConti(tstore.conti, tstore.slot);
+tstore.prep    = validPrep(tstore.prep);
 /* la scheda del mattino si puo' togliere: nascosta per tutti, sta nel file */
 tstore.mattinaVia = !!tstore.mattinaVia;
 tstore.dirty   = !!tstore.dirty;
@@ -187,6 +231,8 @@ function ripescaLocale() {
   tstore.schede  = validSchede(tstore.schede);
   tstore.slot    = validSlot(tstore.slot);
   tstore.mattina = validMattina(tstore.mattina);
+  tstore.conti   = validConti(tstore.conti, tstore.slot);
+  tstore.prep    = validPrep(tstore.prep);
   tstore.mattinaVia = !!tstore.mattinaVia;
   if (!Array.isArray(tstore.daCaricare)) tstore.daCaricare = [];
   return true;
@@ -195,6 +241,7 @@ function ripescaLocale() {
 function sincronizzaLocale() {
   if (!ripescaLocale()) return false;
   paintW();
+  if (typeof edRidisegna === 'function') edRidisegna();
   paintSalva();
   return true;
 }
@@ -211,35 +258,73 @@ function touch() {
 
 const GIORNI  = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const GIORNI2 = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+const MESI3   = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const SETTIMANA = [1, 2, 3, 4, 5, 6, 0];      /* da lunedi' a domenica */
 
 /* Una riga di tabella: le celle in ordine, ognuna con le sue classi. */
 function tabRiga(celle, cls) {
   const r = el('div', 'tabr' + (cls ? ' ' + cls : ''));
   for (const c of celle) {
     const d = el('div', 'tabc' + (c.cls ? ' ' + c.cls : ''), c.t);
-    if (c.k) d.dataset.cella = c.k;
     r.appendChild(d);
   }
   return r;
 }
 
-function paintEdit() {
-  const b = $('wMod');
-  b.hidden = !scrive();
-  b.textContent = modifica() ? 'done' : 'edit';
-  b.classList.toggle('on', modifica());
+/* ------------------------------------------------ le date ---- */
+
+const pad2 = n => (n < 10 ? '0' : '') + n;
+const chiaveData = d => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+const daChiave = k => new Date(k + 'T00:00:00');
+function piuGiorni(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+/* il lunedi' della settimana di una data */
+function lunedi(d) { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
+/* "3 Nov" */
+const dataCorta = k => { const d = daChiave(k); return d.getDate() + ' ' + MESI3[d.getMonth()]; };
+const giorniFra = (a, b) => Math.round((daChiave(b) - daChiave(a)) / 86400000);
+
+/* ------------------------------------------------ quale piano vale ---- */
+
+/* La preparazione in corso in una data, o null. */
+const prepDi = k => tstore.prep.find(p => p.dal <= k && k <= p.al) || null;
+
+/* Il numero della settimana di una preparazione in cui cade una data: 0 per la
+   prima. Oltre l'ultima scritta si ripete l'ultima. */
+function settimanaDi(p, k) {
+  const i = Math.floor(giorniFra(chiaveData(lunedi(daChiave(p.dal))), chiaveData(lunedi(daChiave(k)))) / 7);
+  return Math.max(0, Math.min(i, p.settimane.length - 1));
 }
 
-$('wMod').addEventListener('click', () => {
-  mostra.mw = !mostra.mw;
-  salvaMostra();
-  paintEdit();
-  paintW();
-});
+/* Il piano che vale in una data: quello della preparazione, se ce n'e' una in
+   corso, altrimenti quello di sempre. `src` dice da dove vengono le schede. */
+function pianoDi(k) {
+  const p = prepDi(k);
+  if (!p) return { src: 'base', prep: null, workout: tstore.workout, conti: tstore.conti,
+                   schede: tstore.schede, mattina: tstore.mattina, mattinaVia: tstore.mattinaVia };
+  const i = settimanaDi(p, k);
+  const w = p.settimane[i];
+  return { src: p.id, prep: p, sett: i, workout: w.workout, conti: w.conti,
+           schede: p.schede, mattina: p.mattina, mattinaVia: p.mattinaVia };
+}
+
+/* Le schede di una fonte: il piano di sempre o una preparazione. */
+function schedeDi(src) {
+  if (src === 'base') return tstore.schede;
+  const p = tstore.prep.find(x => x.id === src);
+  return p ? p.schede : {};
+}
+
+/* I workout di un giorno di un piano: solo le caselle che il giorno ha. */
+const workoutDelGiorno = (pi, g) => (pi.workout[g] || []).slice(0, pi.conti[g] || 0);
+
+/* ------------------------------------------------ la pagina ---- */
+
+function paintEdit() {
+  $('wMod').hidden = !scrive();
+}
 
 /* Ridisegnare la pagina la rifa' da zero: la posizione dello scorrimento si
-   segna prima e si rimette dopo, se no toccare una pastiglia in fondo
-   riporterebbe su. */
+   segna prima e si rimette dopo. */
 function paintW() {
   const y = window.scrollY;
   disegnaW();
@@ -250,105 +335,69 @@ function paintW() {
    dove l'aveva lasciata il dito. */
 let chipX = 0;
 
-/* Sette giorni, due caselle per giorno. Da leggere e' una tabella; con edit
-   acceso diventa i campi per scriverla. Mai tutte e due insieme. */
+/* La pagina si legge e basta: si scrive nell'editor. Tutto quello che si vede
+   viene dal piano che vale oggi, e la tabella giorno per giorno: se una
+   preparazione finisce a meta' settimana, da quel giorno torna il piano di
+   sempre. */
 function disegnaW() {
   const pagina = $('wlist');
   pagina.textContent = '';
-  const oggi = today().getDay();
-  /* Due colonne: a sinistra il piano e quello di oggi, a destra le schede. Sul
-     telefono stanno una sotto l'altra, nello stesso ordine; dal PC, affiancate,
-     si scrive una scheda guardando il piano. */
+  const t0 = today();
+  const kOggi = chiaveData(t0);
+  const oggi = pianoDi(kOggi);
+
   const box = el('section', 'col col-sx');
   const dx = el('section', 'col col-dx');
   pagina.appendChild(box);
   pagina.appendChild(dx);
-  if (!scrive()) { scheda = null; scelti = []; }
 
-  if (!modifica()) {
-    const n = tstore.slot;
-    const tab = el('div', 'tab tab-w');
-    /* le colonne sono quante i workout del giorno: la griglia la decide qui */
-    tab.style.setProperty('--wcol', n);
-    tab.appendChild(tabRiga([{ t: '' }].concat(ORDINALI.slice(0, n).map(t => ({ t: t }))), 'capo'));
-    for (const g of [1, 2, 3, 4, 5, 6, 0]) {
-      const r = tstore.workout[g] || [];
-      const celle = [{ t: GIORNI2[g], cls: 'eti' }];
-      for (let i = 0; i < n; i++) celle.push({ t: r[i] || '—', cls: r[i] ? '' : 'vuota' });
-      tab.appendChild(tabRiga(celle, g === oggi ? 'oggi' : ''));
-    }
-    box.appendChild(tab);
-    paintMorning(box);
-    paintOggi(box);
-    paintSchede(dx);
-    return;
+  /* la preparazione in corso: nome, date, quanto manca */
+  if (oggi.prep) {
+    const p = oggi.prep;
+    const manca = giorniFra(kOggi, p.al);
+    const b = el('div', 'prepbanda');
+    b.appendChild(el('p', 'prepbanda-eti', 'PREPARATION' + (p.nome ? ' · ' + p.nome : '')));
+    b.appendChild(el('p', 'prepbanda-date', dataCorta(p.dal) + ' → ' + dataCorta(p.al) +
+      ' · ' + (manca === 0 ? 'last day' : manca === 1 ? '1 day left' : manca + ' days left')));
+    box.appendChild(b);
   }
 
-  /* Quanti workout al giorno: meno e piu', da uno a quattro. Vale per tutti i
-     giorni. Togliere una colonna non cancella quello che c'e' scritto dentro. */
-  const n = tstore.slot;
-  const cnt = el('div', 'wconta');
-  cnt.appendChild(el('span', 'wconta-eti', 'Workouts per day'));
-  const meno = el('button', 'schbtn wconta-btn', '\u2212');
-  meno.type = 'button';
-  meno.dataset.slotdir = '-1';
-  meno.disabled = n <= 1;
-  meno.setAttribute('aria-label', 'One workout less per day');
-  const piu = el('button', 'schbtn wconta-btn', '+');
-  piu.type = 'button';
-  piu.dataset.slotdir = '1';
-  piu.disabled = n >= MAX_SLOT;
-  piu.setAttribute('aria-label', 'One workout more per day');
-  cnt.appendChild(meno);
-  cnt.appendChild(el('span', 'wconta-num', String(n)));
-  cnt.appendChild(piu);
-  box.appendChild(cnt);
-  /* se in una colonna nascosta c'e' ancora del testo, lo si dice */
-  const nascosti = [1, 2, 3, 4, 5, 6, 0].some(g => (tstore.workout[g] || []).slice(n).some(Boolean));
-  if (nascosti) box.appendChild(el('p', 'nota wnota', 'The hidden columns keep what you wrote: add them back and it returns.'));
-
-  /* La scheda del mattino si toglie da qui: spenta, sparisce per tutti, ma
-     quello che c'e' scritto dentro resta. Riaccesa, torna com'era. */
-  const mt = el('label', 'wconta wmattina');
-  const cb = el('input', 'schsel');
-  cb.type = 'checkbox';
-  cb.checked = !tstore.mattinaVia;
-  cb.dataset.mattinavia = '1';
-  mt.appendChild(cb);
-  mt.appendChild(el('span', 'wconta-eti', 'Show the list \u201c' + nomeMattina() + '\u201d'));
-  box.appendChild(mt);
-
-  /* Il piano e' generico: da lunedi' a domenica, sempre uguale. */
-  for (const g of [1, 2, 3, 4, 5, 6, 0]) {
-    /* un giorno per riquadro: sul PC il nome sta a sinistra e i campi in fila */
-    const giorno = el('div', 'wday');
-    giorno.style.setProperty('--wcol', n);
-    giorno.appendChild(el('p', 'wgiorno' + (g === oggi ? ' oggi' : ''), GIORNI[g]));
-    box.appendChild(giorno);
-    for (let slot = 0; slot < n; slot++) {
-      const row = el('div', 'wrow');
-      row.appendChild(el('span', 'wslot', ORDINALI[slot]));
-      const inp = el('input', 'wcampo');
-      inp.type = 'text';
-      inp.maxLength = 60;
-      inp.dataset.g = g;
-      inp.dataset.slot = slot;
-      inp.value = (tstore.workout[g] || [])[slot] || '';
-      inp.placeholder = 'What you do';
-      row.appendChild(inp);
-      giorno.appendChild(row);
+  /* La settimana di adesso, da lunedi' a domenica, ogni giorno col piano che
+     vale in quella data. Le colonne sono quante ne servono al giorno piu'
+     pieno; gli altri hanno le caselle in piu' vuote. */
+  const lun = lunedi(t0);
+  const giorni = SETTIMANA.map((g, i) => {
+    const d = piuGiorni(lun, i);
+    const k = chiaveData(d);
+    const pi = pianoDi(k);
+    return { g: g, d: d, k: k, pi: pi, w: workoutDelGiorno(pi, g) };
+  });
+  const n = Math.max(1, ...giorni.map(x => x.pi.conti[x.g] || 0));
+  const tab = el('div', 'tab tab-w');
+  tab.style.setProperty('--wcol', n);
+  tab.appendChild(tabRiga([{ t: '' }].concat(ORDINALI.slice(0, n).map(t => ({ t: t }))), 'capo'));
+  for (const x of giorni) {
+    const celle = [{ t: GIORNI2[x.g] + ' ' + x.d.getDate(), cls: 'eti' }];
+    const quanti = x.pi.conti[x.g] || 0;
+    for (let i = 0; i < n; i++) {
+      if (i >= quanti) celle.push({ t: '', cls: 'fuori' });
+      else celle.push({ t: x.w[i] || '—', cls: x.w[i] ? '' : 'vuota' });
     }
+    const cls = [x.k === kOggi ? 'oggi' : '', x.pi.prep ? 'inprep' : ''].filter(Boolean).join(' ');
+    tab.appendChild(tabRiga(celle, cls));
   }
-  paintSchede(dx);
+  box.appendChild(tab);
+
+  paintMorning(box, oggi);
+  paintOggi(box, oggi, t0.getDay());
+  paintSchede(dx, oggi);
 }
 
-/* Gli allenamenti diversi scritti nel piano, nell'ordine in cui compaiono. */
-function allenamenti() {
+/* Gli allenamenti diversi scritti in un piano, nell'ordine della settimana. */
+function allenamentiDi(pi) {
   const out = [];
-  for (const g of [1, 2, 3, 4, 5, 6, 0]) {
-    for (const v of (tstore.workout[g] || []).slice(0, tstore.slot)) {
-      if (v && out.indexOf(v) < 0) out.push(v);
-    }
+  for (const g of SETTIMANA) {
+    for (const v of workoutDelGiorno(pi, g)) if (v && out.indexOf(v) < 0) out.push(v);
   }
   return out;
 }
@@ -367,34 +416,25 @@ function frecceChip(riga) {
   dx.classList.toggle('spenta', f.scrollLeft >= f.scrollWidth - f.clientWidth - 1);
 }
 
-/* Quale scheda si sta scrivendo, o null: una per volta. */
-let scheda = null;
-
-/* Una scheda da leggere: il nome nella riga grigia in alto, poi gli esercizi.
-   In fondo alla testata ci va quello che passa `coda`: il bottone per
-   modificarla. */
-function tabScheda(nome, sc, coda) {
+/* Una scheda da leggere: il nome nella riga grigia in alto, poi gli esercizi. */
+function tabScheda(nome, sc) {
   const tab = el('div', 'tab tab-i');
   const cap = el('div', 'tabr capo schcapo');
   cap.appendChild(el('div', 'tabc', nome));
   /* una quantita' scritta senza esercizio sta nella banda del nome */
   const sole = (sc.es || []).filter(r => !r[0] && r[1]).map(r => r[1]);
   if (sole.length) cap.appendChild(el('div', 'tabc val', sole.join('  ·  ')));
-  if (coda) {
-    const cb = el('div', 'tabc tabbtn');
-    cb.appendChild(coda);
-    cap.appendChild(cb);
-  }
   tab.appendChild(cap);
   return tab;
 }
 
-/* Le righe di una scheda: gli esercizi, e il recupero in fondo a destra. Con
-   `dx` il recupero esiste solo se e' scritto. */
-function righeScheda(tab, sc, dx, nome) {
+/* Le righe di una scheda: gli esercizi, e il recupero in fondo a destra, solo
+   se e' scritto. `src` e `nome` dicono dove sta la scheda, per aprire la
+   descrizione di un esercizio. */
+function righeScheda(tab, sc, src, nome) {
   const pila = new Pila(tab);
   sc.es.forEach((r, i) => {
-    if (!r[0] && r[1]) return;
+    if (!r[0]) return;              /* senza nome: sta nella banda, o e' vuota */
     const dove = pila.vai(r[2] || []);
     const riga = r[1]
       ? tabRiga([{ t: r[0] || '—', cls: r[0] ? 'eti' : 'eti vuota' },
@@ -402,34 +442,32 @@ function righeScheda(tab, sc, dx, nome) {
       : tabRiga([{ t: r[0], cls: 'eti' }], 'solo');
     /* con una descrizione dentro, la riga si tocca e si apre. La freccia dice
        che sotto c'e' qualcosa da leggere; il triangolo che c'e' un video. */
-    if ((r[3] || r[4]) && nome) {
+    if (r[3] || r[4]) {
       riga.classList.add('condesc');
-      riga.dataset.desces = nome + '|' + i;
+      riga.dataset.desces = JSON.stringify([src, nome, i]);
       riga.lastChild.appendChild(el('span', 'desfrec', r[4] || haVideo(r[3]) ? '▶' : '▾'));
     }
     dove.appendChild(riga);
   });
-  if (sc.rec || !dx) {
+  if (sc.rec) {
     const r = el('div', 'tabr recgiu');
     const c = el('div', 'tabc');
     c.appendChild(el('span', 'receti', 'Recovery'));
-    c.appendChild(el('span', 'recval' + (sc.rec ? '' : ' vuota'), sc.rec || '—'));
+    c.appendChild(el('span', 'recval', sc.rec));
     r.appendChild(c);
     tab.appendChild(r);
   } else if (!sc.es.length) {
-    tab.appendChild(tabRiga([{ t: '—', cls: 'vuota' }, { t: '' }]));
+    tab.appendChild(tabRiga([{ t: '—', cls: 'vuota' }]));
   }
   return tab;
 }
 
 /* Le scatole dei gruppi aperte mentre si scorre le righe di una scheda. Ogni
    riga dice la sua via: quello che e' in comune con la riga prima resta
-   aperto, il resto si chiude e si riapre. In modifica la targhetta e' un
-   bottone che apre il pannello dei gruppi su quel gruppo. */
-function Pila(radice, modifica) {
+   aperto, il resto si chiude e si riapre. */
+function Pila(radice) {
   this.via = [];
   this.dove = [radice];
-  this.modifica = !!modifica;
 }
 
 Pila.prototype.vai = function (g) {
@@ -447,217 +485,56 @@ Pila.prototype.vai = function (g) {
     this.dove.push(corpo);
     if (!primo) primo = box;
   }
-  if (primo) {
-    const testo = g.slice(n).join(' › ');
-    const t = el(this.modifica ? 'button' : 'span', 'grpeti', testo);
-    if (this.modifica) {
-      t.type = 'button';
-      t.dataset.gvia = JSON.stringify(g);
-      t.setAttribute('aria-label', 'Edit group ' + testo);
-    }
-    primo.appendChild(t);
-  }
+  if (primo) primo.appendChild(el('span', 'grpeti', g.slice(n).join(' › ')));
   return this.dove[this.dove.length - 1];
 };
-
-/* I campi di una scheda aperta, dentro un riquadro col bordo verde. */
-function campiScheda(nome, sc, tab, senzaRec) {
-  const voci = { es: 'exercise', qta: 'how much', piu: '+  Add an exercise' };
-  const cassa = el('div', 'schapri');
-  /* lo spazio a destra per le barre dei gruppi: lo lasciano tutte le righe */
-  const prof = sc.es.reduce((m, r) => Math.max(m, (r[2] || []).length), 0);
-  cassa.style.setProperty('--gres', (prof ? prof * 5 + 2 : 0) + 'px');
-  cassa.appendChild(tab);
-
-  /* la scheda del mattino si rinomina qui, al posto del recupero */
-  if (nome === MORNING) {
-    const nrow = el('div', 'wrow wrec');
-    nrow.appendChild(el('span', 'wslot', 'Name'));
-    const nin = el('input', 'wcampo');
-    nin.type = 'text';
-    nin.maxLength = 40;
-    nin.dataset.mattina = '1';
-    nin.value = tstore.mattina || '';
-    nin.placeholder = MATTINA_BASE;
-    nin.setAttribute('aria-label', 'Name of this list');
-    nrow.appendChild(nin);
-    cassa.appendChild(nrow);
-  }
-
-  if (!senzaRec) {
-    const rrow = el('div', 'wrow wrec');
-    rrow.appendChild(el('span', 'wslot', 'Rec.'));
-    const rin = el('input', 'wcampo');
-    rin.type = 'text';
-    rin.maxLength = 60;
-    rin.dataset.rec = nome;
-    rin.value = sc.rec || '';
-    rin.placeholder = 'recovery';
-    rrow.appendChild(rin);
-    cassa.appendChild(rrow);
-  }
-
-  const pila = new Pila(cassa, true);
-  for (let i = 0; i < sc.es.length; i++) {
-    const dove = pila.vai(sc.es[i][2] || []);
-    const row = el('div', 'wrow');
-    const sel = el('input', 'schsel');
-    sel.type = 'checkbox';
-    sel.checked = scelti.indexOf(i) >= 0;
-    sel.dataset.sel = i;
-    sel.setAttribute('aria-label', 'Pick this exercise');
-    row.appendChild(sel);
-    for (const j of [0, 1]) {
-      const inp = el('input', 'wcampo');
-      inp.type = 'text';
-      inp.maxLength = 60;
-      inp.dataset.sch = nome;
-      inp.dataset.riga = i;
-      inp.dataset.col = j;
-      inp.value = sc.es[i][j] || '';
-      inp.placeholder = j === 0 ? voci.es : voci.qta;
-      row.appendChild(inp);
-    }
-    /* il bottone della descrizione: acceso quando la descrizione c'e' gia' */
-    const d = sc.es[i][3], vd = sc.es[i][4];
-    const dsc = el('button', 'schbtn schdesc' + (d || vd ? ' piena' : ''), vd || haVideo(d) ? '▶' : '▾');
-    dsc.type = 'button';
-    dsc.dataset.desmod = nome + '|' + i;
-    dsc.setAttribute('aria-label', 'Description of this exercise');
-    row.appendChild(dsc);
-    const x = el('button', 'schx', '×');
-    x.type = 'button';
-    x.dataset.togli = nome;
-    x.dataset.riga = i;
-    x.setAttribute('aria-label', 'Remove this exercise');
-    row.appendChild(x);
-    dove.appendChild(row);
-  }
-  if (scelti.length) {
-    const row = el('div', 'wrow wgrp');
-    const b = el('button', 'schbtn', 'group');
-    b.type = 'button';
-    b.dataset.raggruppa = nome;
-    row.appendChild(b);
-    if (scelti.some(i => ((sc.es[i] || [])[2] || []).length)) {
-      const u = el('button', 'schbtn', 'ungroup');
-      u.type = 'button';
-      u.dataset.sgruppa = nome;
-      row.appendChild(u);
-    }
-    for (const f of [['su', '↑'], ['giu', '↓']]) {
-      const m = el('button', 'schbtn schfrec', f[1]);
-      m.type = 'button';
-      m.dataset[f[0]] = nome;
-      m.setAttribute('aria-label', f[0] === 'su' ? 'Move up' : 'Move down');
-      row.appendChild(m);
-    }
-    cassa.appendChild(row);
-  }
-  const piu = el('button', 'lpiu', voci.piu);
-  piu.type = 'button';
-  piu.dataset.piues = nome;
-  cassa.appendChild(piu);
-  const pg = el('button', 'lpiu', 'Groups');
-  pg.type = 'button';
-  pg.dataset.piugrp = nome;
-  cassa.appendChild(pg);
-  return cassa;
-}
-
-/* Le righe scelte dentro la scheda aperta. Si svuotano appena la scheda cambia
-   o le righe si spostano. */
-let scelti = [];
-
-function sgruppa(nome) {
-  const sc = tstore.schede[nome];
-  if (!sc || !scelti.length) return;
-  const dentro = scelti.slice().sort((a, b) => a - b).filter(i => sc.es[i]);
-  if (!dentro.length) { scelti = []; return paintW(); }
-  const prese = dentro.map(i => sc.es[i]);
-  for (const r of prese) r[2] = (r[2] || []).slice(0, -1);
-  const resto = sc.es.filter((r, i) => dentro.indexOf(i) < 0);
-  const posto = sc.es.slice(0, dentro[0]).filter((r, i) => dentro.indexOf(i) < 0).length;
-  sc.es = resto.slice(0, posto).concat(prese, resto.slice(posto));
-  scelti = [];
-  touch();
-  paintW();
-}
-
-/* Le righe scelte salgono o scendono di un posto. La riga scavalcata dice
-   anche in quale gruppo si finisce. */
-function spostaScelti(nome, dir) {
-  const sc = tstore.schede[nome];
-  if (!sc || !scelti.length) return;
-  const idx = scelti.slice().sort((a, b) => a - b).filter(i => sc.es[i]);
-  if (!idx.length) return;
-  const vicino = dir < 0 ? idx[0] - 1 : idx[idx.length - 1] + 1;
-  if (vicino < 0 || vicino >= sc.es.length || idx.indexOf(vicino) >= 0) return;
-  const blocco = idx.map(i => sc.es[i]);
-  const scavalcata = sc.es[vicino];
-  for (const r of blocco) r[2] = (scavalcata[2] || []).slice();
-  const resto = sc.es.filter((r, i) => idx.indexOf(i) < 0);
-  const posto = resto.indexOf(scavalcata) + (dir < 0 ? 0 : 1);
-  sc.es = resto.slice(0, posto).concat(blocco, resto.slice(posto));
-  scelti = blocco.map(r => sc.es.indexOf(r));
-  touch();
-  paintW();
-}
 
 /* L'attivita' del mattino ha una scheda sua, che non viene dal piano: niente
    recupero. Nel file sta sotto una chiave fissa, che non cambia mai; il nome
    che si legge sta a parte e si riscrive quando si vuole. */
 const MORNING = '__morning';
-/* il nome da mostrare di una scheda: quello della mattina e' scritto a parte */
-const nomeVisto = nome => nome === MORNING ? nomeMattina() : nome;
+const nomeMattinaDi = pi => (pi && pi.mattina) || MATTINA_BASE;
 
-function paintMorning(box) {
-  const sc = tstore.schede[MORNING] || { es: [], rec: '' };
-  const aperta = scheda === MORNING;
-  /* chi legge e basta non vede la mattina vuota: non avrebbe niente da farci */
-  if (tstore.mattinaVia) return;       /* tolta: non la vede nessuno */
-  if (!scrive() && !sc.es.length) return;
-  const b = scrive() ? el('button', 'schbtn', aperta ? 'done' : 'edit') : null;
-  if (b) { b.type = 'button'; b.dataset.scheda = MORNING; }
-  const tab = tabScheda(nomeMattina(), sc, b);
-  box.appendChild(aperta ? campiScheda(MORNING, sc, tab, true)
-                         : righeScheda(tab, { es: sc.es, rec: '' }, true, MORNING));
+function paintMorning(box, pi) {
+  if (pi.mattinaVia) return;               /* tolta: non la vede nessuno */
+  const sc = pi.schede[MORNING] || { es: [], rec: '' };
+  if (!sc.es.length) return;               /* vuota: niente da far vedere */
+  const tab = tabScheda(nomeMattinaDi(pi), sc);
+  box.appendChild(righeScheda(tab, { es: sc.es, rec: '' }, pi.src, MORNING));
 }
 
-/* Quello che si fa oggi, senza aprire niente: le due schede del giorno, solo
-   se hanno degli esercizi scritti. */
-function paintOggi(box) {
-  const r = tstore.workout[today().getDay()] || [];
+/* Quello che si fa oggi, senza aprire niente: le schede del giorno, solo se
+   hanno degli esercizi scritti. */
+function paintOggi(box, pi, g) {
   let capo = false;
-  for (let slot = 0; slot < tstore.slot; slot++) {
-    const nome = r[slot];
+  for (const nome of workoutDelGiorno(pi, g)) {
     if (!nome) continue;
-    const sc = tstore.schede[nome];
+    const sc = pi.schede[nome];
     if (!sc || (!sc.es.length && !sc.rec)) continue;
     if (!capo) { box.appendChild(el('p', 'grp', 'TODAY WORKOUTS')); capo = true; }
-    const t = tabScheda(nome, sc, null);
+    const t = tabScheda(nome, sc);
     t.classList.add('tab-oggi');
-    box.appendChild(righeScheda(t, sc, true, nome));
+    box.appendChild(righeScheda(t, sc, pi.src, nome));
   }
 }
 
-/* Le schede, sotto la tabella del piano. Chiuse si leggono come tabelle; con il
-   loro bottone si aprono i campi. */
-function paintSchede(box) {
-  const apri = el('button', 'grp grpcli grproot' + (mostra.sch ? ' open' : ''));
+/* Le schede del piano che vale oggi, dentro una tendina: una barra con il
+   numero e la freccia, che si apre e si chiude. Solo quelle con qualcosa
+   dentro: le altre non avrebbero niente da far leggere. */
+function paintSchede(box, pi) {
+  const nomi = allenamentiDi(pi).filter(n => pi.schede[n] && (pi.schede[n].es.length || pi.schede[n].rec));
+  const apri = el('button', 'wkbar' + (mostra.sch ? ' open' : ''));
   apri.type = 'button';
   apri.dataset.schroot = '1';
   apri.setAttribute('aria-expanded', mostra.sch ? 'true' : 'false');
-  apri.appendChild(el('span', 'grpfrec', mostra.sch ? '▾' : '▸'));
-  apri.appendChild(el('span', 'grpnome', 'WORKOUTS'));
+  apri.appendChild(el('span', 'wkbar-nome', 'WORKOUTS'));
+  apri.appendChild(el('span', 'wkbar-num', String(nomi.length)));
+  apri.appendChild(el('span', 'wkbar-frec', '▾'));
   box.appendChild(apri);
   if (!mostra.sch) return;
 
-  /* chi legge e basta vede solo le schede con qualcosa dentro */
-  const nomi = allenamenti().filter(n => scrive() || (tstore.schede[n] && (tstore.schede[n].es.length || tstore.schede[n].rec)));
   if (!nomi.length) {
-    box.appendChild(el('p', 'vuoto', scrive() ? 'Nothing in the plan yet: tap edit and write what you do each day.'
-                                              : 'Nothing in the plan yet.'));
+    box.appendChild(el('p', 'vuoto', 'Nothing in the plan yet.'));
     return;
   }
 
@@ -691,69 +568,43 @@ function paintSchede(box) {
     box.appendChild(el('p', 'vuoto', 'No workout chosen'));
     return;
   }
-
-  /* le schede stanno in un contenitore loro: sul PC largo si mettono in due
-     colonne */
   const lista = el('div', 'schlista');
   box.appendChild(lista);
   for (const nome of visti) {
-    const sc = tstore.schede[nome] || { es: [], rec: '' };
-    const apertaSc = scheda === nome;
-    const b = scrive() ? el('button', 'schbtn', apertaSc ? 'done' : 'edit') : null;
-    if (b) { b.type = 'button'; b.dataset.scheda = nome; }
-    const tab = tabScheda(nome, sc, b);
-    lista.appendChild(apertaSc ? campiScheda(nome, sc, tab) : righeScheda(tab, sc, false, nome));
+    const sc = pi.schede[nome];
+    lista.appendChild(righeScheda(tabScheda(nome, sc), sc, pi.src, nome));
   }
 }
 
-/* Si scrive quando si esce dalla casella: cosi' non si segna il file da
-   salvare a ogni lettera battuta. */
-$('wlist').addEventListener('change', ev => {
-  const mv = ev.target.closest('input[data-mattinavia]');
-  if (mv) {
-    tstore.mattinaVia = !mv.checked;
-    touch();
+/* ------------------------------------------------- i tocchi sulla pagina ---- */
+
+$('wlist').addEventListener('click', ev => {
+  if (ev.target.closest('button[data-schroot]')) {
+    mostra.sch = !mostra.sch;
+    salvaMostra();
+    paintW();
     return;
   }
-  const i = ev.target.closest('input.wcampo');
-  if (!i) return;
-  if (i.dataset.mattina) {
-    const v = validMattina(i.value);
-    if (v === MATTINA_BASE ? !tstore.mattina : v === tstore.mattina) return;
-    if (v && v !== MATTINA_BASE) tstore.mattina = v; else delete tstore.mattina;
-    touch();
-    /* si cambia solo la scritta in testata: ridisegnare adesso si mangerebbe il
-       tocco che ha fatto uscire dal campo */
-    const cap = i.closest('.schapri').querySelector('.schcapo .tabc');
-    if (cap) cap.textContent = nomeMattina();
+  const fr = ev.target.closest('button[data-chipscorri]');
+  if (fr) {
+    const f = fr.parentElement.querySelector('.chipsch');
+    f.scrollBy({ left: +fr.dataset.chipscorri * f.clientWidth * 0.8, behavior: 'smooth' });
     return;
   }
-  if (i.dataset.sch || i.dataset.rec) {
-    const n = i.dataset.sch || i.dataset.rec;
-    const sc = tstore.schede[n] || { es: [], rec: '' };
-    const v = i.value.slice(0, 60).trim();
-    if (i.dataset.rec) { if (sc.rec === v) return; sc.rec = v; }
-    else {
-      const r = +i.dataset.riga, c = +i.dataset.col;
-      if (!sc.es[r]) sc.es[r] = ['', '', [], ''];
-      if (sc.es[r][c] === v) return;
-      sc.es[r][c] = v;
-    }
-    if (sc.es.some(x => x[0] || x[1]) || sc.rec) tstore.schede[n] = sc;
-    else delete tstore.schede[n];
-    touch();
+  const ch = ev.target.closest('button[data-chipsch]');
+  if (ch) {
+    const n = ch.dataset.chipsch;
+    if (mostra.off.indexOf(n) < 0) mostra.off = mostra.off.concat([n]);
+    else mostra.off = mostra.off.filter(x => x !== n);
+    salvaMostra();
+    paintW();
     return;
   }
-  if (i.dataset.g == null) return;
-  const g = +i.dataset.g, slot = +i.dataset.slot;
-  const r = (tstore.workout[g] || []).slice();
-  while (r.length <= slot) r.push('');
-  const v = i.value.slice(0, 60).trim();
-  if (r[slot] === v) return;
-  r[slot] = v;
-  while (r.length && !r[r.length - 1]) r.pop();
-  if (r.length) tstore.workout[g] = r; else delete tstore.workout[g];
-  touch();
+  const dl = ev.target.closest('.tabr[data-desces]');
+  if (dl) {
+    const q = JSON.parse(dl.dataset.desces);
+    apriDesc(q[0], q[1], q[2]);
+  }
 });
 
 /* ------------------------------------------- descrizione di un esercizio --- */
@@ -761,7 +612,6 @@ $('wlist').addEventListener('change', ev => {
 /* Si apre a tutto schermo, col testo grande: si legge mentre si fa
    l'esercizio. Dalla scheda aperta la stessa finestra si scrive. */
 const dlgDesc = $('descrizione');
-let desc = null;                  /* { nome, riga } mentre si scrive, o null */
 
 /* Un link scritto da solo su una riga: e' un video. */
 const RIGA_LINK = /^\s*(https?:\/\/\S+)\s*$/i;
@@ -857,68 +707,28 @@ function testoDesc(box, txt) {
   }
 }
 
-function apriDesc(nome, i, scrivibile) {
-  const sc = tstore.schede[nome];
+/* La descrizione si apre per leggerla: si scrive nell'editor. `src` dice
+   se l'esercizio sta nel piano di sempre o in una preparazione. */
+function apriDesc(src, nome, i) {
+  const sc = schedeDi(src)[nome];
   const r = sc && sc.es[i];
   if (!r) return;
-  $('descTit').textContent = r[0] || nomeVisto(nome);
+  $('descTit').textContent = r[0] || (nome === MORNING ? 'FIRST 15\'' : nome);
   testoDesc($('descTesto'), r[3]);
-  $('descTesto').hidden = !!scrivibile;
-  $('descCampo').hidden = !scrivibile;
-  $('descVideo').hidden = !scrivibile;
-  $('descCampo').value = r[3] || '';
-  $('descLink').value = '';
-  $('descOk').hidden = !scrivibile;
-  desc = scrivibile ? { nome: nome, riga: i, video: r[4] || '' } : null;
   dlgDesc.showModal();
   dlgDesc.focus();                /* niente tastiera addosso appena si apre */
-  mostraVideo(r[4] || '', !!scrivibile);
+  mostraVideo(r[4] || '', false);
 }
 
 /* Chiudendo, i video si fermano: la finestra si svuota. */
 function chiudiDesc() {
-  desc = null;
   pulisciVideo();
   dlgDesc.close();
   $('descTesto').textContent = '';
 }
 
 $('descChiudi').addEventListener('click', chiudiDesc);
-dlgDesc.addEventListener('cancel', () => { desc = null; pulisciVideo(); $('descTesto').textContent = ''; });
-
-/* Il link incollato va in fondo al testo, su una riga sua. */
-$('descLinkOk').addEventListener('click', () => {
-  const v = $('descLink').value.trim();
-  if (!/^https?:\/\/\S+$/i.test(v)) { $('descLink').focus(); return; }
-  const c = $('descCampo');
-  const t = c.value.replace(/\s+$/, '');
-  c.value = (t ? t + '\n' : '') + v + '\n';
-  $('descLink').value = '';
-});
-
-$('descOk').addEventListener('click', () => {
-  if (desc) {
-    /* un link rimasto nel campo senza premere "+ link" non si perde */
-    const pend = $('descLink').value.trim();
-    if (/^https?:\/\/\S+$/i.test(pend)) $('descLinkOk').click();
-    const sc = tstore.schede[desc.nome];
-    const r = sc && sc.es[desc.riga];
-    if (r) {
-      const v = $('descCampo').value.slice(0, 4000).trim();
-      let cambiato = false;
-      if ((r[3] || '') !== v) { r[3] = v; cambiato = true; }
-      /* il video: il file e' gia' nel telefono; al prossimo Save parte per GitHub */
-      if ((r[4] || '') !== desc.video) {
-        r[4] = desc.video;
-        if (desc.video && tstore.daCaricare.indexOf(desc.video) < 0) tstore.daCaricare.push(desc.video);
-        cambiato = true;
-      }
-      if (cambiato) touch();
-    }
-  }
-  chiudiDesc();
-  paintW();
-});
+dlgDesc.addEventListener('cancel', () => { pulisciVideo(); $('descTesto').textContent = ''; });
 
 /* ------------------------------------------------------ i video ---- */
 
@@ -1054,8 +864,11 @@ async function scaricaVideo() {
   scaricando = true;
   try {
     const nomi = [];
-    for (const k of Object.keys(tstore.schede)) {
-      for (const r of tstore.schede[k].es) if (r[4] && nomi.indexOf(r[4]) < 0) nomi.push(r[4]);
+    /* i video del piano di sempre e di tutte le preparazioni */
+    for (const tutte of [tstore.schede].concat(tstore.prep.map(p => p.schede))) {
+      for (const k of Object.keys(tutte)) {
+        for (const r of tutte[k].es) if (r[4] && nomi.indexOf(r[4]) < 0) nomi.push(r[4]);
+      }
     }
     for (const n of nomi) if (!(await vGet(n))) await prendiVideo(n);
   } finally {
@@ -1085,11 +898,8 @@ async function mostraVideo(nome, scrivibile) {
   pulisciVideo();
   vMostrato = nome;
   const slot = $('vSlot'), v = $('vVideo'), st = $('vStato');
-  $('vEdit').hidden = !scrivibile;
-  $('vTogli').hidden = !nome;
-  $('vScegli').textContent = nome ? 'change video' : '+ video';
-  /* chi legge non vede uno slot vuoto; chi scrive si', per riempirlo */
-  slot.hidden = !nome && !scrivibile;
+  /* senza video lo slot non si vede */
+  slot.hidden = !nome;
   v.hidden = true;
   $('vFull').hidden = true;
   if (!nome) { st.textContent = 'No video'; return; }
@@ -1155,36 +965,21 @@ function ruota() {
 }
 if (orizzontale.addEventListener) orizzontale.addEventListener('change', ruota);
 
-/* Scegliere un video: il file resta subito nel telefono, e lo slot lo mostra.
-   Nel piano entra con Confirm. */
-$('vFile').addEventListener('change', async ev => {
-  const f = ev.target.files && ev.target.files[0];
-  ev.target.value = '';
-  if (!f || !desc) return;
+/* Un file video scelto nell'editor: resta subito nel telefono, sotto un nome
+   nuovo, e al Save parte per GitHub. Torna il nome, o un errore da mostrare. */
+async function tieniVideo(f) {
   if (f.size > VIDEO_MAX) {
-    $('vSlot').hidden = false;
-    $('vStato').textContent = 'Video too big: ' + Math.round(f.size / 1048576) + ' MB, the limit is 45 MB. Record a shorter clip, or at 720p.';
-    return;
+    return { errore: 'Video too big: ' + Math.round(f.size / 1048576) + ' MB, the limit is 45 MB. Record a shorter clip, or at 720p.' };
   }
   const est = (f.name.match(/\.(mp4|webm|mov|m4v)$/i) || [0, 'mp4'])[1].toLowerCase();
   const nome = 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8) + '.' + est;
   try {
     await vPut(nome, new Blob([f], { type: tipoVideo(nome) }));
   } catch (e) {
-    $('vStato').textContent = 'This phone has no room for the video.';
-    return;
+    return { errore: 'This device has no room for the video.' };
   }
-  desc.video = nome;
-  mostraVideo(nome, true);
-});
-$('vScegli').addEventListener('click', () => $('vFile').click());
-
-/* Togliere il video dall'esercizio: il file resta, nel telefono e su GitHub. */
-$('vTogli').addEventListener('click', () => {
-  if (!desc) return;
-  desc.video = '';
-  mostraVideo('', true);
-});
+  return { nome: nome };
+}
 
 /* ------------------------------------------------- il pannello dei gruppi ---- */
 
@@ -1213,11 +1008,19 @@ function accoda(sc, i, via) {
 }
 
 const dlgGrp = $('gruppo');
-let grp = null;                   /* { scheda, via } */
+let grp = null;                   /* { src, scheda, via } */
 
-function apriGruppi(nome, via) {
-  if (!tstore.schede[nome]) tstore.schede[nome] = { es: [], rec: '' };
-  grp = { scheda: nome, via: via ? viaGruppi(via) : null };
+/* Dopo ogni cambio nei gruppi si ridisegnano la pagina e l'editor. */
+function dopoModifica() {
+  paintW();
+  if (typeof edRidisegna === 'function') edRidisegna();
+}
+
+/* `src` e' la fonte della scheda: il piano di sempre o una preparazione. */
+function apriGruppi(src, nome, via) {
+  const tutte = schedeDi(src);
+  if (!tutte[nome]) tutte[nome] = { es: [], rec: '' };
+  grp = { src: src, scheda: nome, via: via ? viaGruppi(via) : null };
   disegnaGruppi();
   dlgGrp.showModal();
   dlgGrp.focus();
@@ -1225,7 +1028,7 @@ function apriGruppi(nome, via) {
 
 function disegnaGruppi() {
   if (!grp) return;
-  const sc = tstore.schede[grp.scheda] || { es: [] };
+  const sc = schedeDi(grp.src)[grp.scheda] || { es: [] };
   const vie = gruppiDi(sc);
   if (grp.via && !vie.some(v => stessaVia(v, grp.via))) vie.push(grp.via);
 
@@ -1303,7 +1106,7 @@ $('gElenco').addEventListener('click', ev => {
 
 $('gNome').addEventListener('change', () => {
   if (!grp || !grp.via) return;
-  const sc = tstore.schede[grp.scheda];
+  const sc = schedeDi(grp.src)[grp.scheda];
   const v = $('gNome').value.slice(0, 40).trim();
   const via = grp.via, d = via.length - 1;
   if (v === via[d]) return;
@@ -1315,12 +1118,12 @@ $('gNome').addEventListener('change', () => {
   grp.via = via.slice(0, d).concat([v]);
   touch();
   disegnaGruppi();
-  paintW();
+  dopoModifica();
 });
 
 $('gDentro').addEventListener('change', () => {
   if (!grp || !grp.via) return;
-  const sc = tstore.schede[grp.scheda];
+  const sc = schedeDi(grp.src)[grp.scheda];
   const via = grp.via;
   const padre = $('gDentro').value ? viaGruppi(JSON.parse($('gDentro').value)) : [];
   const nuova = padre.concat([via[via.length - 1]]).slice(0, 4);
@@ -1337,13 +1140,13 @@ $('gDentro').addEventListener('change', () => {
   grp.via = nuova;
   touch();
   disegnaGruppi();
-  paintW();
+  dopoModifica();
 });
 
 $('gLista').addEventListener('change', ev => {
   const c = ev.target.closest('input[data-gsel]');
   if (!c || !grp || !grp.via) return;
-  const sc = tstore.schede[grp.scheda];
+  const sc = schedeDi(grp.src)[grp.scheda];
   const via = grp.via;
   if (!via[via.length - 1]) {
     c.checked = false;
@@ -1357,12 +1160,12 @@ $('gLista').addEventListener('change', ev => {
   accoda(sc, i, via);
   touch();
   disegnaGruppi();
-  paintW();
+  dopoModifica();
 });
 
 $('gNuovoOk').addEventListener('click', () => {
   if (!grp || !grp.via) return;
-  const sc = tstore.schede[grp.scheda];
+  const sc = schedeDi(grp.src)[grp.scheda];
   const via = grp.via;
   const a = $('gNuovoEs').value.slice(0, 60).trim();
   const b = $('gNuovoQ').value.slice(0, 60).trim();
@@ -1372,7 +1175,7 @@ $('gNuovoOk').addEventListener('click', () => {
   accoda(sc, sc.es.length - 1, via);
   touch();
   disegnaGruppi();
-  paintW();
+  dopoModifica();
   $('gNuovoEs').focus();
 });
 
@@ -1381,7 +1184,7 @@ $('gElimina').addEventListener('click', () => {
   if (!grp || !grp.via) return;
   const b = $('gElimina');
   if (b.textContent !== 'Sure?') { b.textContent = 'Sure?'; return; }
-  const sc = tstore.schede[grp.scheda];
+  const sc = schedeDi(grp.src)[grp.scheda];
   const via = grp.via, d = via.length - 1;
   for (const r of sc.es) {
     const g = r[2] || [];
@@ -1390,123 +1193,17 @@ $('gElimina').addEventListener('click', () => {
   grp.via = null;
   touch();
   disegnaGruppi();
-  paintW();
+  dopoModifica();
 });
 
 $('gruppoForm').addEventListener('submit', () => {
   /* un gruppo creato e mai riempito non lascia una scheda vuota */
-  if (grp && tstore.schede[grp.scheda] && !tstore.schede[grp.scheda].es.length && !tstore.schede[grp.scheda].rec) {
-    delete tstore.schede[grp.scheda];
+  if (grp && schedeDi(grp.src)[grp.scheda] && !schedeDi(grp.src)[grp.scheda].es.length && !schedeDi(grp.src)[grp.scheda].rec) {
+    delete schedeDi(grp.src)[grp.scheda];
   }
-  grp = null; scelti = []; paintW();
+  grp = null; dopoModifica();
 });
 dlgGrp.addEventListener('cancel', () => { grp = null; });
-
-/* ------------------------------------------------- i tocchi sulla pagina ---- */
-
-$('wlist').addEventListener('click', ev => {
-  const sd = ev.target.closest('button[data-slotdir]');
-  if (sd) {
-    const n = validSlot(tstore.slot + +sd.dataset.slotdir);
-    if (n === tstore.slot) return;
-    tstore.slot = n;
-    touch();
-    paintW();
-    return;
-  }
-  if (ev.target.closest('button[data-schroot]')) {
-    mostra.sch = !mostra.sch;
-    salvaMostra();
-    paintW();
-    return;
-  }
-  const fr = ev.target.closest('button[data-chipscorri]');
-  if (fr) {
-    const f = fr.parentElement.querySelector('.chipsch');
-    f.scrollBy({ left: +fr.dataset.chipscorri * f.clientWidth * 0.8, behavior: 'smooth' });
-    return;
-  }
-  const ch = ev.target.closest('button[data-chipsch]');
-  if (ch) {
-    const n = ch.dataset.chipsch;
-    const i = mostra.off.indexOf(n);
-    if (i < 0) { mostra.off = mostra.off.concat([n]); if (scheda === n) { scheda = null; scelti = []; } }
-    else mostra.off = mostra.off.filter(x => x !== n);
-    salvaMostra();
-    paintW();
-    return;
-  }
-  const sb = ev.target.closest('button[data-scheda]');
-  if (sb) {
-    scheda = scheda === sb.dataset.scheda ? null : sb.dataset.scheda;
-    scelti = [];
-    paintW();
-    return;
-  }
-  const cs = ev.target.closest('input[data-sel]');
-  if (cs) {
-    const i = +cs.dataset.sel;
-    scelti = scelti.indexOf(i) < 0 ? scelti.concat([i]) : scelti.filter(v => v !== i);
-    paintW();
-    return;
-  }
-  const rg = ev.target.closest('button[data-raggruppa]');
-  if (rg) { apriGruppi(rg.dataset.raggruppa, null); return; }
-  const sg = ev.target.closest('button[data-sgruppa]');
-  if (sg) { sgruppa(sg.dataset.sgruppa); return; }
-  const dm = ev.target.closest('button[data-desmod]');
-  if (dm) {
-    const q = dm.dataset.desmod.split('|');
-    /* un esercizio appena aggiunto e ancora vuoto non ha dove tenere il testo */
-    const sc = tstore.schede[q[0]];
-    if (!sc || !sc.es[+q[1]] || (!sc.es[+q[1]][0] && !sc.es[+q[1]][1])) {
-      const inp = dm.parentElement.querySelector('input.wcampo');
-      if (inp) inp.focus();
-      return;
-    }
-    apriDesc(q[0], +q[1], true);
-    return;
-  }
-  const dl = ev.target.closest('.tabr[data-desces]');
-  if (dl) {
-    const q = dl.dataset.desces.split('|');
-    apriDesc(q[0], +q[1], false);
-    return;
-  }
-  const su = ev.target.closest('button[data-su]');
-  if (su) { spostaScelti(su.dataset.su, -1); return; }
-  const giu = ev.target.closest('button[data-giu]');
-  if (giu) { spostaScelti(giu.dataset.giu, 1); return; }
-  const pgr = ev.target.closest('button[data-piugrp]');
-  if (pgr) { apriGruppi(pgr.dataset.piugrp, null); return; }
-  const tgv = ev.target.closest('button[data-gvia]');
-  if (tgv && scheda) { apriGruppi(scheda, JSON.parse(tgv.dataset.gvia)); return; }
-  const pe = ev.target.closest('button[data-piues]');
-  if (pe) {
-    const n = pe.dataset.piues;
-    const sc = tstore.schede[n] || { es: [], rec: '' };
-    sc.es = sc.es.concat([['', '', [], '']]);
-    tstore.schede[n] = sc;
-    paintW();
-    /* il cursore va subito nel campo nuovo */
-    const campi = $('wlist').querySelectorAll('input[data-sch="' + CSS.escape(n) + '"][data-col="0"]');
-    if (campi.length) campi[campi.length - 1].focus();
-    return;
-  }
-  const tg = ev.target.closest('button[data-togli]');
-  if (tg) {
-    const n = tg.dataset.togli, i = +tg.dataset.riga;
-    const sc = tstore.schede[n];
-    if (sc) {
-      sc.es = sc.es.filter((r, j) => j !== i);
-      scelti = [];
-      if (!sc.es.length && !sc.rec) delete tstore.schede[n];
-      touch();
-      paintW();
-    }
-    return;
-  }
-});
 
 /* ------------------------------------------------------ impostazioni ---- */
 
@@ -1661,18 +1358,24 @@ function rememberSha(sha) {
 }
 
 function paintSalva() {
-  const b = $('salva');
-  b.hidden = !tstore.dirty;
-  b.disabled = salvando;
-  b.classList.toggle('err', !!salvaErr);
-  b.textContent = salvando ? 'Saving…' : salvaErr ? 'Save — ' + salvaErr : 'Save';
+  /* due bottoni, uno stato: in testata e nell'editor */
+  for (const b of [$('salva'), $('edSalva')]) {
+    if (!b) continue;
+    b.hidden = !tstore.dirty;
+    b.disabled = salvando;
+    b.classList.toggle('err', !!salvaErr);
+    b.textContent = salvando ? 'Saving…' : salvaErr ? 'Save — ' + salvaErr : 'Save';
+  }
 }
 
 function paintSync(msg, err) {
   if (msg !== undefined) { syncMsg = msg; syncErr = !!err; }
-  const s = $('sync');
-  s.textContent = syncErr ? syncMsg : tstore.dirty ? 'unsaved changes' : syncMsg;
-  s.classList.toggle('err', syncErr);
+  const t = syncErr ? syncMsg : tstore.dirty ? 'unsaved changes' : syncMsg;
+  for (const s of [$('sync'), $('edStato')]) {
+    if (!s) continue;
+    s.textContent = t;
+    s.classList.toggle('err', syncErr);
+  }
 }
 
 const leggi = () => fetch(FILE_API + '?ref=' + BRANCH, { headers: ghHeaders(), cache: 'no-store' });
@@ -1714,8 +1417,8 @@ async function pullTasks() {
     return;
   }
   const remoto = { workout: validWorkout(data.workout), schede: validSchede(data.schede),
-                   slot: validSlot(data.slot), mattina: validMattina(data.mattina),
-                   mattinaVia: !!data.mattinaVia };
+                   conti: validConti(data.conti, data.slot), mattina: validMattina(data.mattina),
+                   mattinaVia: !!data.mattinaVia, prep: validPrep(data.prep) };
 
   if (tstore.dirty) {
     if (contenuto(remoto) === contenuto(tstore)) {
@@ -1729,9 +1432,11 @@ async function pullTasks() {
 
   tstore.workout = remoto.workout;
   tstore.schede = remoto.schede;
-  tstore.slot = remoto.slot;
+  tstore.conti = remoto.conti;
+  tstore.prep = remoto.prep;
   tstore.mattina = remoto.mattina;
   tstore.mattinaVia = remoto.mattinaVia;
+  if (typeof edRidisegna === 'function') edRidisegna();
   rememberSha(j.sha);
   tstore.dirty = false;
   saveLocal();
@@ -1768,9 +1473,12 @@ async function pushTasks(opts) {
   paintSalva();
 
   const sent = contenuto(tstore);
-  const testo = JSON.stringify({ workout: tstore.workout, schede: tstore.schede, slot: tstore.slot,
+  /* il file si scrive gia' ripulito: righe vuote e schede vuote restano fuori */
+  const testo = JSON.stringify({ workout: validWorkout(tstore.workout), conti: tstore.conti,
+                                 schede: validSchede(tstore.schede),
                                  mattina: tstore.mattina || undefined,
-                                 mattinaVia: tstore.mattinaVia || undefined }, null, 2) + '\n';
+                                 mattinaVia: tstore.mattinaVia || undefined,
+                                 prep: tstore.prep.length ? validPrep(tstore.prep) : undefined }, null, 2) + '\n';
   let corpo;
   try {
     corpo = await cifra(testo);
@@ -1779,9 +1487,8 @@ async function pushTasks(opts) {
     paintSync('encryption failed: check the key', true);
     return;
   }
-  const n = allenamenti().length;
   const payload = {
-    message: 'scheda: ' + n + ' allenamenti, ' + Object.keys(tstore.schede).length + ' schede',
+    message: 'scheda: ' + Object.keys(tstore.schede).length + ' schede, ' + tstore.prep.length + ' preparazioni',
     content: b64enc(corpo),
     branch:  BRANCH
   };
@@ -1935,5 +1642,6 @@ if (navigator.storage && navigator.storage.persist) navigator.storage.persist().
    legge dal telefono vede le modifiche fatte dal PC senza chiudere e riaprire.
    Non piu' spesso: senza token GitHub concede 60 letture l'ora. */
 setInterval(() => {
-  if (document.visibilityState === 'visible' && !tstore.dirty && !salvando) pullTasks();
+  /* con l'editor aperto no: ridisegnerebbe sotto le dita di chi scrive */
+  if (document.visibilityState === 'visible' && !tstore.dirty && !salvando && $('ed').hidden) pullTasks();
 }, 5 * 60 * 1000);
