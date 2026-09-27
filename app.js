@@ -259,7 +259,12 @@ function touch() {
 const GIORNI  = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const GIORNI2 = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const MESI3   = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const SETTIMANA = [1, 2, 3, 4, 5, 6, 0];      /* da lunedi' a domenica */
+const SETTIMANA = [1, 2, 3, 4, 5, 6, 0];
+/* La pagina di chi si allena parla italiano; l'editor resta in inglese. */
+const GIORNI_IT  = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
+const GIORNI2_IT = ['Do', 'Lu', 'Ma', 'Me', 'Gi', 'Ve', 'Sa'];
+const MESI3_IT   = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+const ORDINALI_IT = ['1°', '2°', '3°', '4°'];      /* da lunedi' a domenica */
 
 /* Una riga di tabella: le celle in ordine, ognuna con le sue classi. */
 function tabRiga(celle, cls) {
@@ -281,6 +286,7 @@ function piuGiorni(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); re
 function lunedi(d) { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
 /* "3 Nov" */
 const dataCorta = k => { const d = daChiave(k); return d.getDate() + ' ' + MESI3[d.getMonth()]; };
+const dataIt = k => { const d = daChiave(k); return d.getDate() + ' ' + MESI3_IT[d.getMonth()]; };
 const giorniFra = (a, b) => Math.round((daChiave(b) - daChiave(a)) / 86400000);
 
 /* ------------------------------------------------ quale piano vale ---- */
@@ -363,11 +369,11 @@ function disegnaW() {
   /* in anteprima: la barra per tornare indietro */
   if (pAnt) {
     const bar = el('div', 'antbar');
-    const ind = el('button', 'schbtn antindietro', '‹ Back');
+    const ind = el('button', 'schbtn antindietro', '‹ Indietro');
     ind.type = 'button';
     ind.dataset.antindietro = '1';
     bar.appendChild(ind);
-    bar.appendChild(el('span', 'antbar-eti', 'PREVIEW'));
+    bar.appendChild(el('span', 'antbar-eti', 'ANTEPRIMA'));
     box.appendChild(bar);
   }
 
@@ -377,13 +383,12 @@ function disegnaW() {
     const pross = tstore.prep.find(x => x.dal > kVero && giorniFra(kVero, x.dal) <= AVVISO_GIORNI);
     if (pross) {
       const fra = giorniFra(kVero, pross.dal);
-      const b = el('div', 'prepbanda prossima');
-      const testo = el('div', 'prossima-testo');
-      testo.appendChild(el('p', 'prepbanda-eti', (fra === 1 ? 'TOMORROW' : GIORNI[daChiave(pross.dal).getDay()].toUpperCase()) +
-        ' STARTS · ' + (pross.nome || 'PREPARATION')));
-      testo.appendChild(el('p', 'prepbanda-date', dataCorta(pross.dal) + ' → ' + dataCorta(pross.al)));
+      const b = el('div', 'prossima');
+      const quando = fra === 1 ? 'Domani' : GIORNI_IT[daChiave(pross.dal).getDay()].replace(/^./, c => c.toUpperCase());
+      const testo = el('p', 'prossima-testo', quando + ' inizia ');
+      testo.appendChild(el('b', null, pross.nome || 'la preparazione'));
       b.appendChild(testo);
-      const ap = el('button', 'schbtn', 'Preview');
+      const ap = el('button', 'prossima-btn', 'Anteprima');
       ap.type = 'button';
       ap.dataset.anteprima = pross.id;
       b.appendChild(ap);
@@ -396,9 +401,9 @@ function disegnaW() {
     const p = oggi.prep;
     const manca = giorniFra(kOggi, p.al);
     const b = el('div', 'prepbanda');
-    b.appendChild(el('p', 'prepbanda-eti', 'PREPARATION' + (p.nome ? ' · ' + p.nome : '')));
-    b.appendChild(el('p', 'prepbanda-date', dataCorta(p.dal) + ' → ' + dataCorta(p.al) +
-      (pAnt ? '' : ' · ' + (manca === 0 ? 'last day' : manca === 1 ? '1 day left' : manca + ' days left'))));
+    b.appendChild(el('p', 'prepbanda-eti', 'PREPARAZIONE' + (p.nome ? ' · ' + p.nome : '')));
+    b.appendChild(el('p', 'prepbanda-date', dataIt(p.dal) + ' → ' + dataIt(p.al) +
+      (pAnt ? '' : ' · ' + (manca === 0 ? 'ultimo giorno' : manca === 1 ? 'manca 1 giorno' : 'mancano ' + manca + ' giorni'))));
     box.appendChild(b);
   }
 
@@ -415,9 +420,9 @@ function disegnaW() {
   const n = Math.max(1, ...giorni.map(x => x.pi.conti[x.g] || 0));
   const tab = el('div', 'tab tab-w');
   tab.style.setProperty('--wcol', n);
-  tab.appendChild(tabRiga([{ t: '' }].concat(ORDINALI.slice(0, n).map(t => ({ t: t }))), 'capo'));
+  tab.appendChild(tabRiga([{ t: '' }].concat(ORDINALI_IT.slice(0, n).map(t => ({ t: t }))), 'capo'));
   for (const x of giorni) {
-    const celle = [{ t: GIORNI2[x.g] + ' ' + x.d.getDate(), cls: 'eti' }];
+    const celle = [{ t: GIORNI2_IT[x.g] + ' ' + x.d.getDate(), cls: 'eti' }];
     const quanti = x.pi.conti[x.g] || 0;
     for (let i = 0; i < n; i++) {
       if (i >= quanti) celle.push({ t: '', cls: 'fuori' });
@@ -430,7 +435,7 @@ function disegnaW() {
   box.appendChild(tab);
 
   paintMorning(box, oggi);
-  paintOggi(box, oggi, t0.getDay(), pAnt ? GIORNI[t0.getDay()].toUpperCase() + ' ' + t0.getDate() + ' WORKOUTS' : 'TODAY WORKOUTS');
+  paintOggi(box, oggi, t0.getDay(), pAnt ? 'ALLENAMENTI DI ' + GIORNI_IT[t0.getDay()].toUpperCase() + ' ' + t0.getDate() : 'ALLENAMENTI DI OGGI');
   paintSchede(dx, oggi);
 }
 
@@ -493,7 +498,7 @@ function righeScheda(tab, sc, src, nome) {
   if (sc.rec) {
     const r = el('div', 'tabr recgiu');
     const c = el('div', 'tabc');
-    c.appendChild(el('span', 'receti', 'Recovery'));
+    c.appendChild(el('span', 'receti', 'Recupero'));
     c.appendChild(el('span', 'recval', sc.rec));
     r.appendChild(c);
     tab.appendChild(r);
@@ -555,7 +560,7 @@ function paintOggi(box, pi, g, titolo) {
     if (nome === MORNING) {
       const scm = pi.schede[MORNING];
       if (!pi.mattinaVia || !scm || !scm.es.length) continue;
-      if (!capo) { box.appendChild(el('p', 'grp', titolo || 'TODAY WORKOUTS')); capo = true; }
+      if (!capo) { box.appendChild(el('p', 'grp', titolo || 'ALLENAMENTI DI OGGI')); capo = true; }
       const tm = tabScheda(nomeMattinaDi(pi), scm);
       tm.classList.add('tab-oggi');
       box.appendChild(righeScheda(tm, { es: scm.es, rec: '' }, pi.src, MORNING));
@@ -563,7 +568,7 @@ function paintOggi(box, pi, g, titolo) {
     }
     const sc = pi.schede[nome];
     if (!sc || (!sc.es.length && !sc.rec)) continue;
-    if (!capo) { box.appendChild(el('p', 'grp', titolo || 'TODAY WORKOUTS')); capo = true; }
+    if (!capo) { box.appendChild(el('p', 'grp', titolo || 'ALLENAMENTI DI OGGI')); capo = true; }
     const t = tabScheda(nome, sc);
     t.classList.add('tab-oggi');
     box.appendChild(righeScheda(t, sc, pi.src, nome));
@@ -579,20 +584,20 @@ function paintSchede(box, pi) {
   apri.type = 'button';
   apri.dataset.schroot = '1';
   apri.setAttribute('aria-expanded', mostra.sch ? 'true' : 'false');
-  apri.appendChild(el('span', 'wkbar-nome', 'WORKOUTS'));
+  apri.appendChild(el('span', 'wkbar-nome', 'ALLENAMENTI'));
   apri.appendChild(el('span', 'wkbar-frec', '▾'));
   box.appendChild(apri);
   if (!mostra.sch) return;
 
   if (!nomi.length) {
-    box.appendChild(el('p', 'vuoto', 'Nothing in the plan yet.'));
+    box.appendChild(el('p', 'vuoto', 'Il piano è ancora vuoto.'));
     return;
   }
 
   const riga = el('div', 'chiprow');
   const sx = el('button', 'chipfrec', '‹');
   sx.type = 'button'; sx.dataset.chipscorri = '-1';
-  sx.setAttribute('aria-label', 'Scroll the workouts left');
+  sx.setAttribute('aria-label', 'Scorri gli allenamenti a sinistra');
   const chips = el('div', 'chips chipsch');
   for (const nome of nomi) {
     const acceso = mostra.solo === nome;
@@ -604,7 +609,7 @@ function paintSchede(box, pi) {
   }
   const dx = el('button', 'chipfrec', '›');
   dx.type = 'button'; dx.dataset.chipscorri = '1';
-  dx.setAttribute('aria-label', 'Scroll the workouts right');
+  dx.setAttribute('aria-label', 'Scorri gli allenamenti a destra');
   riga.appendChild(sx); riga.appendChild(chips); riga.appendChild(dx);
   box.appendChild(riga);
   chips.scrollLeft = chipX;
@@ -736,7 +741,7 @@ function videoNodo(link) {
     w.appendChild(f);
     return w;
   }
-  const a = el('a', 'deslink', '▶  Open the video');
+  const a = el('a', 'deslink', '▶  Apri il video');
   a.href = v.src;
   a.target = '_blank';
   a.rel = 'noopener noreferrer';
@@ -958,17 +963,17 @@ async function mostraVideo(nome, scrivibile) {
   slot.hidden = !nome;
   v.hidden = true;
   $('vFull').hidden = true;
-  if (!nome) { st.textContent = 'No video'; return; }
-  st.textContent = 'Loading video…';
+  if (!nome) { st.textContent = 'Nessun video'; return; }
+  st.textContent = 'Carico il video…';
   let blob = await vGet(nome);
   if (!blob && vMostrato === nome) {
-    st.textContent = 'Downloading video…';
+    st.textContent = 'Scarico il video…';
     blob = await prendiVideo(nome);
   }
   if (vMostrato !== nome) return;            /* nel frattempo si e' chiuso o cambiato */
   if (!blob) {
-    st.textContent = navigator.onLine ? 'Video not online yet: try again in a few minutes'
-                                      : 'Video not on this phone yet: it needs the internet once';
+    st.textContent = navigator.onLine ? 'Il video non è ancora online: riprova fra qualche minuto'
+                                      : 'Il video non è ancora su questo telefono: serve internet una volta';
     return;
   }
   vURL = URL.createObjectURL(blob);
@@ -1271,12 +1276,12 @@ function openImpostazioni() {
   $('chiaveInput').value = chiave;
   const s = $('tokenStato');
   s.className = 'nota';
-  s.textContent = token ? 'Token set.' : 'No token: the plan can be read but not saved.';
+  s.textContent = token ? 'Token inserito.' : 'Nessun token: il piano si legge ma non si salva.';
   const c = $('chiaveStato');
   c.className = 'nota';
-  c.textContent = chiaveKo ? 'The last file would not open: key missing or wrong.'
-                : chiave   ? 'Key set.'
-                :            'No key: the plan travels in the clear.';
+  c.textContent = chiaveKo ? 'L\'ultimo file non si è aperto: chiave mancante o sbagliata.'
+                : chiave   ? 'Chiave inserita.'
+                :            'Nessuna chiave: il piano viaggia in chiaro.';
   dlgImp.showModal();
 }
 
@@ -1322,19 +1327,19 @@ $('impostazioniForm').addEventListener('submit', () => {
   paintEdit();
   paintW();
   if (token) provaToken();
-  else paintSync('view only');
+  else paintSync('solo lettura');
 });
 $('tokenAnnulla').addEventListener('click', () => dlgImp.close());
 
 async function provaToken() {
   try {
     const r = await fetch(API, { headers: ghHeaders(), cache: 'no-store' });
-    if (r.status === 401) paintSync('token rejected', true);
-    else if (r.ok) paintSync('token accepted');
-    else if (r.status === 404) paintSync('repository not found', true);
-    else paintSync('token: error ' + r.status, true);
+    if (r.status === 401) paintSync('token rifiutato', true);
+    else if (r.ok) paintSync('token accettato');
+    else if (r.status === 404) paintSync('repository non trovato', true);
+    else paintSync('token: errore ' + r.status, true);
   } catch (e) {
-    paintSync('no network', true);
+    paintSync('niente rete', true);
   }
 }
 
@@ -1420,13 +1425,15 @@ function paintSalva() {
     b.hidden = !tstore.dirty;
     b.disabled = salvando;
     b.classList.toggle('err', !!salvaErr);
-    b.textContent = salvando ? 'Saving…' : salvaErr ? 'Save — ' + salvaErr : 'Save';
+    /* il bottone dell'editor parla inglese, quello della pagina italiano */
+    const it = b.id === 'salva';
+    b.textContent = salvando ? (it ? 'Salvo…' : 'Saving…') : (it ? 'Salva' : 'Save') + (salvaErr ? ' — ' + salvaErr : '');
   }
 }
 
 function paintSync(msg, err) {
   if (msg !== undefined) { syncMsg = msg; syncErr = !!err; }
-  const t = syncErr ? syncMsg : tstore.dirty ? 'unsaved changes' : syncMsg;
+  const t = syncErr ? syncMsg : tstore.dirty ? 'modifiche non salvate' : syncMsg;
   for (const s of [$('sync'), $('edStato')]) {
     if (!s) continue;
     s.textContent = t;
@@ -1440,24 +1447,24 @@ const leggi = () => fetch(FILE_API + '?ref=' + BRANCH, { headers: ghHeaders(), c
    modifiche non salvate, vince il telefono: online si guarda soltanto. */
 async function pullTasks() {
   let r;
-  try { r = await leggi(); } catch (e) { paintSync('offline: using the copy on this phone'); return; }
+  try { r = await leggi(); } catch (e) { paintSync('senza rete: uso la copia di questo telefono'); return; }
   let tokenKo = false;
   if (r.status === 401 && token) {
     tokenKo = true;
     try {
       r = await fetch(FILE_API + '?ref=' + BRANCH, { cache: 'no-store', headers: { Accept: 'application/vnd.github+json' } });
-    } catch (e) { paintSync('token rejected', true); return; }
+    } catch (e) { paintSync('token rifiutato', true); return; }
   }
   /* "in sync" non si scrive: quando e' tutto a posto la riga resta vuota, e
      parla solo quando c'e' qualcosa da dire */
   const fine = msg => {
-    if (/^in sync/.test(msg || '')) msg = '';
-    paintSync(tokenKo ? 'token rejected' : (!token ? (msg ? 'view only · ' + msg : 'view only') : msg), tokenKo);
+    if (/^(in sync|sincronizzato)/.test(msg || '')) msg = '';
+    paintSync(tokenKo ? 'token rifiutato' : (!token ? (msg ? 'solo lettura · ' + msg : 'solo lettura') : msg), tokenKo);
   };
   /* chi legge e basta non ha niente da salvare: comanda sempre quello online */
   if (!token && tstore.dirty) tstore.dirty = false;
-  if (r.status === 404) { fine(tstore.sha ? 'file not found online' : 'no plan online yet'); return; }
-  if (!r.ok) { fine('GitHub: error ' + r.status); return; }
+  if (r.status === 404) { fine(tstore.sha ? 'file non trovato online' : 'ancora nessun piano online'); return; }
+  if (!r.ok) { fine('GitHub: errore ' + r.status); return; }
 
   let j;
   try { j = await r.json(); } catch (e) { return; }
@@ -1468,7 +1475,7 @@ async function pullTasks() {
   try {
     data = JSON.parse(await decifra(b64dec(j.content)));
   } catch (e) {
-    paintSync('plan encrypted: key missing or wrong', true);
+    paintSync('piano cifrato: chiave mancante o sbagliata', true);
     chiaveKo = true;
     return;
   }
@@ -1479,9 +1486,9 @@ async function pullTasks() {
   if (tstore.dirty) {
     if (contenuto(remoto) === contenuto(tstore)) {
       rememberSha(j.sha); tstore.dirty = false; saveLocal(); paintSalva();
-      fine('in sync');
+      fine('sincronizzato');
     } else {
-      fine('a different version is online: saving overwrites it');
+      fine('online c\'è un\'altra versione: salvando la sostituisci');
     }
     return;
   }
@@ -1497,7 +1504,7 @@ async function pullTasks() {
   tstore.dirty = false;
   saveLocal();
   paintW(); paintSalva();
-  fine('in sync at ' + fmtTime.format(new Date()));
+  fine('sincronizzato alle ' + fmtTime.format(new Date()));
   scaricaVideo();
 }
 
@@ -1523,7 +1530,7 @@ async function creaBranch() {
 async function pushTasks(opts) {
   opts = opts || {};
   if (!tstore.dirty || salvando) return;
-  if (!token) { salvaErr = 'token missing'; paintSalva(); paintSync('token missing: open ⚙ Settings', true); return; }
+  if (!token) { salvaErr = 'token mancante'; paintSalva(); paintSync('token mancante: apri ⚙ Impostazioni', true); return; }
 
   salvando = true; salvaErr = ''; salvaRetry = false;
   paintSalva();
@@ -1539,8 +1546,8 @@ async function pushTasks(opts) {
   try {
     corpo = await cifra(testo);
   } catch (e) {
-    salvando = false; salvaErr = 'encryption failed'; paintSalva();
-    paintSync('encryption failed: check the key', true);
+    salvando = false; salvaErr = 'cifratura fallita'; paintSalva();
+    paintSync('cifratura fallita: controlla la chiave', true);
     return;
   }
   const payload = {
@@ -1554,7 +1561,7 @@ async function pushTasks(opts) {
   const salvato = () => {
     if (contenuto(tstore) === sent) tstore.dirty = false;
     saveLocal(); paintSalva();
-    paintSync('saved at ' + fmtTime.format(new Date()));
+    paintSync('salvato alle ' + fmtTime.format(new Date()));
   };
 
   let r;
@@ -1566,7 +1573,7 @@ async function pushTasks(opts) {
       keepalive: !!opts.keepalive && body.length < 60000
     });
   } catch (e) {
-    salvando = false; salvaErr = 'no network'; salvaRetry = true; paintSalva(); return;
+    salvando = false; salvaErr = 'niente rete'; salvaRetry = true; paintSalva(); return;
   }
   salvando = false;
 
@@ -1576,7 +1583,7 @@ async function pushTasks(opts) {
     try { msg = (await r.clone().json()).message || ''; } catch (e) { /* niente */ }
     if (/branch/i.test(msg) || r.status === 404) {
       if (await creaBranch()) return pushTasks(Object.assign({}, opts, { branch: true }));
-      salvaErr = r.status === 404 ? 'repository not found' : 'branch missing';
+      salvaErr = r.status === 404 ? 'repository non trovato' : 'branch mancante';
       paintSalva(); paintSync(salvaErr, true);
       return;
     }
@@ -1601,15 +1608,15 @@ async function pushTasks(opts) {
         return pushTasks(Object.assign({}, opts, { retry: true }));
       }
     } catch (e) { /* si cade nell'errore qui sotto */ }
-    salvaErr = 'conflict online'; paintSalva(); paintSync(salvaErr, true);
+    salvaErr = 'conflitto online'; paintSalva(); paintSync(salvaErr, true);
     return;
   }
 
   if (!r.ok) {
-    salvaErr = r.status === 401 ? 'token rejected'
-             : r.status === 403 ? 'token without permission'
-             : r.status === 404 ? 'repository not found'
-             :                    'error ' + r.status;
+    salvaErr = r.status === 401 ? 'token rifiutato'
+             : r.status === 403 ? 'token senza permesso'
+             : r.status === 404 ? 'repository non trovato'
+             :                    'errore ' + r.status;
     salvaRetry = r.status >= 500;
     paintSalva(); paintSync(salvaErr, true);
     return;
@@ -1631,7 +1638,7 @@ async function caricaPendenti() {
   salvando = true; paintSalva();
   const lista = tstore.daCaricare.slice();
   for (let i = 0; i < lista.length; i++) {
-    paintSync('uploading video ' + (i + 1) + ' of ' + lista.length + '…');
+    paintSync('carico il video ' + (i + 1) + ' di ' + lista.length + '…');
     const ok = await caricaVideo(lista[i]);
     if (ok) {
       tstore.daCaricare = tstore.daCaricare.filter(x => x !== lista[i]);
@@ -1641,10 +1648,10 @@ async function caricaPendenti() {
   salvando = false;
   if (tstore.daCaricare.length) {
     tstore.dirty = true; saveLocal();
-    salvaErr = 'video upload failed';
-    paintSalva(); paintSync('video upload failed: press Save to try again', true);
+    salvaErr = 'caricamento video fallito';
+    paintSalva(); paintSync('caricamento video fallito: premi Salva per riprovare', true);
   } else {
-    paintSalva(); paintSync('saved at ' + fmtTime.format(new Date()));
+    paintSalva(); paintSync('salvato alle ' + fmtTime.format(new Date()));
   }
 }
 
@@ -1687,7 +1694,7 @@ setInterval(() => {
 paintEdit();
 disegnaW();
 paintSalva();
-paintSync(token ? '' : 'view only');
+paintSync(token ? '' : 'solo lettura');
 pullTasks();
 
 /* I video stanno nel telefono per sempre: si chiede al browser di non buttare

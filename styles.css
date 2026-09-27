@@ -562,8 +562,19 @@ body.vland .vslot{
 .prepbanda-eti{margin:0;font-size:14px;font-weight:700;letter-spacing:.08em;color:var(--accent)}
 .prepbanda-date{margin:2px 0 0;font-size:17px;color:var(--text)}
 /* l'avviso di una preparazione che sta per iniziare, con il bottone Anteprima */
-.prepbanda.prossima{display:flex;align-items:center;gap:var(--s2);border-style:dashed;background:transparent}
-.prossima-testo{flex:1;min-width:0}
+.prossima{
+  display:flex;align-items:center;gap:var(--s2);
+  margin:0 var(--s3) var(--s2);padding:6px 6px 6px var(--s3);
+  border:1px dashed var(--accent);border-radius:999px;
+}
+.prossima-testo{flex:1;min-width:0;margin:0;font-size:15px;color:var(--muted);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prossima-testo b{color:var(--accent);font-weight:700}
+.prossima-btn{
+  flex:none;padding:5px 12px;border:0;border-radius:999px;cursor:pointer;
+  background:var(--accent);color:#0d0f12;font:inherit;font-size:14px;font-weight:700;
+}
+@media (min-width:1000px){ .col .prossima{margin-left:0;margin-right:0} }
 /* la barra dell'anteprima */
 .antbar{display:flex;align-items:center;gap:var(--s2);margin:0 var(--s3) var(--s3)}
 .antbar .schbtn{margin-left:0}

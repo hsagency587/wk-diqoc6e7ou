@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="it">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -34,9 +34,9 @@
 <header class="top">
   <div class="bar">
     <h1 class="titolo">Workout</h1>
-    <button type="button" class="salva" id="salva" hidden>Save</button>
+    <button type="button" class="salva" id="salva" hidden>Salva</button>
     <button type="button" class="schbtn wedit" id="wMod" hidden>Editor</button>
-    <button type="button" class="menu" id="impostazioniBtn" aria-label="Settings">⚙</button>
+    <button type="button" class="menu" id="impostazioniBtn" aria-label="Impostazioni">⚙</button>
   </div>
   <p class="sync" id="sync"></p>
 </header>
@@ -78,14 +78,14 @@
 
 <dialog class="chiusura" id="impostazioni" aria-labelledby="impostazioniTit">
   <form method="dialog" class="chiusura-box" id="impostazioniForm">
-    <h2 class="chiusura-tit" id="impostazioniTit">Settings</h2>
+    <h2 class="chiusura-tit" id="impostazioniTit">Impostazioni</h2>
 
-    <p class="commento-lab">Theme</p>
+    <p class="commento-lab">Tema</p>
     <div class="chips" id="temaScelta">
-      <button type="button" class="chip" data-tema="dark">Dark</button>
-      <button type="button" class="chip" data-tema="light">Light</button>
+      <button type="button" class="chip" data-tema="dark">Scuro</button>
+      <button type="button" class="chip" data-tema="light">Chiaro</button>
     </div>
-    <p class="nota">Only on this device: every phone keeps its own.</p>
+    <p class="nota">Vale solo su questo dispositivo: ogni telefono tiene il suo.</p>
 
     <!-- Token e chiave stanno chiusi in una tendina: servono una volta sola, e
          chi usa l'app per allenarsi non li deve vedere. -->
@@ -94,19 +94,19 @@
       <div class="sviluppo-corpo">
       <label class="commento-lab" for="tokenInput">GitHub token</label>
       <input class="campo" id="tokenInput" type="password" autocomplete="off" placeholder="github_pat_…">
-      <p class="nota">Fine-grained, limited to this repository, <b>Contents</b> permission read and write. Needed to save the plan; reading it works without it.</p>
+      <p class="nota">Fine-grained, limitato a questo repository, permesso <b>Contents</b> in lettura e scrittura. Serve per salvare il piano; per leggerlo non serve.</p>
       <p class="nota" id="tokenStato"></p>
 
-      <label class="commento-lab" for="chiaveInput">Data key</label>
-      <input class="campo" id="chiaveInput" type="password" autocomplete="off" placeholder="a word only you know">
-      <p class="nota">Optional. With a key the plan travels encrypted: whoever finds the file online reads nothing. Every phone that opens the plan needs the same key. Left empty, the plan stays in the clear.</p>
+      <label class="commento-lab" for="chiaveInput">Chiave dei dati</label>
+      <input class="campo" id="chiaveInput" type="password" autocomplete="off" placeholder="una parola che sai solo tu">
+      <p class="nota">Facoltativa. Con una chiave il piano viaggia cifrato: chi trova il file online non legge niente. Ogni telefono che apre il piano ha bisogno della stessa chiave. Se la lasci vuota, il piano resta in chiaro.</p>
       <p class="nota" id="chiaveStato"></p>
       </div>
     </details>
 
     <div class="chiusura-btn">
-      <button type="button" class="btn" id="tokenAnnulla">Cancel</button>
-      <button type="submit" class="btn btn-ok" value="ok">Save</button>
+      <button type="button" class="btn" id="tokenAnnulla">Annulla</button>
+      <button type="submit" class="btn btn-ok" value="ok">Salva</button>
     </div>
   </form>
 </dialog>
@@ -122,12 +122,12 @@
          il telefono va a schermo intero, e per i video verticali c'e' il bottone. -->
     <div class="vslot" id="vSlot" hidden>
       <video id="vVideo" controls playsinline preload="metadata" hidden></video>
-      <button type="button" class="vfull" id="vFull" aria-label="Full screen" hidden>⛶</button>
+      <button type="button" class="vfull" id="vFull" aria-label="Schermo intero" hidden>⛶</button>
       <p class="vstato" id="vStato"></p>
     </div>
     <div class="desctesto" id="descTesto"></div>
     <div class="chiusura-btn">
-      <button type="button" class="btn" id="descChiudi">Close</button>
+      <button type="button" class="btn" id="descChiudi">Chiudi</button>
     </div>
   </div>
 </dialog>
