@@ -23,6 +23,23 @@
   color-scheme:dark;
 }
 
+/* Il tema chiaro: fondo bianco, stesse forme. Il verde e' piu' scuro, se no
+   sul bianco non si legge. */
+:root[data-theme="light"]{
+  --bg:#ffffff;
+  --surface:#f4f6f8;
+  --surface-2:#eaeef2;
+  --line:#d3d9e0;
+  --text:#111418;
+  --text-2:#2b323b;
+  --muted:#5c6672;
+  --accent:#138a48;
+  --danger:#d70015;
+  color-scheme:light;
+}
+:root[data-theme="light"] .wcampo::placeholder{color:#9aa3ad}
+:root[data-theme="light"] .grpcli:active{background:rgba(0,0,0,.05)}
+
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 [hidden]{display:none!important}

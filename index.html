@@ -7,8 +7,18 @@
 <!-- Pagina personale: fuori dai motori di ricerca. -->
 <meta name="robots" content="noindex, nofollow, noarchive">
 <meta name="referrer" content="no-referrer">
-<meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#0d0f12">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#0d0f12" id="metaTema">
+<!-- Il tema scelto si mette prima che la pagina si disegni: niente lampo scuro
+     su chi ha scelto il chiaro. Sta nel telefono, non nel file del piano. -->
+<script>
+  try {
+    if (localStorage.getItem('wk-tema-v1') === 'light') {
+      document.documentElement.dataset.theme = 'light';
+      document.getElementById('metaTema').content = '#ffffff';
+    }
+  } catch (e) { /* si resta scuri */ }
+</script>
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -79,6 +89,13 @@
     <input class="campo" id="chiaveInput" type="password" autocomplete="off" placeholder="a word only you know">
     <p class="nota">Optional. With a key the plan travels encrypted: whoever finds the file online reads nothing. Every phone that opens the plan needs the same key. Left empty, the plan stays in the clear.</p>
     <p class="nota" id="chiaveStato"></p>
+
+    <p class="commento-lab">Theme</p>
+    <div class="chips" id="temaScelta">
+      <button type="button" class="chip" data-tema="dark">Dark</button>
+      <button type="button" class="chip" data-tema="light">Light</button>
+    </div>
+    <p class="nota">Only on this device: every phone keeps its own.</p>
 
     <div class="chiusura-btn">
       <button type="button" class="btn" id="tokenAnnulla">Cancel</button>

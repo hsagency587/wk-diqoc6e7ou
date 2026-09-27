@@ -1528,6 +1528,27 @@ function openImpostazioni() {
 
 $('impostazioniBtn').addEventListener('click', openImpostazioni);
 
+/* Il tema: scuro com'era, o chiaro su fondo bianco. Si cambia al tocco, senza
+   Save: e' una preferenza di questo schermo, non un dato del piano. */
+const TEMA_KEY = 'wk-tema-v1';
+function paintTema() {
+  const chiaro = document.documentElement.dataset.theme === 'light';
+  for (const b of document.querySelectorAll('#temaScelta [data-tema]')) {
+    b.classList.toggle('sel', (b.dataset.tema === 'light') === chiaro);
+  }
+}
+$('temaScelta').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-tema]');
+  if (!b) return;
+  const chiaro = b.dataset.tema === 'light';
+  if (chiaro) document.documentElement.dataset.theme = 'light';
+  else delete document.documentElement.dataset.theme;
+  $('metaTema').content = chiaro ? '#ffffff' : '#0d0f12';
+  try { localStorage.setItem(TEMA_KEY, chiaro ? 'light' : 'dark'); } catch (e) { /* solo per ora */ }
+  paintTema();
+});
+paintTema();
+
 $('impostazioniForm').addEventListener('submit', () => {
   const chiaveNuova = $('chiaveInput').value.trim() !== chiave;
   token = $('tokenInput').value.trim();
@@ -1667,7 +1688,12 @@ async function pullTasks() {
       r = await fetch(FILE_API + '?ref=' + BRANCH, { cache: 'no-store', headers: { Accept: 'application/vnd.github+json' } });
     } catch (e) { paintSync('token rejected', true); return; }
   }
-  const fine = msg => paintSync(tokenKo ? 'token rejected' : (!token && msg ? 'view only · ' + msg : msg), tokenKo);
+  /* "in sync" non si scrive: quando e' tutto a posto la riga resta vuota, e
+     parla solo quando c'e' qualcosa da dire */
+  const fine = msg => {
+    if (/^in sync/.test(msg || '')) msg = '';
+    paintSync(tokenKo ? 'token rejected' : (!token ? (msg ? 'view only · ' + msg : 'view only') : msg), tokenKo);
+  };
   /* chi legge e basta non ha niente da salvare: comanda sempre quello online */
   if (!token && tstore.dirty) tstore.dirty = false;
   if (r.status === 404) { fine(tstore.sha ? 'file not found online' : 'no plan online yet'); return; }
