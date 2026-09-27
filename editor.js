@@ -40,7 +40,7 @@ function edWorkout(f) {
   const out = [];
   for (const w of f.settimane) {
     for (const g of SETTIMANA) {
-      for (const v of (w.workout[g] || []).slice(0, w.conti[g] || 0)) if (v && out.indexOf(v) < 0) out.push(v);
+      for (const v of (w.workout[g] || []).slice(0, w.conti[g] || 0)) if (v && v !== MORNING && out.indexOf(v) < 0) out.push(v);
     }
   }
   for (const k of Object.keys(f.schede)) if (k !== MORNING && out.indexOf(k) < 0) out.push(k);
@@ -143,15 +143,42 @@ function edVociFonte(box, ctx) {
     });
   }
   /* la lista di tutti i giorni sta nella sua categoria: Every day */
-  box.appendChild(el('p', 'ed-sub', 'Every day'));
-  box.appendChild(edVoce(nomeMattinaDi(f.obj) + (f.obj.mattinaVia ? ' (hidden)' : ''), { pag: 'morning', ctx: ctx },
-    v.pag === 'morning' && v.ctx === ctx, f.obj.mattinaVia ? 'spenta' : ''));
-  box.appendChild(el('p', 'ed-sub', 'Workouts'));
-  for (const n of edWorkout(f)) {
-    box.appendChild(edVoce(n, { pag: 'workout', ctx: ctx, nome: n },
-      v.pag === 'workout' && v.ctx === ctx && v.nome === n, 'wk'));
+  if (edTendina(box, ctx, 'every', 'Every day')) {
+    box.appendChild(edVoce(nomeMattinaDi(f.obj) + (f.obj.mattinaVia ? ' (hidden)' : ''), { pag: 'morning', ctx: ctx },
+      v.pag === 'morning' && v.ctx === ctx, f.obj.mattinaVia ? 'spenta' : ''));
   }
-  box.appendChild(edVoce('+ New workout', { pag: 'new', ctx: ctx }, v.pag === 'new' && v.ctx === ctx, 'piu'));
+  /* i workout nuovi non hanno un bottone: nascono scrivendoli in un giorno della settimana */
+  const nomi = edWorkout(f);
+  if (edTendina(box, ctx, 'wk', 'Workouts')) {
+    for (const n of nomi) {
+      box.appendChild(edVoce(n, { pag: 'workout', ctx: ctx, nome: n },
+        v.pag === 'workout' && v.ctx === ctx && v.nome === n, 'wk'));
+    }
+  }
+}
+
+/* Le tendine dell'elenco (Every day, Workouts): si aprono e si chiudono con un
+   tocco. Quali sono chiuse lo ricorda questo dispositivo. */
+const ED_CHIUSE_KEY = 'wk-edchiuse-v1';
+let edChiuse = (() => {
+  try { const v = JSON.parse(localStorage.getItem(ED_CHIUSE_KEY) || '[]'); return new Set(Array.isArray(v) ? v.map(String) : []); }
+  catch (e) { return new Set(); }
+})();
+function edTendina(box, ctx, chi, testo) {
+  const k = (ctx === 'base' ? 'base' : 'prep') + ':' + chi;
+  const aperta = !edChiuse.has(k);
+  const b = el('button', 'ed-sub ed-tendina' + (aperta ? ' open' : ''));
+  b.type = 'button';
+  b.setAttribute('aria-expanded', aperta ? 'true' : 'false');
+  b.appendChild(el('span', 'ed-tendina-nome', testo));
+  b.appendChild(el('span', 'ed-tendina-frec', '\u25BE'));
+  b.addEventListener('click', () => {
+    if (aperta) edChiuse.add(k); else edChiuse.delete(k);
+    try { localStorage.setItem(ED_CHIUSE_KEY, JSON.stringify([...edChiuse])); } catch (e) {}
+    edElenco();
+  });
+  box.appendChild(b);
+  return aperta;
 }
 
 function edElenco() {
@@ -271,8 +298,12 @@ function edPagSettimana(box, ctx, si) {
   /* i nomi gia' usati, da scegliere mentre si scrive */
   const lista = el('datalist');
   lista.id = 'edNomi';
-  for (const n of edWorkout(f)) { const o = el('option'); o.value = n; lista.appendChild(o); }
+  /* in cima la lista di tutti i giorni: scelta in un giorno, quel giorno
+     porta il suo nome */
+  const nomeEvery = nomeMattinaDi(f.obj);
+  for (const n of [nomeEvery].concat(edWorkout(f))) { const o = el('option'); o.value = n; lista.appendChild(o); }
   box.appendChild(lista);
+  box.appendChild(el('p', 'ed-sotto', 'Tip: write "' + nomeEvery + '" in a day to give that day the Every day list.'));
 
   /* In una preparazione la prima e l'ultima settimana possono essere a meta':
      i giorni prima dell'inizio e dopo la fine restano al piano di sempre, e
@@ -314,13 +345,17 @@ function edPagSettimana(box, ctx, si) {
       inp.maxLength = 60;
       inp.setAttribute('list', 'edNomi');
       inp.placeholder = ORDINALI[i] + ' workout';
-      inp.value = (w.workout[g] || [])[i] || '';
+      const val = (w.workout[g] || [])[i] || '';
+      inp.value = val === MORNING ? nomeEvery : val;
+      if (val === MORNING) inp.classList.add('every');
       inp.addEventListener('change', () => {
         const r = (w.workout[g] || []).slice();
         while (r.length <= i) r.push('');
-        r[i] = inp.value.slice(0, 60).trim();
+        const scritto = inp.value.slice(0, 60).trim();
+        r[i] = scritto && scritto.toLowerCase() === nomeEvery.toLowerCase() ? MORNING : scritto;
         while (r.length && !r[r.length - 1]) r.pop();
         if (r.length) w.workout[g] = r; else delete w.workout[g];
+        inp.classList.toggle('every', r[i] === MORNING);
         edCambio(true);
       });
       campi.appendChild(inp);

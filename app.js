@@ -381,6 +381,7 @@ function disegnaW() {
     const quanti = x.pi.conti[x.g] || 0;
     for (let i = 0; i < n; i++) {
       if (i >= quanti) celle.push({ t: '', cls: 'fuori' });
+      else if (x.w[i] === MORNING) celle.push({ t: nomeMattinaDi(x.pi), cls: 'every' });
       else celle.push({ t: x.w[i] || '—', cls: x.w[i] ? '' : 'vuota' });
     }
     const cls = [x.k === kOggi ? 'oggi' : '', x.pi.prep ? 'inprep' : ''].filter(Boolean).join(' ');
@@ -397,7 +398,7 @@ function disegnaW() {
 function allenamentiDi(pi) {
   const out = [];
   for (const g of SETTIMANA) {
-    for (const v of workoutDelGiorno(pi, g)) if (v && out.indexOf(v) < 0) out.push(v);
+    for (const v of workoutDelGiorno(pi, g)) if (v && v !== MORNING && out.indexOf(v) < 0) out.push(v);
   }
   return out;
 }
@@ -509,6 +510,17 @@ function paintOggi(box, pi, g) {
   let capo = false;
   for (const nome of workoutDelGiorno(pi, g)) {
     if (!nome) continue;
+    /* un giorno con la lista di tutti i giorni: se il box in alto e' spento,
+       la lista compare qui; se e' acceso c'e' gia' */
+    if (nome === MORNING) {
+      const scm = pi.schede[MORNING];
+      if (!pi.mattinaVia || !scm || !scm.es.length) continue;
+      if (!capo) { box.appendChild(el('p', 'grp', 'TODAY WORKOUTS')); capo = true; }
+      const tm = tabScheda(nomeMattinaDi(pi), scm);
+      tm.classList.add('tab-oggi');
+      box.appendChild(righeScheda(tm, { es: scm.es, rec: '' }, pi.src, MORNING));
+      continue;
+    }
     const sc = pi.schede[nome];
     if (!sc || (!sc.es.length && !sc.rec)) continue;
     if (!capo) { box.appendChild(el('p', 'grp', 'TODAY WORKOUTS')); capo = true; }
@@ -528,7 +540,6 @@ function paintSchede(box, pi) {
   apri.dataset.schroot = '1';
   apri.setAttribute('aria-expanded', mostra.sch ? 'true' : 'false');
   apri.appendChild(el('span', 'wkbar-nome', 'WORKOUTS'));
-  apri.appendChild(el('span', 'wkbar-num', String(nomi.length)));
   apri.appendChild(el('span', 'wkbar-frec', '▾'));
   box.appendChild(apri);
   if (!mostra.sch) return;
