@@ -140,7 +140,7 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 /* con tre o quattro workout al giorno le colonne sono strette: il testo cala */
 .tab-w[style*="--wcol: 3"],.tab-w[style*="--wcol: 4"]{font-size:16px}
 .tab-w[style*="--wcol: 4"] .tabc{padding-left:6px;padding-right:6px}
-.tab-i .tabr{grid-template-columns:1fr 1fr}
+.tab-i .tabr{grid-template-columns:3fr 1fr}
 .tabc.val{color:var(--accent)}
 .tabc{
   min-width:0;padding:10px var(--s2);
@@ -710,3 +710,11 @@ body.ed-aperto{overflow:hidden}
 }
 .ed-desc-testo:focus{outline:none;border-color:var(--accent)}
 .ed-desc-testo::placeholder{color:var(--muted)}
+
+/* nella settimana di una preparazione: i giorni fuori dal periodo, spenti */
+.ed-giorno.fuori{opacity:.55}
+.ed-giorno.fuori .ed-giorno-nome{color:var(--muted)}
+.ed-giorno-data{font-weight:400;color:var(--muted);font-size:15px;white-space:nowrap}
+/* nelle schede da leggere la quantita' e' corta: sta a destra, meno larga */
+.tab-i .tabc.val{white-space:normal;overflow-wrap:anywhere}
+.ed-cat{margin:0 0 var(--s1)}

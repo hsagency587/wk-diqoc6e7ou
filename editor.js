@@ -142,7 +142,9 @@ function edVociFonte(box, ctx) {
         v.pag === 'week' && v.ctx === ctx && v.sett === i));
     });
   }
-  box.appendChild(edVoce(nomeMattinaDi(f.obj), { pag: 'morning', ctx: ctx },
+  /* la lista di tutti i giorni sta nella sua categoria: Every day */
+  box.appendChild(el('p', 'ed-sub', 'Every day'));
+  box.appendChild(edVoce(nomeMattinaDi(f.obj) + (f.obj.mattinaVia ? ' (hidden)' : ''), { pag: 'morning', ctx: ctx },
     v.pag === 'morning' && v.ctx === ctx, f.obj.mattinaVia ? 'spenta' : ''));
   box.appendChild(el('p', 'ed-sub', 'Workouts'));
   for (const n of edWorkout(f)) {
@@ -272,11 +274,27 @@ function edPagSettimana(box, ctx, si) {
   for (const n of edWorkout(f)) { const o = el('option'); o.value = n; lista.appendChild(o); }
   box.appendChild(lista);
 
-  for (const g of SETTIMANA) {
+  /* In una preparazione la prima e l'ultima settimana possono essere a meta':
+     i giorni prima dell'inizio e dopo la fine restano al piano di sempre, e
+     qui si vedono spenti, con la data, invece dei campi. */
+  const lunSett = f.base ? null : piuGiorni(lunedi(daChiave(f.prep.dal)), 7 * si);
+  SETTIMANA.forEach((g, pos) => {
     const n = w.conti[g] || 0;
-    const riga = el('div', 'ed-giorno' + (n ? '' : ' riposo'));
+    const kGiorno = lunSett ? chiaveData(piuGiorni(lunSett, pos)) : null;
+    const fuori = kGiorno && (kGiorno < f.prep.dal || kGiorno > f.prep.al);
+    const riga = el('div', 'ed-giorno' + (n ? '' : ' riposo') + (fuori ? ' fuori' : ''));
     const testa = el('div', 'ed-giorno-testa');
-    testa.appendChild(el('span', 'ed-giorno-nome', GIORNI_ED[g]));
+    const nomeG = el('span', 'ed-giorno-nome', GIORNI_ED[g]);
+    if (kGiorno) nomeG.appendChild(el('span', 'ed-giorno-data', ' ' + dataCorta(kGiorno)));
+    testa.appendChild(nomeG);
+    if (fuori) {
+      riga.appendChild(testa);
+      riga.appendChild(el('span', 'ed-riposo', kGiorno < f.prep.dal
+        ? 'Before the preparation: the normal plan applies'
+        : 'After the preparation: the normal plan applies'));
+      box.appendChild(riga);
+      return;
+    }
     const conta = el('div', 'ed-conta');
     const meno = edBottone(conta, '−', 'ed-piumeno', () => { w.conti[g] = Math.max(0, n - 1); edCambio(true); edPagina(); });
     meno.disabled = n <= 0;
@@ -309,7 +327,7 @@ function edPagSettimana(box, ctx, si) {
     }
     riga.appendChild(campi);
     box.appendChild(riga);
-  }
+  });
 
   if (!f.base && f.settimane.length > 1) {
     const b = el('div', 'ed-azioni');
@@ -461,13 +479,8 @@ function edPagMattina(box, ctx) {
   const f = edFonte(ctx);
   const o = f.obj;
   edDove(box, ctx);
-  edTitolo(box, nomeMattinaDi(o), 'The list at the top of every day.');
-  edCampo(box, 'Name', o.mattina, { max: 40, ph: MATTINA_BASE }, (val) => {
-    const v = validMattina(val);
-    if (v && v !== MATTINA_BASE) o.mattina = v; else o.mattina = '';
-    edCambio(true);
-    edPagina();
-  });
+  box.appendChild(el('p', 'ed-sez-pag ed-cat', 'EVERY DAY'));
+  edTitolo(box, nomeMattinaDi(o), 'The list shown every day, above the workouts. Untick "Show it in the app" to hide it: what is written stays.');
   const l = el('label', 'ed-spunta');
   const c = el('input', 'schsel');
   c.type = 'checkbox';
@@ -476,6 +489,12 @@ function edPagMattina(box, ctx) {
   l.appendChild(c);
   l.appendChild(el('span', null, 'Show it in the app'));
   box.appendChild(l);
+  edCampo(box, 'Name', o.mattina, { max: 40, ph: MATTINA_BASE }, (val) => {
+    const v = validMattina(val);
+    if (v && v !== MATTINA_BASE) o.mattina = v; else o.mattina = '';
+    edCambio(true);
+    edPagina();
+  });
   if (!f.schede[MORNING]) f.schede[MORNING] = { es: [], rec: '' };
   box.appendChild(el('p', 'ed-sez-pag', 'EXERCISES'));
   edEsercizi(box, ctx, MORNING, f.schede[MORNING]);
