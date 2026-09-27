@@ -87,7 +87,7 @@ $('wMod').addEventListener('click', edApri);
 $('edChiudi').addEventListener('click', () => edChiudi(false));
 $('edSalva').addEventListener('click', () => {
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-  pushTasks();
+  if (tstore.dirty) pushTasks(); else codaVideo();
 });
 
 /* Il tasto indietro del telefono: dalla pagina all'elenco, dall'elenco fuori. */
@@ -527,6 +527,7 @@ function edDescrizione(r) {
     if (tstore.daCaricare.indexOf(esito.nome) < 0) tstore.daCaricare.push(esito.nome);
     edCambio(false);
     edPagina();
+    codaVideo();                  /* il video parte subito, mentre si continua a scrivere */
   });
   tasti.appendChild(file);
   const piu = edBottone(tasti, lista.length ? '+ Another video' : '+ Video', '', () => file.click());
@@ -1005,6 +1006,7 @@ function edPagEgg(box) {
       if (tstore.daCaricare.indexOf(nome) < 0) tstore.daCaricare.push(nome);
       edCambio(false);
       edPagina();
+      codaVideo();
     } catch (e) {
       errore.textContent = 'This image could not be read.';
       errore.hidden = false;

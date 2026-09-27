@@ -1063,58 +1063,92 @@ const b64Blob = blob => new Promise((ok, ko) => {
 
 /* Un video su GitHub: blob, albero, commit, e il branch che avanza. E' la via
    di GitHub per i file grandi; quella del piano si ferma molto prima. */
+/* Il corpo della richiesta costruito a pezzi: il file si trasforma in testo
+   3 MB alla volta e i pezzi restano pezzi (un Blob), cosi' un video da 60 MB
+   non diventa mai un'unica stringa enorme nella memoria del telefono. */
+async function corpoBlob(blob) {
+  const parti = ['{"encoding":"base64","content":"'];
+  const PEZZO = 3 * 1024 * 1024;            /* multiplo di 3: i pezzi si attaccano senza rotture */
+  for (let o = 0; o < blob.size; o += PEZZO) {
+    const u = new Uint8Array(await blob.slice(o, o + PEZZO).arrayBuffer());
+    let t = '';
+    for (let i = 0; i < u.length; i += 0x8000) t += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
+    parti.push(btoa(t));
+    await aspetta(0);                        /* respiro: la pagina resta viva */
+  }
+  parti.push('"}');
+  return new Blob(parti, { type: 'application/json' });
+}
+
 /* Il file mandato a GitHub con XMLHttpRequest e non con fetch: cosi' si sa a
    che punto e' e la riga in alto lo dice. */
 function postaBlob(corpo, avanza) {
   return new Promise(ok => {
     const x = new XMLHttpRequest();
     x.open('POST', API + '/git/blobs');
+    x.timeout = 15 * 60 * 1000;
     const H = Object.assign({ 'Content-Type': 'application/json' }, ghHeaders());
     for (const k of Object.keys(H)) x.setRequestHeader(k, H[k]);
     x.upload.onprogress = e => { if (e.lengthComputable && avanza) avanza(e.loaded / e.total); };
     x.onload = () => { try { ok(x.status < 300 ? JSON.parse(x.responseText).sha : null); } catch (e) { ok(null); } };
-    x.onerror = x.ontimeout = () => ok(null);
+    x.onerror = x.ontimeout = x.onabort = () => ok(null);
     x.send(corpo);
   });
 }
 
 const aspetta = ms => new Promise(r => setTimeout(r, ms));
 
+/* C'e' gia' online? Se un caricamento e' arrivato ma il telefono non ha fatto
+   in tempo a segnarlo, non lo si rimanda. */
+async function videoOnline(nome) {
+  try {
+    const r = await fetch(API + '/contents/video/' + nome + '?ref=' + BRANCH, { method: 'GET', headers: ghHeaders(), cache: 'no-store' });
+    return r.status === 200;
+  } catch (e) { return false; }
+}
+
 async function caricaVideo(nome, avanza) {
   try {
     const blob = await vGet(nome);
     if (!blob) return true;                   /* sparito dal telefono: niente da mandare */
-    const b64 = await b64Blob(new Blob([await cifraByte(await blob.arrayBuffer())]));
+    if (await videoOnline(nome)) return true;
+    const dati = chiave ? new Blob([await cifraByte(await blob.arrayBuffer())]) : blob;
+    const corpo = await corpoBlob(dati);
     /* il file va su una volta sola; poi si prova ad attaccarlo al branch */
     let sha = null;
-    for (let t = 0; t < 2 && !sha; t++) sha = await postaBlob(JSON.stringify({ content: b64, encoding: 'base64' }), avanza);
+    for (let t = 0; t < 3 && !sha; t++) {
+      if (t) await aspetta(5000 * t);
+      sha = await postaBlob(corpo, avanza);
+    }
     if (!sha) return false;
     const H = Object.assign({ 'Content-Type': 'application/json' }, ghHeaders());
     const leggiRef = () => fetch(API + '/git/ref/heads/' + BRANCH, { headers: ghHeaders(), cache: 'no-store' });
     /* Subito dopo il salvataggio del piano GitHub a volte da' ancora il
        branch vecchio, e l'aggancio viene rifiutato: si rilegge e si riprova. */
-    for (let t = 0; t < 5; t++) {
+    for (let t = 0; t < 8; t++) {
       if (t) await aspetta(1500 * t);
-      let ref = await leggiRef();
-      if (ref.status === 404) {
-        if (!(await creaBranch())) return false;
-        ref = await leggiRef();
-      }
-      if (!ref.ok) continue;
-      const base = (await ref.json()).object.sha;
-      const c0 = await fetch(API + '/git/commits/' + base, { headers: ghHeaders(), cache: 'no-store' });
-      if (!c0.ok) continue;
-      const albero0 = (await c0.json()).tree.sha;
-      const tr = await fetch(API + '/git/trees', { method: 'POST', headers: H,
-        body: JSON.stringify({ base_tree: albero0,
-          tree: [{ path: 'video/' + nome, mode: '100644', type: 'blob', sha: sha }] }) });
-      if (!tr.ok) continue;
-      const cm = await fetch(API + '/git/commits', { method: 'POST', headers: H,
-        body: JSON.stringify({ message: 'video: ' + nome, tree: (await tr.json()).sha, parents: [base] }) });
-      if (!cm.ok) continue;
-      const up = await fetch(API + '/git/refs/heads/' + BRANCH, { method: 'PATCH', headers: H,
-        body: JSON.stringify({ sha: (await cm.json()).sha }) });
-      if (up.ok) return true;
+      try {
+        let ref = await leggiRef();
+        if (ref.status === 404) {
+          if (!(await creaBranch())) continue;
+          ref = await leggiRef();
+        }
+        if (!ref.ok) continue;
+        const base = (await ref.json()).object.sha;
+        const c0 = await fetch(API + '/git/commits/' + base, { headers: ghHeaders(), cache: 'no-store' });
+        if (!c0.ok) continue;
+        const albero0 = (await c0.json()).tree.sha;
+        const tr = await fetch(API + '/git/trees', { method: 'POST', headers: H,
+          body: JSON.stringify({ base_tree: albero0,
+            tree: [{ path: 'video/' + nome, mode: '100644', type: 'blob', sha: sha }] }) });
+        if (!tr.ok) continue;
+        const cm = await fetch(API + '/git/commits', { method: 'POST', headers: H,
+          body: JSON.stringify({ message: 'video: ' + nome, tree: (await tr.json()).sha, parents: [base] }) });
+        if (!cm.ok) continue;
+        const up = await fetch(API + '/git/refs/heads/' + BRANCH, { method: 'PATCH', headers: H,
+          body: JSON.stringify({ sha: (await cm.json()).sha }) });
+        if (up.ok) return true;
+      } catch (e) { /* rete caduta a meta': si riprova */ }
     }
     return false;
   } catch (e) {
@@ -1686,9 +1720,11 @@ function rememberSha(sha) {
 
 function paintSalva() {
   /* due bottoni, uno stato: in testata e nell'editor */
+  /* il bottone serve anche per spingere i video rimasti in coda */
+  const coda = tstore.daCaricare.length && !caricandoVideo && token;
   for (const b of [$('salva'), $('edSalva')]) {
     if (!b) continue;
-    b.hidden = !tstore.dirty;
+    b.hidden = !(tstore.dirty || coda);
     b.disabled = salvando;
     b.classList.toggle('err', !!salvaErr);
     /* il bottone dell'editor parla inglese, quello della pagina italiano */
@@ -1904,32 +1940,60 @@ async function pushTasks(opts) {
   salvato();
   /* il piano e' salvato: adesso i video nuovi, uno alla volta. Chiudendo
      l'app non si prova nemmeno: un video non parte in un colpo solo. */
-  if (!opts.keepalive) await caricaPendenti();
+  if (!opts.keepalive) codaVideo();
 }
 
 /* I video scelti da questo telefono partono per GitHub. Quelli che non ce la
    fanno restano in lista: Save resta acceso, e si riprova. */
-async function caricaPendenti() {
-  if (!tstore.daCaricare.length) return;
-  salvando = true; paintSalva();
-  const lista = tstore.daCaricare.slice();
-  for (let i = 0; i < lista.length; i++) {
-    const riga = 'carico il video ' + (i + 1) + ' di ' + lista.length;
-    paintSync(riga + '…');
-    const ok = await caricaVideo(lista[i], x => paintSync(riga + '… ' + Math.round(x * 100) + '%'));
-    if (ok) {
-      tstore.daCaricare = tstore.daCaricare.filter(x => x !== lista[i]);
-      saveLocal();
+/* La coda dei video: gira da sola, separata dal salvataggio del piano.
+   Parte appena un video e' pronto, all'apertura dell'app, quando torna la
+   rete o l'app torna davanti, e ogni minuto finche' resta qualcosa. Mentre
+   carica tiene lo schermo acceso. Un video tolto dal piano esce dalla coda. */
+let caricandoVideo = false;
+let ritentaVideo = null;
+
+function nomiNelPiano() {
+  const nomi = new Set();
+  for (const tutte of [tstore.schede].concat(tstore.prep.map(p => p.schede))) {
+    for (const k of Object.keys(tutte)) for (const r of tutte[k].es) for (const v of videiDi(r)) nomi.add(v);
+  }
+  for (const x of tstore.sorprese || []) if (x && x.img) nomi.add(x.img);
+  return nomi;
+}
+
+async function codaVideo() {
+  if (caricandoVideo || !token || !tstore.daCaricare.length) return;
+  clearTimeout(ritentaVideo);
+  caricandoVideo = true;
+  paintSalva();
+  let luce = null;
+  try { if (navigator.wakeLock) luce = await navigator.wakeLock.request('screen'); } catch (e) { /* niente */ }
+  try {
+    const nel = nomiNelPiano();
+    tstore.daCaricare = tstore.daCaricare.filter(n => nel.has(n));
+    saveLocal();
+    const lista = tstore.daCaricare.slice();
+    for (let i = 0; i < lista.length; i++) {
+      const riga = 'carico il video ' + (i + 1) + ' di ' + lista.length;
+      paintSync(riga + '… tieni l\'app aperta');
+      const ok = await caricaVideo(lista[i], x => paintSync(riga + '… ' + Math.round(x * 100) + '%'));
+      if (ok) {
+        tstore.daCaricare = tstore.daCaricare.filter(x => x !== lista[i]);
+        saveLocal();
+      }
     }
+  } finally {
+    caricandoVideo = false;
+    try { if (luce) await luce.release(); } catch (e) { /* niente */ }
   }
-  salvando = false;
-  if (tstore.daCaricare.length) {
-    tstore.dirty = true; saveLocal();
-    salvaErr = 'video';
-    paintSalva(); paintSync('video non caricato: premi Riprova', true);
-  } else {
-    paintSalva(); paintSync('salvato alle ' + fmtTime.format(new Date()));
+  const n = tstore.daCaricare.length;
+  if (n) {
+    paintSync(n + (n === 1 ? ' video ancora da caricare' : ' video ancora da caricare') + ': riprovo fra un minuto', true);
+    ritentaVideo = setTimeout(codaVideo, 60000);
+  } else if (!tstore.dirty) {
+    paintSync('video caricati alle ' + fmtTime.format(new Date()));
   }
+  paintSalva();
 }
 
 /* Il salvagente: si chiama chiudendo l'app. */
@@ -1947,7 +2011,7 @@ function riprovaSalva() {
 $('salva').addEventListener('click', () => {
   /* un campo ancora col cursore dentro non ha ancora scritto: lo si chiude */
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-  pushTasks();
+  if (tstore.dirty) pushTasks(); else codaVideo();
 });
 
 /* ---------------------------------------------------------- avviamento --- */
@@ -1959,7 +2023,7 @@ document.addEventListener('visibilitychange', () => {
   riprovaSalva();
 });
 window.addEventListener('pagehide', salvagente);
-window.addEventListener('online', () => { riprovaSalva(); pullTasks(); });
+window.addEventListener('online', () => { riprovaSalva(); pullTasks(); codaVideo(); });
 
 /* A mezzanotte cambia la riga di oggi: si ridisegna al passare del giorno. */
 let giornoVisto = today().getTime();
@@ -2079,3 +2143,8 @@ document.addEventListener('visibilitychange', () => {
   else controllaSorprese();
 });
 controllaSorprese();
+
+/* I video rimasti in coda ripartono da soli: all'apertura e quando l'app
+   torna davanti. */
+document.addEventListener('visibilitychange', () => { if (!document.hidden) codaVideo(); });
+setTimeout(codaVideo, 3000);
