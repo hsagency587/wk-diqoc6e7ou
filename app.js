@@ -195,14 +195,14 @@ let chiaveKo = false;
 try { chiave = localStorage.getItem(CHIAVE_KEY) || ''; } catch (e) { /* niente chiave */ }
 
 /* mw: i campi del piano aperti; sch: la tendina WORKOUTS aperta;
-   off: le schede spente con la loro pastiglia */
+   solo: la sola scheda scelta con la sua pastiglia; vuoto = tutte */
 let mostra = (() => {
   try {
     const v = JSON.parse(localStorage.getItem(VISTA_KEY) || 'null');
     if (v && typeof v === 'object')
-      return { mw: !!v.mw, sch: v.sch !== false, off: (Array.isArray(v.off) ? v.off : []).map(String) };
+      return { mw: !!v.mw, sch: v.sch !== false, solo: typeof v.solo === 'string' ? v.solo : '' };
   } catch (e) { /* si parte col piano da leggere */ }
-  return { mw: false, sch: true, off: [] };
+  return { mw: false, sch: true, solo: '' };
 })();
 function salvaMostra() {
   try { localStorage.setItem(VISTA_KEY, JSON.stringify(mostra)); } catch (e) {}
@@ -555,7 +555,7 @@ function paintSchede(box, pi) {
   sx.setAttribute('aria-label', 'Scroll the workouts left');
   const chips = el('div', 'chips chipsch');
   for (const nome of nomi) {
-    const acceso = mostra.off.indexOf(nome) < 0;
+    const acceso = mostra.solo === nome;
     const c = el('button', 'chip chipw' + (acceso ? ' sel' : ''), nome);
     c.type = 'button';
     c.dataset.chipsch = nome;
@@ -574,11 +574,8 @@ function paintSchede(box, pi) {
   }, { passive: true });
   requestAnimationFrame(() => frecceChip(riga));
 
-  const visti = nomi.filter(x => mostra.off.indexOf(x) < 0);
-  if (!visti.length) {
-    box.appendChild(el('p', 'vuoto', 'No workout chosen'));
-    return;
-  }
+  /* nessuna pastiglia accesa: si vedono tutte; una accesa: solo quella */
+  const visti = nomi.indexOf(mostra.solo) >= 0 ? [mostra.solo] : nomi;
   const lista = el('div', 'schlista');
   box.appendChild(lista);
   for (const nome of visti) {
@@ -605,8 +602,7 @@ $('wlist').addEventListener('click', ev => {
   const ch = ev.target.closest('button[data-chipsch]');
   if (ch) {
     const n = ch.dataset.chipsch;
-    if (mostra.off.indexOf(n) < 0) mostra.off = mostra.off.concat([n]);
-    else mostra.off = mostra.off.filter(x => x !== n);
+    mostra.solo = mostra.solo === n ? '' : n;
     salvaMostra();
     paintW();
     return;

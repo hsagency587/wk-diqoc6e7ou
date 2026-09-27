@@ -616,7 +616,7 @@ function edRinomina(f, vecchio, nuovo) {
       if (r) for (let i = 0; i < r.length; i++) if (r[i] === vecchio) r[i] = nuovo;
     }
   }
-  if (mostra.off.indexOf(vecchio) >= 0) { mostra.off = mostra.off.map(x => x === vecchio ? nuovo : x); salvaMostra(); }
+  if (mostra.solo === vecchio) { mostra.solo = nuovo; salvaMostra(); }
 }
 
 function edGruppiBottone(box, ctx, nome) {
