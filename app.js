@@ -748,6 +748,23 @@ function videoDi(link) {
     return { tipo: 'frame', verticale: verticale,
              src: 'https://www.youtube-nocookie.com/embed/' + id + '?rel=0&playsinline=1' + (inizio ? '&start=' + inizio : '') };
   }
+  /* Wistia, Loom, Dailymotion, Streamable: tutti hanno un lettore da incorporare */
+  if (/(^|\.)wistia\.(com|net)$/.test(host) || host === 'wi.st') {
+    const m = u.pathname.match(/\/(?:medias|embed\/iframe|embed\/medias|iframe)\/([a-z0-9]+)/i);
+    if (m) return { tipo: 'frame', src: 'https://fast.wistia.net/embed/iframe/' + m[1] };
+  }
+  if (host === 'loom.com') {
+    const m = u.pathname.match(/^\/(?:share|embed)\/([a-f0-9]+)/i);
+    if (m) return { tipo: 'frame', src: 'https://www.loom.com/embed/' + m[1] };
+  }
+  if (host === 'dailymotion.com' || host === 'dai.ly') {
+    const m = host === 'dai.ly' ? u.pathname.match(/^\/([a-z0-9]+)/i) : u.pathname.match(/^\/video\/([a-z0-9]+)/i);
+    if (m) return { tipo: 'frame', src: 'https://www.dailymotion.com/embed/video/' + m[1] };
+  }
+  if (host === 'streamable.com') {
+    const m = u.pathname.match(/^\/(?:e\/)?([a-z0-9]+)/i);
+    if (m) return { tipo: 'frame', src: 'https://streamable.com/e/' + m[1] };
+  }
   if (host === 'vimeo.com') {
     const m = u.pathname.match(/^\/(\d+)/);
     if (m) return { tipo: 'frame', src: 'https://player.vimeo.com/video/' + m[1] };
@@ -795,11 +812,11 @@ function videoNodo(link) {
 /* Il testo della descrizione, riga per riga. Una riga che comincia con un
    trattino, un asterisco o un numero e' una voce di elenco. Un link da solo
    su una riga e' un video. */
-function testoDesc(box, txt) {
+function testoDesc(box, txt, senzaLink) {
   box.textContent = '';
   for (const riga of String(txt || '').split('\n')) {
     const lk = riga.match(RIGA_LINK);
-    if (lk) { box.appendChild(videoNodo(lk[1])); continue; }
+    if (lk) { if (!senzaLink) box.appendChild(videoNodo(lk[1])); continue; }
     const m = riga.match(/^\s*([-*•]|\d+[.)])\s+(.*)$/);
     if (m) {
       const p = el('p', 'desriga conpunto');
@@ -819,16 +836,56 @@ function apriDesc(src, nome, i) {
   const r = sc && sc.es[i];
   if (!r) return;
   $('descTit').textContent = r[0] || (nome === MORNING ? 'FIRST 15\'' : nome);
-  testoDesc($('descTesto'), r[3]);
+  /* i link video scritti nel testo salgono nello slot, dopo i video caricati */
+  testoDesc($('descTesto'), r[3], true);
   dlgDesc.showModal();
   dlgDesc.focus();                /* niente tastiera addosso appena si apre */
-  vLista = videiDi(r);
+  vLista = videiDi(r).map(n => ({ tipo: 'mio', nome: n }));
+  for (const riga of String(r[3] || '').split('\n')) {
+    const lk = riga.match(RIGA_LINK);
+    const v = lk && videoDi(lk[1]);
+    if (v) vLista.push(v);
+  }
   vIdx = 0;
   paintVNav();
   /* con piu' video, un avviso leggero sopra il primo: sparisce al tocco */
   $('vAvviso').hidden = vLista.length < 2;
   $('vAvviso').textContent = vLista.length + ' video: sotto trovi le frecce';
-  mostraVideo(vLista[0] || '', false);
+  mostraElemento(vLista[0] || null);
+}
+
+/* Un elemento dello slot: un video caricato, un lettore incorporato
+   (YouTube, Wistia, Loom...), un file video da un link, o un bottone per le
+   piattaforme che non si lasciano incorporare (Patreon, Instagram...). */
+function mostraElemento(x) {
+  if (!x) { mostraVideo('', false); return; }
+  if (x.tipo === 'mio') { mostraVideo(x.nome, false); return; }
+  pulisciVideo();
+  const slot = $('vSlot');
+  slot.hidden = false;
+  $('vVideo').hidden = true;
+  $('vFull').hidden = true;
+  $('vStato').textContent = '';
+  if (x.tipo === 'file') {
+    const v = $('vVideo');
+    v.src = x.src; v.hidden = false; $('vFull').hidden = false;
+    return;
+  }
+  if (x.tipo === 'frame') {
+    const f = el('iframe', 'vframe');
+    f.src = x.src;
+    f.allow = 'autoplay; encrypted-media; fullscreen; picture-in-picture';
+    f.allowFullscreen = true;
+    f.referrerPolicy = 'strict-origin-when-cross-origin';
+    f.title = 'Video';
+    slot.classList.toggle('verticale', !!x.verticale);
+    slot.appendChild(f);
+    return;
+  }
+  const a = el('a', 'vlink', '▶  Apri il video');
+  try { a.appendChild(el('span', 'vlink-host', new URL(x.src).hostname.replace(/^www\./, ''))); } catch (e) {}
+  a.href = x.src; a.target = '_blank'; a.rel = 'noopener noreferrer';
+  slot.appendChild(a);
 }
 
 /* Piu' video nella stessa descrizione: le frecce sotto lo slot. */
@@ -846,7 +903,7 @@ function vaiVideo(d) {
   vIdx = i;
   $('vAvviso').hidden = true;
   paintVNav();
-  mostraVideo(vLista[vIdx], false);
+  mostraElemento(vLista[vIdx]);
 }
 $('vPrima').addEventListener('click', () => vaiVideo(-1));
 $('vDopo').addEventListener('click', () => vaiVideo(1));
@@ -1043,6 +1100,7 @@ let vURL = null;
 let vMostrato = '';
 
 function pulisciVideo() {
+  for (const x of $('vSlot').querySelectorAll('.vframe, .vlink')) x.remove();
   const v = $('vVideo');
   v.pause();
   v.removeAttribute('src');

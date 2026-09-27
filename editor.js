@@ -521,7 +521,7 @@ function edDescrizione(r) {
   box.appendChild(v);
 
   const t = el('textarea', 'commento ed-desc-testo');
-  t.placeholder = 'How it goes, what to watch out for. Lines starting with - become a list; a YouTube link on its own line becomes a video.';
+  t.placeholder = 'How it goes, what to watch out for. Lines starting with - become a list; a video link on its own line (YouTube, Vimeo, Wistia, Loom, Drive, Patreon…) goes in the video slot at the top.';
   t.value = r[3] || '';
   const alto = () => { t.rows = Math.max(4, Math.min(24, t.value.split('\n').length + 1)); };
   alto();
