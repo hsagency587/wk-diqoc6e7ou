@@ -301,9 +301,10 @@ function edPagSettimana(box, ctx, si) {
   /* in cima la lista di tutti i giorni: scelta in un giorno, quel giorno
      porta il suo nome */
   const nomeEvery = nomeMattinaDi(f.obj);
-  for (const n of [nomeEvery].concat(edWorkout(f))) { const o = el('option'); o.value = n; lista.appendChild(o); }
+  const EVERY = 'Every day';
+  for (const n of [EVERY].concat(edWorkout(f))) { const o = el('option'); o.value = n; lista.appendChild(o); }
   box.appendChild(lista);
-  box.appendChild(el('p', 'ed-sotto', 'Tip: write "' + nomeEvery + '" in a day to give that day the Every day list.'));
+  box.appendChild(el('p', 'ed-sotto', 'Choose "' + EVERY + '" in a day: in the app that day shows "' + nomeEvery + '".'));
 
   /* In una preparazione la prima e l'ultima settimana possono essere a meta':
      i giorni prima dell'inizio e dopo la fine restano al piano di sempre, e
@@ -346,13 +347,15 @@ function edPagSettimana(box, ctx, si) {
       inp.setAttribute('list', 'edNomi');
       inp.placeholder = ORDINALI[i] + ' workout';
       const val = (w.workout[g] || [])[i] || '';
-      inp.value = val === MORNING ? nomeEvery : val;
+      inp.value = val === MORNING ? EVERY : val;
       if (val === MORNING) inp.classList.add('every');
       inp.addEventListener('change', () => {
         const r = (w.workout[g] || []).slice();
         while (r.length <= i) r.push('');
         const scritto = inp.value.slice(0, 60).trim();
-        r[i] = scritto && scritto.toLowerCase() === nomeEvery.toLowerCase() ? MORNING : scritto;
+        const basso = scritto.toLowerCase();
+        r[i] = scritto && (basso === EVERY.toLowerCase() || basso === 'everyday' || basso === nomeEvery.toLowerCase()) ? MORNING : scritto;
+        if (r[i] === MORNING) inp.value = EVERY;
         while (r.length && !r[r.length - 1]) r.pop();
         if (r.length) w.workout[g] = r; else delete w.workout[g];
         inp.classList.toggle('every', r[i] === MORNING);
