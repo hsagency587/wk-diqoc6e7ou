@@ -484,7 +484,15 @@ function edDescrizione(r) {
     const f = file.files && file.files[0];
     file.value = '';
     if (!f) return;
-    const esito = await tieniVideo(f);
+    /* la compressione puo' durare: si dice a che punto e', e i tasti aspettano */
+    errore.classList.remove('err');
+    errore.hidden = false;
+    errore.textContent = 'Compressing the video…';
+    for (const b of tasti.querySelectorAll('button')) b.disabled = true;
+    const esito = await tieniVideo(f, x => { errore.textContent = 'Compressing the video… ' + Math.min(99, Math.round(x * 100)) + '%'; });
+    for (const b of tasti.querySelectorAll('button')) b.disabled = false;
+    errore.classList.add('err');
+    errore.hidden = true;
     if (esito.errore) { errore.textContent = esito.errore; errore.hidden = false; return; }
     r[4] = esito.nome;
     if (tstore.daCaricare.indexOf(esito.nome) < 0) tstore.daCaricare.push(esito.nome);

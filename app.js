@@ -1030,7 +1030,51 @@ if (orizzontale.addEventListener) orizzontale.addEventListener('change', ruota);
 
 /* Un file video scelto nell'editor: resta subito nel telefono, sotto un nome
    nuovo, e al Save parte per GitHub. Torna il nome, o un errore da mostrare. */
-async function tieniVideo(f) {
+/* La compressione dei video, prima di tenerli: il telefono registra in 1080p
+   o 4K, e un esercizio si capisce benissimo in 720p. La fa il browser con i
+   suoi strumenti video (WebCodecs), attraverso una libreria che si scarica
+   solo quando serve. Due passate: la prima a 720p; se il file e' ancora
+   sopra il limite, una seconda piu' piccola. Se il browser non ce la fa, il
+   video resta com'e'. */
+const MEDIABUNNY = 'https://cdn.jsdelivr.net/npm/mediabunny@1.60.0/+esm';
+const PASSATE_VIDEO = [{ lato: 1280, bit: 1500000, audio: 96000 },
+                       { lato: 854,  bit: 700000,  audio: 64000 }];
+
+async function comprimiVideo(f, avanza) {
+  if (!('VideoEncoder' in window)) return null;
+  let mb;
+  try { mb = await import(MEDIABUNNY); } catch (e) { return null; }
+  let migliore = null;
+  for (let i = 0; i < PASSATE_VIDEO.length; i++) {
+    const p = PASSATE_VIDEO[i];
+    try {
+      const input = new mb.Input({ source: new mb.BlobSource(f), formats: mb.ALL_FORMATS });
+      const target = new mb.BufferTarget();
+      const output = new mb.Output({ format: new mb.Mp4OutputFormat({ fastStart: 'in-memory' }), target: target });
+      const conv = await mb.Conversion.init({
+        input: input, output: output,
+        video: t => {
+          const w = t.displayWidth, h = t.displayHeight;
+          const o = { bitrate: p.bit };
+          if (Math.max(w, h) > p.lato) { if (w >= h) o.width = p.lato; else o.height = p.lato; }
+          return o;
+        },
+        audio: { bitrate: p.audio }
+      });
+      if (!conv.isValid) break;
+      conv.onProgress = x => { if (avanza) avanza((i + x) / (i + 1)); };
+      await conv.execute();
+      const b = new Blob([target.buffer], { type: 'video/mp4' });
+      if (!migliore || b.size < migliore.size) migliore = b;
+      if (b.size <= VIDEO_MAX) break;
+    } catch (e) { break; }
+  }
+  return migliore;
+}
+
+async function tieniVideo(f, avanza) {
+  const piccolo = await comprimiVideo(f, avanza);
+  if (piccolo && piccolo.size < f.size) f = new File([piccolo], 'video.mp4', { type: 'video/mp4' });
   if (f.size > VIDEO_MAX) {
     return { errore: 'Video too big: ' + Math.round(f.size / 1048576) + ' MB, the limit is 45 MB. Record a shorter clip, or at 720p.' };
   }
