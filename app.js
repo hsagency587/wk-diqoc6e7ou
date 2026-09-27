@@ -803,7 +803,7 @@ dlgDesc.addEventListener('cancel', () => { pulisciVideo(); $('descTesto').textCo
    su GitHub: i video sono pochi. */
 
 /* Oltre questa misura GitHub rischia di rifiutare il file. */
-const VIDEO_MAX = 45 * 1024 * 1024;
+const VIDEO_MAX = 60 * 1024 * 1024;
 const RAW_VIDEO = 'https://raw.githubusercontent.com/' + REPO + '/' + BRANCH + '/video/';
 const tipoVideo = n => /\.webm$/.test(n) ? 'video/webm' : 'video/mp4';
 
@@ -1100,7 +1100,7 @@ async function tieniVideo(f, avanza) {
   const piccolo = await comprimiVideo(f, avanza);
   if (piccolo && piccolo.size < f.size) f = new File([piccolo], 'video.mp4', { type: 'video/mp4' });
   if (f.size > VIDEO_MAX) {
-    return { errore: 'Video too big: ' + Math.round(f.size / 1048576) + ' MB, the limit is 45 MB. Record a shorter clip, or at 720p.' };
+    return { errore: 'Video too big: ' + Math.round(f.size / 1048576) + ' MB, the limit is 60 MB. Record a shorter clip, or at 720p.' };
   }
   const est = (f.name.match(/\.(mp4|webm|mov|m4v)$/i) || [0, 'mp4'])[1].toLowerCase();
   const nome = 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8) + '.' + est;
