@@ -113,7 +113,8 @@ function validSchede(w) {
       viaGruppi(Array.isArray(r) ? r[2] : null),
       String((Array.isArray(r) ? r[3] : '') || '').slice(0, 4000),
       /* quinta casella: il nome del file del video dell'esercizio, o vuoto */
-      nomeVideoOk(Array.isArray(r) ? r[4] : '') ? r[4] : ''
+      /* uno o piu' video, separati da virgole */
+      String((Array.isArray(r) ? r[4] : '') || '').split(',').filter(nomeVideoOk).slice(0, 6).join(',')
     ]).filter(r => r[0] || r[1]);
     const rec = String(v.rec == null ? '' : v.rec).slice(0, 60).trim();
     if (es.length || rec) out[nome] = { es: es, rec: rec };
@@ -123,7 +124,9 @@ function validSchede(w) {
 
 /* Il nome di un video: lettere e numeri a caso, e l'estensione. Lo sceglie
    l'app quando si carica il file, e non cambia piu'. */
-const nomeVideoOk = v => typeof v === 'string' && /^[a-z0-9]{6,30}\.(mp4|webm|mov|m4v)$/.test(v);
+/* I video di un esercizio: la quinta casella ne tiene uno o piu'. */
+const videiDi = r => String((r && r[4]) || '').split(',').filter(Boolean);
+const nomeVideoOk = v => typeof v === 'string' && /^[a-z0-9]{6,30}\.(mp4|webm|mov|m4v|jpg)$/.test(v);
 
 /* Quanti workout ha ogni giorno: da zero a quattro, giorno per giorno. Zero
    e' un giorno senza allenamenti. I file di prima avevano un numero solo per
@@ -167,10 +170,35 @@ function validPrep(l) {
   }).filter(Boolean).sort((a, b) => a.dal < b.dal ? -1 : 1);
 }
 
+/* Le sorprese (easter egg): cose divertenti che si vedono solo in un giorno
+   scelto, la prima volta che l'app si apre quel giorno. Un'immagine a tutto
+   schermo, o una postilla colorata in un punto della pagina. */
+function validSorprese(l) {
+  if (!Array.isArray(l)) return [];
+  return l.slice(0, 200).map(x => {
+    if (!x || typeof x !== 'object' || !dataOk(x.giorno)) return null;
+    const tipo = x.tipo === 'img' ? 'img' : x.tipo === 'nota' ? 'nota' : null;
+    if (!tipo) return null;
+    const o = { id: typeof x.id === 'string' && /^[\w-]{3,30}$/.test(x.id) ? x.id : 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                tipo: tipo, giorno: x.giorno };
+    if (tipo === 'img') {
+      if (!nomeVideoOk(x.img)) return null;
+      o.img = x.img;
+    } else {
+      o.testo = String(x.testo == null ? '' : x.testo).slice(0, 300).trim();
+      if (!o.testo) return null;
+      o.dove = String(x.dove || 'top').slice(0, 80);
+      o.colore = [0, 1, 2, 3].indexOf(x.colore) >= 0 ? x.colore : 0;
+    }
+    return o;
+  }).filter(Boolean);
+}
+
 /* Il contenuto del file, e basta: serve a capire se due versioni sono uguali. */
 const contenuto = s => JSON.stringify({ workout: validWorkout(s.workout), schede: validSchede(s.schede),
                                          conti: validConti(s.conti, s.slot), mattina: validMattina(s.mattina),
-                                         mattinaVia: !!s.mattinaVia, prep: validPrep(s.prep) });
+                                         mattinaVia: !!s.mattinaVia, prep: validPrep(s.prep),
+                                         sorprese: validSorprese(s.sorprese) });
 
 /* ------------------------------------------------------- lo stato ---- */
 
@@ -184,6 +212,8 @@ tstore.conti   = validConti(tstore.conti, tstore.slot);
 tstore.prep    = validPrep(tstore.prep);
 /* la scheda del mattino si puo' togliere: nascosta per tutti, sta nel file */
 tstore.mattinaVia = !!tstore.mattinaVia;
+/* le sorprese restano come sono scritte: si ripuliscono solo quando si salva */
+if (!Array.isArray(tstore.sorprese)) tstore.sorprese = [];
 tstore.dirty   = !!tstore.dirty;
 /* i video scelti in questo telefono e non ancora arrivati su GitHub */
 if (!Array.isArray(tstore.daCaricare)) tstore.daCaricare = [];
@@ -234,6 +264,7 @@ function ripescaLocale() {
   tstore.conti   = validConti(tstore.conti, tstore.slot);
   tstore.prep    = validPrep(tstore.prep);
   tstore.mattinaVia = !!tstore.mattinaVia;
+  if (!Array.isArray(tstore.sorprese)) tstore.sorprese = [];
   if (!Array.isArray(tstore.daCaricare)) tstore.daCaricare = [];
   return true;
 }
@@ -348,6 +379,9 @@ let chipX = 0;
 /* L'anteprima di una preparazione che sta per iniziare: la pagina si
    disegna come se fosse gia' il primo giorno. null = la pagina di oggi. */
 let anteprima = null;
+/* Le postille (easter egg) accese adesso: spariscono al primo tocco,
+   scorrendo, o uscendo dall'app. */
+let festa = [];
 /* Quanti giorni prima dell'inizio compare l'avviso: dal sabato per un lunedi'. */
 const AVVISO_GIORNI = 2;
 
@@ -376,6 +410,8 @@ function disegnaW() {
     bar.appendChild(el('span', 'antbar-eti', 'ANTEPRIMA'));
     box.appendChild(bar);
   }
+
+  if (!pAnt) postille(box, 'top');
 
   /* una preparazione che inizia fra poco: l'avviso, con l'anteprima */
   if (!pAnt) {
@@ -418,6 +454,7 @@ function disegnaW() {
     return { g: g, d: d, k: k, pi: pi, w: workoutDelGiorno(pi, g) };
   });
   const n = Math.max(1, ...giorni.map(x => x.pi.conti[x.g] || 0));
+  if (!pAnt) postille(box, 'week');
   const tab = el('div', 'tab tab-w');
   tab.style.setProperty('--wcol', n);
   /* in cima alla tabella, sempre la stessa scritta, su tutta la riga */
@@ -436,8 +473,11 @@ function disegnaW() {
   }
   box.appendChild(tab);
 
+  if (!pAnt) postille(box, 'every');
   paintMorning(box, oggi);
+  if (!pAnt) postille(box, 'oggi');
   paintOggi(box, oggi, t0.getDay(), pAnt ? 'ALLENAMENTI DI ' + GIORNI_IT[t0.getDay()].toUpperCase() + ' ' + t0.getDate() : 'ALLENAMENTI DI OGGI');
+  if (!pAnt) postille(dx, 'wk');
   paintSchede(dx, oggi);
 }
 
@@ -571,6 +611,7 @@ function paintOggi(box, pi, g, titolo) {
     const sc = pi.schede[nome];
     if (!sc || (!sc.es.length && !sc.rec)) continue;
     if (!capo) { box.appendChild(el('p', 'grp', titolo || 'ALLENAMENTI DI OGGI')); capo = true; }
+    if (!anteprima) postille(box, 'w:' + nome);
     const t = tabScheda(nome, sc);
     t.classList.add('tab-oggi');
     box.appendChild(righeScheda(t, sc, pi.src, nome));
@@ -627,6 +668,7 @@ function paintSchede(box, pi) {
   box.appendChild(lista);
   for (const nome of visti) {
     const sc = pi.schede[nome];
+    if (!anteprima) postille(lista, 'w:' + nome);
     lista.appendChild(righeScheda(tabScheda(nome, sc), sc, pi.src, nome));
   }
 }
@@ -780,12 +822,42 @@ function apriDesc(src, nome, i) {
   testoDesc($('descTesto'), r[3]);
   dlgDesc.showModal();
   dlgDesc.focus();                /* niente tastiera addosso appena si apre */
-  mostraVideo(r[4] || '', false);
+  vLista = videiDi(r);
+  vIdx = 0;
+  paintVNav();
+  /* con piu' video, un avviso leggero sopra il primo: sparisce al tocco */
+  $('vAvviso').hidden = vLista.length < 2;
+  $('vAvviso').textContent = vLista.length + ' video: sotto trovi le frecce';
+  mostraVideo(vLista[0] || '', false);
 }
+
+/* Piu' video nella stessa descrizione: le frecce sotto lo slot. */
+let vLista = [], vIdx = 0;
+function paintVNav() {
+  const n = vLista.length;
+  $('vNav').hidden = n < 2;
+  $('vConta').textContent = (vIdx + 1) + ' di ' + n;
+  $('vPrima').disabled = vIdx <= 0;
+  $('vDopo').disabled = vIdx >= n - 1;
+}
+function vaiVideo(d) {
+  const i = vIdx + d;
+  if (i < 0 || i >= vLista.length) return;
+  vIdx = i;
+  $('vAvviso').hidden = true;
+  paintVNav();
+  mostraVideo(vLista[vIdx], false);
+}
+$('vPrima').addEventListener('click', () => vaiVideo(-1));
+$('vDopo').addEventListener('click', () => vaiVideo(1));
+$('vAvviso').addEventListener('click', () => { $('vAvviso').hidden = true; });
+$('vSlot').addEventListener('pointerdown', () => { $('vAvviso').hidden = true; });
 
 /* Chiudendo, i video si fermano: la finestra si svuota. */
 function chiudiDesc() {
   pulisciVideo();
+  $('vNav').hidden = true;
+  $('vAvviso').hidden = true;
   dlgDesc.close();
   $('descTesto').textContent = '';
 }
@@ -805,7 +877,7 @@ dlgDesc.addEventListener('cancel', () => { pulisciVideo(); $('descTesto').textCo
 /* Oltre questa misura GitHub rischia di rifiutare il file. */
 const VIDEO_MAX = 60 * 1024 * 1024;
 const RAW_VIDEO = 'https://raw.githubusercontent.com/' + REPO + '/' + BRANCH + '/video/';
-const tipoVideo = n => /\.webm$/.test(n) ? 'video/webm' : 'video/mp4';
+const tipoVideo = n => /\.webm$/.test(n) ? 'video/webm' : /\.jpg$/.test(n) ? 'image/jpeg' : 'video/mp4';
 
 /* Il deposito dei video nel telefono: IndexedDB, un file per nome. */
 let dbVideo = null;
@@ -954,9 +1026,11 @@ async function scaricaVideo() {
     /* i video del piano di sempre e di tutte le preparazioni */
     for (const tutte of [tstore.schede].concat(tstore.prep.map(p => p.schede))) {
       for (const k of Object.keys(tutte)) {
-        for (const r of tutte[k].es) if (r[4] && nomi.indexOf(r[4]) < 0) nomi.push(r[4]);
+        for (const r of tutte[k].es) for (const v of videiDi(r)) if (nomi.indexOf(v) < 0) nomi.push(v);
       }
     }
+    /* le immagini delle sorprese: arrivano prima del loro giorno */
+    for (const x of validSorprese(tstore.sorprese)) if (x.img && nomi.indexOf(x.img) < 0) nomi.push(x.img);
     for (const n of nomi) if (!(await vGet(n))) await prendiVideo(n);
   } finally {
     scaricando = false;
@@ -1552,7 +1626,8 @@ async function pullTasks() {
   }
   const remoto = { workout: validWorkout(data.workout), schede: validSchede(data.schede),
                    conti: validConti(data.conti, data.slot), mattina: validMattina(data.mattina),
-                   mattinaVia: !!data.mattinaVia, prep: validPrep(data.prep) };
+                   mattinaVia: !!data.mattinaVia, prep: validPrep(data.prep),
+                   sorprese: validSorprese(data.sorprese) };
 
   if (tstore.dirty) {
     if (contenuto(remoto) === contenuto(tstore)) {
@@ -1570,6 +1645,7 @@ async function pullTasks() {
   tstore.prep = remoto.prep;
   tstore.mattina = remoto.mattina;
   tstore.mattinaVia = remoto.mattinaVia;
+  tstore.sorprese = remoto.sorprese;
   if (typeof edRidisegna === 'function') edRidisegna();
   rememberSha(j.sha);
   tstore.dirty = false;
@@ -1577,6 +1653,7 @@ async function pullTasks() {
   paintW(); paintSalva();
   fine('sincronizzato alle ' + fmtTime.format(new Date()));
   scaricaVideo();
+  controllaSorprese();
 }
 
 /* Il branch del file non c'e' ancora: lo si crea da main. Serve una volta
@@ -1612,7 +1689,8 @@ async function pushTasks(opts) {
                                  schede: validSchede(tstore.schede),
                                  mattina: tstore.mattina || undefined,
                                  mattinaVia: tstore.mattinaVia || undefined,
-                                 prep: tstore.prep.length ? validPrep(tstore.prep) : undefined }, null, 2) + '\n';
+                                 prep: tstore.prep.length ? validPrep(tstore.prep) : undefined,
+                                 sorprese: validSorprese(tstore.sorprese).length ? validSorprese(tstore.sorprese) : undefined }, null, 2) + '\n';
   let corpo;
   try {
     corpo = await cifra(testo);
@@ -1789,3 +1867,88 @@ window.addEventListener('popstate', () => {
     window.scrollTo(0, 0);
   }
 });
+
+/* ------------------------------------------------ le sorprese ---- */
+
+/* Quali sorprese questo telefono ha gia' visto: ognuna si vede una volta. */
+const VISTE_KEY = 'wk-sorprese-viste-v1';
+function vistiLeggi() {
+  try { const v = JSON.parse(localStorage.getItem(VISTE_KEY) || '[]'); return Array.isArray(v) ? v : []; }
+  catch (e) { return []; }
+}
+function vistiSegna(ids) {
+  try { localStorage.setItem(VISTE_KEY, JSON.stringify(vistiLeggi().concat(ids).slice(-400))); } catch (e) {}
+}
+
+function postille(box, dove) {
+  for (const n of festa) {
+    if (n.dove !== dove) continue;
+    box.appendChild(el('div', 'postilla c' + n.colore, n.testo));
+  }
+}
+function spegniPostille() {
+  if (!festa.length) return;
+  festa = [];
+  document.removeEventListener('pointerdown', spegniPostille, true);
+  window.removeEventListener('scroll', spegniPostille);
+  paintW();
+}
+function armaPostille() {
+  /* un attimo di respiro: il disegno della pagina non deve spegnerle */
+  setTimeout(() => {
+    document.addEventListener('pointerdown', spegniPostille, true);
+    window.addEventListener('scroll', spegniPostille, { passive: true });
+  }, 400);
+}
+
+/* L'immagine a tutto schermo: si chiude toccandola. */
+function mostraImmagine(blob) {
+  return new Promise(ok => {
+    const u = URL.createObjectURL(blob);
+    const box = el('div', 'egg-img');
+    const img = el('img');
+    img.src = u; img.alt = '';
+    box.appendChild(img);
+    box.appendChild(el('p', 'egg-img-nota', 'tocca per chiudere'));
+    const chiudi = () => { box.classList.remove('on'); setTimeout(() => { box.remove(); URL.revokeObjectURL(u); ok(); }, 250); };
+    box.addEventListener('click', chiudi);
+    document.body.appendChild(box);
+    requestAnimationFrame(() => box.classList.add('on'));
+  });
+}
+
+/* Alla prima apertura del giorno: prima le immagini, poi le postille. */
+let festeggiando = false;
+async function controllaSorprese(prova) {
+  if (festeggiando) return;
+  const k = chiaveData(today());
+  const visti = vistiLeggi();
+  const nuove = prova ? [prova] : validSorprese(tstore.sorprese).filter(x => x.giorno === k && visti.indexOf(x.id) < 0);
+  if (!nuove.length) return;
+  festeggiando = true;
+  try {
+    const immagini = [];
+    for (const x of nuove) {
+      if (x.tipo !== 'img') continue;
+      const b = (await vGet(x.img)) || (await prendiVideo(x.img));
+      if (b) immagini.push({ x: x, b: b });
+    }
+    /* si segna come vista solo quello che si e' potuto mostrare */
+    if (!prova) vistiSegna(nuove.filter(x => x.tipo === 'nota' || immagini.some(i => i.x === x)).map(x => x.id));
+    for (const i of immagini) await mostraImmagine(i.b);
+    const note = nuove.filter(x => x.tipo === 'nota');
+    if (note.length) {
+      festa = festa.concat(note);
+      paintW();
+      armaPostille();
+    }
+  } finally {
+    festeggiando = false;
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) spegniPostille();
+  else controllaSorprese();
+});
+controllaSorprese();

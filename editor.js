@@ -240,6 +240,7 @@ function edPagina() {
   else if (v.pag === 'new') edPagNuovo(pane, v.ctx);
   else if (v.pag === 'prep') edPagPrep(pane, v.ctx);
   else if (v.pag === 'newprep') edPagNuovaPrep(pane);
+  else if (v.pag === 'egg') edPagEgg(pane);
   pane.scrollTop = y;
 }
 
@@ -463,12 +464,16 @@ function edDescrizione(r) {
   const box = el('div', 'ed-desc-box');
 
   const v = el('div', 'ed-video');
-  if (r[4]) {
+  /* uno o piu' video: ognuno con la sua anteprima e il suo Remove */
+  const lista = videiDi(r);
+  lista.forEach((nomeV, iv) => {
+    const riga = el('div', 'ed-video-uno');
+    if (lista.length > 1) riga.appendChild(el('p', 'ed-video-num', 'Video ' + (iv + 1) + ' of ' + lista.length));
     const st = el('p', 'ed-video-stato', 'Loading video…');
-    v.appendChild(st);
+    riga.appendChild(st);
     (async () => {
-      let blob = await vGet(r[4]);
-      if (!blob) blob = await prendiVideo(r[4]);
+      let blob = await vGet(nomeV);
+      if (!blob) blob = await prendiVideo(nomeV);
       if (!blob) { st.textContent = 'Video not on this device yet.'; return; }
       const u = URL.createObjectURL(blob);
       edUrl.push(u);
@@ -476,7 +481,14 @@ function edDescrizione(r) {
       vid.src = u; vid.controls = true; vid.playsInline = true; vid.preload = 'metadata';
       st.replaceWith(vid);
     })();
-  }
+    const az = el('div', 'ed-video-tasti');
+    edBottone(az, 'Remove video', 'btn-del', () => {
+      r[4] = videiDi(r).filter(x => x !== nomeV).join(',');
+      edCambio(false); edPagina();
+    });
+    riga.appendChild(az);
+    v.appendChild(riga);
+  });
   const tasti = el('div', 'ed-video-tasti');
   const file = el('input');
   file.type = 'file'; file.accept = 'video/*'; file.hidden = true;
@@ -494,14 +506,14 @@ function edDescrizione(r) {
     errore.classList.add('err');
     errore.hidden = true;
     if (esito.errore) { errore.textContent = esito.errore; errore.hidden = false; return; }
-    r[4] = esito.nome;
+    r[4] = videiDi(r).concat([esito.nome]).slice(0, 6).join(',');
     if (tstore.daCaricare.indexOf(esito.nome) < 0) tstore.daCaricare.push(esito.nome);
     edCambio(false);
     edPagina();
   });
   tasti.appendChild(file);
-  edBottone(tasti, r[4] ? 'Change video' : '+ Video', '', () => file.click());
-  if (r[4]) edBottone(tasti, 'Remove video', 'btn-del', () => { r[4] = ''; edCambio(false); edPagina(); });
+  const piu = edBottone(tasti, lista.length ? '+ Another video' : '+ Video', '', () => file.click());
+  piu.disabled = lista.length >= 6;
   v.appendChild(tasti);
   const errore = el('p', 'nota err');
   errore.hidden = true;
@@ -787,3 +799,136 @@ function edPagPrep(box, id) {
 
 /* Girando il telefono o allargando la finestra l'editor cambia forma. */
 if (stretto.addEventListener) stretto.addEventListener('change', () => { if (!stretto.matches) edInPagina = true; edRidisegna(); });
+
+/* ------------------------------------------------ easter egg ---- */
+
+/* Cose divertenti, solo nel giorno scelto: un'immagine a tutto schermo alla
+   prima apertura, e postille colorate che spariscono al primo tocco. */
+$('edEgg').addEventListener('click', () => edVai({ pag: 'egg', ctx: 'base' }));
+
+const EGG_COLORI = ['Yellow', 'Pink', 'Blue', 'Green'];
+
+/* I posti della pagina dove puo' stare una postilla. */
+function eggPosti() {
+  const posti = [['top', 'Top of the page'], ['week', 'Above the Scheduling table'],
+                 ['every', 'Above the Every day list'], ['oggi', 'Above today\'s workouts'],
+                 ['wk', 'Above the WORKOUTS bar']];
+  const nomi = [];
+  for (const f of [edFonte('base')].concat(tstore.prep.map(p => edFonte(p.id)))) {
+    for (const n of edWorkout(f)) if (nomi.indexOf(n) < 0) nomi.push(n);
+  }
+  for (const n of nomi) posti.push(['w:' + n, 'Above workout "' + n + '"']);
+  return posti;
+}
+
+/* Una foto ridotta prima di tenerla: 1600 pixel bastano per uno schermo. */
+async function eggRiduci(f) {
+  const bm = await createImageBitmap(f);
+  const k = Math.min(1, 1600 / Math.max(bm.width, bm.height));
+  const c = document.createElement('canvas');
+  c.width = Math.round(bm.width * k); c.height = Math.round(bm.height * k);
+  c.getContext('2d').drawImage(bm, 0, 0, c.width, c.height);
+  return await new Promise(ok => c.toBlob(ok, 'image/jpeg', 0.85));
+}
+
+function edPagEgg(box) {
+  edTitolo(box, 'Easter eggs', 'Fun things, only on the day you choose. Every phone sees each one once: the first time the app opens that day.');
+  const oggi = chiaveData(today());
+  const tutte = tstore.sorprese;
+
+  /* --- le immagini --- */
+  box.appendChild(el('p', 'ed-sez-pag', 'IMAGE OF THE DAY'));
+  box.appendChild(el('p', 'ed-sotto', 'Full screen, before anything else. Tap to close.'));
+  tutte.forEach((x, i) => {
+    if (x.tipo !== 'img') return;
+    const r = el('div', 'egg-riga');
+    const mini = el('div', 'egg-mini');
+    (async () => {
+      const b = (await vGet(x.img)) || (await prendiVideo(x.img));
+      if (!b || !mini.isConnected) return;
+      const u = URL.createObjectURL(b); edUrl.push(u);
+      const im = el('img'); im.src = u; im.alt = ''; mini.appendChild(im);
+    })();
+    r.appendChild(mini);
+    const dx = el('div', 'egg-dx');
+    edCampo(dx, 'Day', x.giorno, { type: 'date' }, val => { if (dataOk(val)) { x.giorno = val; edCambio(false); } });
+    const az = el('div', 'ed-azioni');
+    edBottone(az, 'Preview', '', () => controllaSorprese(x));
+    edConferma(az, 'Delete', () => { tutte.splice(i, 1); edCambio(false); edPagina(); });
+    dx.appendChild(az);
+    r.appendChild(dx);
+    box.appendChild(r);
+  });
+  const errore = el('p', 'nota err');
+  errore.hidden = true;
+  const file = el('input');
+  file.type = 'file'; file.accept = 'image/*'; file.hidden = true;
+  file.addEventListener('change', async () => {
+    const f = file.files && file.files[0];
+    file.value = '';
+    if (!f) return;
+    try {
+      const b = await eggRiduci(f);
+      const nome = 'i' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8) + '.jpg';
+      await vPut(nome, b);
+      tutte.push({ id: 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), tipo: 'img', giorno: oggi, img: nome });
+      if (tstore.daCaricare.indexOf(nome) < 0) tstore.daCaricare.push(nome);
+      edCambio(false);
+      edPagina();
+    } catch (e) {
+      errore.textContent = 'This image could not be read.';
+      errore.hidden = false;
+    }
+  });
+  box.appendChild(file);
+  const az1 = el('div', 'ed-azioni');
+  edBottone(az1, '+ Image', '', () => file.click());
+  box.appendChild(az1);
+  box.appendChild(errore);
+
+  /* --- le postille --- */
+  box.appendChild(el('p', 'ed-sez-pag', 'NOTES'));
+  box.appendChild(el('p', 'ed-sotto', 'A bright sticky note where you want. It goes away at the first tap, scroll, or when the app is closed.'));
+  const posti = eggPosti();
+  tutte.forEach((x, i) => {
+    if (x.tipo !== 'nota') return;
+    const r = el('div', 'egg-nota');
+    const anteprima = el('div', 'postilla c' + (x.colore || 0), x.testo || '…');
+    r.appendChild(anteprima);
+    const t = el('textarea', 'commento ed-desc-testo');
+    t.rows = 2; t.maxLength = 300; t.placeholder = 'What the note says';
+    t.value = x.testo || '';
+    t.addEventListener('input', () => { anteprima.textContent = t.value || '…'; });
+    t.addEventListener('change', () => { x.testo = t.value.slice(0, 300).trim(); edCambio(false); });
+    r.appendChild(t);
+    edCampo(r, 'Day', x.giorno, { type: 'date' }, val => { if (dataOk(val)) { x.giorno = val; edCambio(false); } });
+    const l = el('label', 'ed-campo');
+    l.appendChild(el('span', 'ed-eti', 'Where'));
+    const sel = el('select', 'campo');
+    for (const [v, n] of posti) { const o = el('option', null, n); o.value = v; sel.appendChild(o); }
+    if (!posti.some(p => p[0] === x.dove)) { const o = el('option', null, x.dove); o.value = x.dove; sel.appendChild(o); }
+    sel.value = x.dove || 'top';
+    sel.addEventListener('change', () => { x.dove = sel.value; edCambio(false); });
+    l.appendChild(sel);
+    r.appendChild(l);
+    const col = el('div', 'chips');
+    EGG_COLORI.forEach((c, ci) => {
+      const b = el('button', 'chip' + ((x.colore || 0) === ci ? ' sel' : ''), c);
+      b.type = 'button';
+      b.addEventListener('click', () => { x.colore = ci; edCambio(false); edPagina(); });
+      col.appendChild(b);
+    });
+    r.appendChild(col);
+    const az = el('div', 'ed-azioni');
+    edConferma(az, 'Delete', () => { tutte.splice(i, 1); edCambio(false); edPagina(); });
+    r.appendChild(az);
+    box.appendChild(r);
+  });
+  const az2 = el('div', 'ed-azioni');
+  edBottone(az2, '+ Note', '', () => {
+    tutte.push({ id: 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), tipo: 'nota', giorno: oggi, testo: '', dove: 'top', colore: 0 });
+    edCambio(false);
+    edPagina();
+  });
+  box.appendChild(az2);
+}

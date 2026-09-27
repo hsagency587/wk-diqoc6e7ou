@@ -124,6 +124,13 @@
       <video id="vVideo" controls playsinline preload="metadata" hidden></video>
       <button type="button" class="vfull" id="vFull" aria-label="Schermo intero" hidden>⛶</button>
       <p class="vstato" id="vStato"></p>
+      <!-- con piu' video: un avviso sopra il primo, che sparisce al tocco -->
+      <p class="vavviso" id="vAvviso" hidden></p>
+    </div>
+    <div class="vnav" id="vNav" hidden>
+      <button type="button" class="vnav-btn" id="vPrima" aria-label="Video precedente">&lsaquo;</button>
+      <span class="vnav-conta" id="vConta"></span>
+      <button type="button" class="vnav-btn" id="vDopo" aria-label="Video successivo">&rsaquo;</button>
     </div>
     <div class="desctesto" id="descTesto"></div>
     <div class="chiusura-btn">
@@ -146,6 +153,8 @@
     <nav class="ed-nav" id="edNav" aria-label="What to edit"></nav>
     <section class="ed-pane" id="edPane"></section>
   </div>
+  <!-- in basso a destra: le funzioni per giocare -->
+  <button type="button" class="ed-egg" id="edEgg">Easter egg</button>
 </div>
 
 <script src="app.js"></script>

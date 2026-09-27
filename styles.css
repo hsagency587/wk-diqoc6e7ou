@@ -528,6 +528,16 @@ body{overflow-x:clip}
 .vfull:active{background:rgba(0,0,0,.8)}
 /* per un video verticale il bottone e' la via per vederlo grande: si accende */
 .vslot.verticale .vfull{background:var(--accent);color:var(--bg)}
+/* piu' video: le frecce sotto lo slot, e l'avviso leggero sopra il primo */
+.vnav{display:flex;align-items:center;justify-content:center;gap:var(--s3);margin:calc(-1 * var(--s2)) 0 var(--s3)}
+.vnav-btn{width:48px;height:40px;border-radius:var(--radius);border:1px solid var(--line);background:transparent;color:var(--text);font-size:26px;line-height:1;cursor:pointer}
+.vnav-btn:disabled{opacity:.3}
+.vnav-conta{font-size:16px;font-weight:700;color:var(--muted);min-width:4em;text-align:center}
+.vavviso{
+  position:absolute;left:var(--s2);top:var(--s2);z-index:3;max-width:calc(100% - 84px);
+  margin:0;padding:6px 14px;border-radius:999px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  background:rgba(0,0,0,.72);color:#fff;font-size:14px;font-weight:700;cursor:pointer;
+}
 .vedit{display:flex;gap:var(--s2);justify-content:flex-end;margin:0 0 var(--s3)}
 .vedit .schbtn{margin-left:0}
 
@@ -703,6 +713,8 @@ body.ed-aperto{overflow:hidden}
 .ed-video{margin-bottom:var(--s2)}
 .ed-video video{display:block;width:100%;max-height:50vh;background:#000;border-radius:var(--radius);margin-bottom:var(--s2)}
 .ed-video-stato{margin:0 0 var(--s2);font-size:15px;color:var(--muted)}
+.ed-video-uno{padding:0 0 var(--s2);margin:0 0 var(--s2);border-bottom:1px solid var(--line)}
+.ed-video-num{margin:0 0 4px;font-size:13px;font-weight:700;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
 .ed-video-tasti{display:flex;flex-wrap:wrap;gap:var(--s2)}
 .ed-video-tasti .schbtn{margin-left:0}
 .ed-desc-testo{font-size:17px}
@@ -752,3 +764,54 @@ body.ed-aperto{overflow:hidden}
 /* nelle schede da leggere la quantita' e' corta: sta a destra, meno larga */
 .tab-i .tabc.val{white-space:normal;overflow-wrap:anywhere}
 .ed-cat{margin:0 0 var(--s1)}
+
+/* ---------- easter egg ---------- */
+
+/* il tastino in basso a destra dell'editor */
+.ed-egg{
+  position:absolute;right:16px;bottom:16px;z-index:5;
+  padding:8px 14px;border:1px dashed var(--accent);border-radius:999px;
+  background:var(--bg);color:var(--accent);font:inherit;font-size:14px;font-weight:700;cursor:pointer;
+  box-shadow:0 4px 14px rgba(0,0,0,.25);
+}
+
+/* l'immagine del giorno, a tutto schermo */
+.egg-img{
+  position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:#000;opacity:0;transition:opacity .25s;cursor:pointer;
+}
+.egg-img.on{opacity:1}
+.egg-img img{max-width:100%;max-height:calc(100% - 48px);object-fit:contain}
+.egg-img-nota{margin:12px 0 0;color:rgba(255,255,255,.6);font-size:14px}
+
+/* la postilla: un foglietto colorato, un po' storto, che luccica */
+.postilla{
+  position:relative;overflow:hidden;
+  margin:0 var(--s3) var(--s3);padding:12px 16px;
+  border-radius:6px;transform:rotate(-1.2deg);
+  font-size:18px;font-weight:700;line-height:1.35;color:#1b1b1b;white-space:pre-wrap;
+  box-shadow:0 6px 18px rgba(0,0,0,.28);
+  animation:postilla-entra .35s ease-out;
+}
+.postilla::after{
+  content:'';position:absolute;top:0;bottom:0;left:-60%;width:40%;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.65),transparent);
+  animation:postilla-luce 2.4s ease-in-out infinite;
+}
+.postilla.c0{background:#ffe45c}
+.postilla.c1{background:#ff8fc7}
+.postilla.c2{background:#7fd3ff}
+.postilla.c3{background:#8ef0a7}
+@keyframes postilla-entra{from{transform:scale(.8) rotate(-6deg);opacity:0}to{transform:rotate(-1.2deg);opacity:1}}
+@keyframes postilla-luce{0%{left:-60%}60%,100%{left:130%}}
+@media (min-width:1000px){ .col .postilla{margin-left:0;margin-right:0} }
+@media (prefers-reduced-motion:reduce){ .postilla,.postilla::after{animation:none} }
+
+/* le righe della pagina Easter eggs nell'editor */
+.egg-riga{display:flex;gap:var(--s3);align-items:flex-start;padding:var(--s2) 0;border-bottom:1px solid var(--line)}
+.egg-mini{flex:0 0 96px;height:96px;border-radius:var(--radius);background:var(--line);overflow:hidden}
+.egg-mini img{width:100%;height:100%;object-fit:cover;display:block}
+.egg-dx{flex:1;min-width:0}
+.egg-nota{padding:var(--s2) 0 var(--s3);border-bottom:1px solid var(--line)}
+.egg-nota .postilla{margin:0 0 var(--s2);animation:none}
+.ed-pane{padding-bottom:88px}
