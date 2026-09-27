@@ -1513,6 +1513,7 @@ $('wlist').addEventListener('click', ev => {
 const dlgImp = $('impostazioni');
 
 function openImpostazioni() {
+  $('sviluppo').open = false;        /* si riapre sempre chiusa */
   $('tokenInput').value = token;
   $('chiaveInput').value = chiave;
   const s = $('tokenStato');

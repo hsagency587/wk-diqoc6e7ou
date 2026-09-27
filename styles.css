@@ -538,3 +538,15 @@ body.vland .vslot{
 }
 .schbtn.btn-del{color:var(--danger);border-color:rgba(255,69,58,.45)}
 .wmattina{cursor:pointer}
+
+/* la tendina Sviluppatore nelle impostazioni: chiusa, con la freccia */
+.sviluppo{margin-top:var(--s4);border-top:1px solid var(--line);padding-top:var(--s2)}
+.sviluppo-tit{
+  display:flex;align-items:center;gap:var(--s2);min-height:44px;cursor:pointer;
+  font-size:14px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+  list-style:none;
+}
+.sviluppo-tit::-webkit-details-marker{display:none}
+.sviluppo-tit::before{content:'\25b8';color:var(--muted)}
+.sviluppo[open] .sviluppo-tit::before{content:'\25be'}
+.sviluppo-corpo .commento-lab:first-child{margin-top:var(--s1)}

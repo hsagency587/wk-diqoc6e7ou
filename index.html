@@ -80,22 +80,29 @@
   <form method="dialog" class="chiusura-box" id="impostazioniForm">
     <h2 class="chiusura-tit" id="impostazioniTit">Settings</h2>
 
-    <label class="commento-lab" for="tokenInput">GitHub token</label>
-    <input class="campo" id="tokenInput" type="password" autocomplete="off" placeholder="github_pat_…">
-    <p class="nota">Fine-grained, limited to this repository, <b>Contents</b> permission read and write. Needed to save the plan; reading it works without it.</p>
-    <p class="nota" id="tokenStato"></p>
-
-    <label class="commento-lab" for="chiaveInput">Data key</label>
-    <input class="campo" id="chiaveInput" type="password" autocomplete="off" placeholder="a word only you know">
-    <p class="nota">Optional. With a key the plan travels encrypted: whoever finds the file online reads nothing. Every phone that opens the plan needs the same key. Left empty, the plan stays in the clear.</p>
-    <p class="nota" id="chiaveStato"></p>
-
     <p class="commento-lab">Theme</p>
     <div class="chips" id="temaScelta">
       <button type="button" class="chip" data-tema="dark">Dark</button>
       <button type="button" class="chip" data-tema="light">Light</button>
     </div>
     <p class="nota">Only on this device: every phone keeps its own.</p>
+
+    <!-- Token e chiave stanno chiusi in una tendina: servono una volta sola, e
+         chi usa l'app per allenarsi non li deve vedere. -->
+    <details class="sviluppo" id="sviluppo">
+      <summary class="sviluppo-tit">Sviluppatore</summary>
+      <div class="sviluppo-corpo">
+      <label class="commento-lab" for="tokenInput">GitHub token</label>
+      <input class="campo" id="tokenInput" type="password" autocomplete="off" placeholder="github_pat_…">
+      <p class="nota">Fine-grained, limited to this repository, <b>Contents</b> permission read and write. Needed to save the plan; reading it works without it.</p>
+      <p class="nota" id="tokenStato"></p>
+
+      <label class="commento-lab" for="chiaveInput">Data key</label>
+      <input class="campo" id="chiaveInput" type="password" autocomplete="off" placeholder="a word only you know">
+      <p class="nota">Optional. With a key the plan travels encrypted: whoever finds the file online reads nothing. Every phone that opens the plan needs the same key. Left empty, the plan stays in the clear.</p>
+      <p class="nota" id="chiaveStato"></p>
+      </div>
+    </details>
 
     <div class="chiusura-btn">
       <button type="button" class="btn" id="tokenAnnulla">Cancel</button>
