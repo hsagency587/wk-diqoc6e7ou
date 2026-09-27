@@ -1,6 +1,479 @@
 {
-  "workout": {},
-  "schede": {},
+  "workout": {
+    "0": [
+      "REST"
+    ],
+    "1": [
+      "CALI"
+    ],
+    "2": [
+      "SPRINT + CALI E CORE"
+    ],
+    "3": [
+      "CALI + CORE"
+    ],
+    "4": [
+      "FASCIA FULL"
+    ],
+    "5": [
+      "CORE + STRETCH"
+    ],
+    "6": [
+      "REST"
+    ]
+  },
+  "schede": {
+    "__morning": {
+      "es": [
+        [
+          "Hyperarch cervical rotation",
+          "1'",
+          [],
+          "Purpose:\nTo train controlled cervical rotation, upper-neck proprioception, and the muscles and fascia structures associated with the upper cervical region, primarily around C1 to C4.\n\nStarting position:\nSit or stand tall with your head centered, chin level, shoulders relaxed, and chest facing forward.\n\nInstructions:\n\n* Gently lengthen the back of your neck without forcing your chin downward.\n\n* Slowly rotate your head to one side while keeping your chin level.\n\n* Stop at a comfortable range before pain, dizziness, or compensation begins.\n\n* Slowly return your head to the center.\n\nRepeat on the opposite side.\n\nKeep your feet firmly pressed down and grip the ground.\n\nPrimary cue:\n* Keep the movement smooth and controlled.\n\nImagine rotating around a tall vertical axis.\n\nKeep both shoulders facing forward.\n\nDo not tilt, extend, or force the neck.\n\nFeel gentle activation at the base of the skull and along the side of the neck.\n\nMaintain relaxed breathing.\nUse only a pain-free range.\n\nDosage:\nPerform 1 - 2 min duration.\n\nImportant note:\nThis movement may engage muscles and sensory pathways associated with the upper cervical region.\n\nStop immediately if you experience:\nRadiating arm pain, numbness, tingling, weakness, significant dizziness, nausea, severe headache, or loss of balance.",
+          ""
+        ],
+        [
+          "Single arm shrug",
+          "1' + 1'",
+          [],
+          "Hyperarch Single Arm Kettlebell Shrug\n\nStarting position:\nStand tall with your feet about hip width apart. Hold a kettlebell in one hand at your side with your arm straight. Keep your chest centered, ribs controlled, and shoulders level.\n\nInstructions:\n* Keep Your body upright.\n\n* Keep your feet firmly pressed down and grip the ground.\n\n* Keep the working arm straight without locking the elbow aggressively.\n\n* Lift the shoulder on the kettlebell side straight upward toward your ear.\n\n* Pause briefly at the top for 5 seconds.\n\n* Lower the shoulder slowly until it returns to the starting position.\n\nPrimary cue:\nDo not bend the elbow.\n\nDo not roll the shoulder forward or backward.\n\nKeep your head centered.\nKeep both hips and ribs level.\nDo not lean away from the kettlebell.\n\nLet the kettlebell hang naturally below the shoulder.\n\nDosage:\nPerform 1min on each side.\n\nStop the exercise if you experience:\nSharp neck or shoulder pain, numbness, tingling, radiating arm pain, or loss of grip strength.",
+          ""
+        ],
+        [
+          "Overheard rotation",
+          "1'",
+          [],
+          "Kettlebell Overhead Rotation\n\nStarting position:\nStand with your feet slightly wider than hip width apart. Hold a kettlebell overhead with both hands with the elbow slightly bent. Keep the shoulder stable, ribs controlled, and trunk tall.\n\nInstructions:\n* Slowly rotate your kettlebell overhead in a circular fashion.\n\n* Keep the arm stable and prevent the kettlebell from drifting forward, backward, or sideways.\n\n* Keep your feet firmly pressed down and grip the ground.\n\nPrimary cue:\nKeep the kettlebell directly above the shoulder.\n\nReach upward through the working arm.\nKeep the shoulder away from the ear.\nDo not arch the lower back.\nKeep the ribs stacked over the pelvis.\n\nRotate smoothly rather than forcing the range.\n\nKeep both feet and toes firmly connected to the floor and press down.\n\nUse a lighter kettlebell until overhead control is consistent.\n\nDosage:\nPerform 1-2 min\n\nStop the exercise if you experience:\nSharp shoulder or neck pain, numbness, tingling, dizziness, loss of balance, or difficulty controlling the kettlebell overhead",
+          ""
+        ],
+        [
+          "Lunge arm swing",
+          "1'",
+          [],
+          "Hyperarch Lunge Position Alternating Arm Swing\n\nStarting position:\nStand in a staggered lunge position with one foot forward and the other foot behind you. Bend both knees slightly, keep your chest tall, and maintain a stable base.\n\nInstructions:\n* Extend one arm forward while moving the opposite arm backward.\n\n* Swing both arms past the body and switch positions.\n\n* Continue alternating the arms in a smooth, rhythmic motion.\n\n* Keep the elbows softly bent and allow the shoulders to move naturally.\n\n* Maintain the lunge position without bouncing or shifting excessively.\n\nPrimary cue:\nKeep your head and chest centered.\nDrive the arms from the shoulders.\nKeep the front knee aligned with the foot.\n\nPress both feet firmly into the ground and slightly suspend the heels.\n\nDo not arch or twist the lower back.\n\nKeep the trunk stable as the arms alternate.\n\nStart slowly, then increase the rhythm while maintaining control.\n\nDosage:\nPerform 1- 2 min each side.\n\nStop the exercise if you experience:\nSharp shoulder, neck, back, hip, or knee pain; dizziness; numbness; tingling; or loss of balance.",
+          ""
+        ],
+        [
+          "Lunge alternating arm swing",
+          "1'",
+          [],
+          "Hyperarch Lunge Position Alternating Arm Swing\n\nStarting position:\nStand in a staggered lunge position with one foot forward and the other foot behind you. Bend both knees slightly, keep your chest tall, and maintain a stable base.\n\nInstructions:\n* Extend one arm forward while moving the opposite arm backward.\n\n* Swing both arms past the body and switch positions.\n\n* Continue alternating the arms in a smooth, rhythmic motion.\n\n* Keep the elbows softly bent and allow the shoulders to move naturally.\n\n* Maintain the lunge position without bouncing or shifting excessively.\n\nPrimary cue:\nKeep your head and chest centered.\nDrive the arms from the shoulders.\nKeep the front knee aligned with the foot.\n\nPress both feet firmly into the ground and slightly suspend the heels.\n\nDo not arch or twist the lower back.\n\nKeep the trunk stable as the arms alternate.\n\nStart slowly, then increase the rhythm while maintaining control.\n\nDosage:\nPerform 1- 2 min each side.\n\nStop the exercise if you experience:\nSharp shoulder, neck, back, hip, or knee pain; dizziness; numbness; tingling; or loss of balance.",
+          ""
+        ],
+        [
+          "Relax. Rotation hop",
+          "1'",
+          [],
+          "Hyperarch Relaxed Rotational Hyperarch Hop\n\nStarting position:\nStand tall with your feet about hip width apart. Keep your knees softly bent, trunk upright, and arms relaxed beside your body.\n\nInstructions:\n* Begin with small, light hops using both feet.\n\n* Allow your chest and pelvis to rotate gently from side to side.\n\n* Let your relaxed arms swing naturally with the rotation.\n\n* Land softly through the forefoot with the knees slightly bent.\n\n* Immediately rebound into the next hop without pausing.\n\n* Maintain a comfortable rhythm and relaxed breathing.\n\n* Continue for 1–4 minutes, depending on your conditioning and movement quality.\n\nPrimary cue:\nKeep the hops low and rhythmic.\nDo not force the trunk rotation.\n\nKeep the neck and shoulders relaxed.\nAvoid stiff or exaggerated arm movements.\nLand quietly and evenly on both feet.\n\nMake sure your ankle is stabilized so heels are not dropping.\n\nProgression:\nBegin with 20–30 seconds and gradually build toward 1–4 continuous minutes.\n\nStop the exercise if you experience:\nSharp pain, dizziness, numbness, unusual shortness of breath, chest discomfort, or loss of balance.",
+          ""
+        ],
+        [
+          "Stand altern. Arm swing",
+          "1'",
+          [],
+          "Hyperarch Alternating Arm Reach Swing with Heel Raise\n\nStarting position:\nStand tall with your feet about hip width apart. Slightly raise both heels so your weight shifts toward the balls of your feet. Keep your knees softly bent, trunk upright, and arms relaxed.\n\nInstructions:\n* Extend one arm forward while the opposite arm swings backward.\n\n* Reverse the motion so the arms alternate continuously.\n\n* Keep both heels slightly raised throughout the movement.\n\n* Maintain a light, controlled rhythm without bouncing excessively.\n\n* Keep your chest centered and allow the shoulders to move naturally.\n\n* Continue alternating for the prescribed time or repetitions.\n\nPrimary cue:\nKeep the arms long but relaxed.\n\nSwing from the shoulders rather than bending excessively at the elbows.\n\nKeep your weight balanced across the forefoot with heels slightly suspended.\n\nDo not let the ankles roll outward or inward.\n\nAvoid arching or twisting the lower back.\nUse a smooth, comfortable tempo.\n\nDosage:\nPerform for 1-2 minutes\n\nStop the exercise if you experience:\nSharp foot, ankle, calf, knee, back, shoulder, or neck pain; dizziness; numbness; tingling; or loss of balance.",
+          ""
+        ],
+        [
+          "Stand trunk rotation",
+          "1'",
+          [],
+          "Hyperarch Heel Raised Trunk Rotation\n\nStarting position:\nStand with your feet about hip width apart. Raise both heels slightly so your weight shifts toward the balls of your feet. Keep your knees softly bent and let your arms hang relaxed by your sides.\n\nInstructions:\n* Keep your body tall and your heels lightly elevated.\n\n* Rotate your trunk gently to one side and then the other.\n\n* Allow both arms to swing naturally with the rotation.\n\n* Return through the center and rotate to the opposite side.\n\n* Continue alternating in a smooth, relaxed rhythm.\n\n* Keep the movement comfortable and avoid forcing the range.\n\nPrimary cue:\nKeep the shoulders and arms loose.\n\nStay light on the balls of your feet.\nKeep both heels at the same height.\n\nLet the hips rotate naturally without twisting the knees.\n\nAvoid arching or collapsing through the lower back.\n\nBreathe normally throughout the movement.\n\nDosage:\nPerform for 1 - 2 min \n\nStop the exercise if you experience:\nSharp pain, dizziness, numbness, tingling, calf cramping, or loss of balance.",
+          ""
+        ],
+        [
+          "Deep split lunge extencion",
+          "1'",
+          [],
+          "Hyperarch Deep Split Lunge Extension\n\nStarting position:\nStep into a long split stance with one foot forward and the other foot behind you. Lower into a deep lunge while keeping the front foot flat and the back leg extended comfortably.\n\nInstructions:\n* Bend the front knee and lower your hips straight down.\n\n* Extend the back leg behind you and press gently through the ball of the back foot.\n\n* Lift your chest and lengthen through the front of the trunk.\n\n* Allow the upper back to extend gradually.\n\n* Gently lift your head and neck in line with the upper back extension.\n\n* Reach tall through the crown of the head rather than collapsing into the neck.\n\n* Hold the position while breathing slowly.\n\n* Return to neutral with control, then switch sides.\n\nPrimary cue:\nKeep the front knee aligned with the toes.\n\nKeep the hips facing forward.\n\nExtend through the upper back, not only the lower back.\n\nAvoid throwing the head backward.\nKeep the neck long and the throat relaxed.\nMaintain pressure through both feet.\n\nDo not force the depth of the lunge or the spinal extension.\n\nKeep the movement smooth and pain free.\n\nDosage:\nDo 1 min 30 on each side.\n\nStop the exercise if you experience:\nSharp neck, back, hip, groin, or knee pain; dizziness; numbness; tingling; headache; or loss of balance.",
+          ""
+        ],
+        [
+          "Body patting",
+          "1'30\"",
+          [],
+          "Gentle Body Patting Sequence\n\nPurpose:\nTo provide light sensory stimulation, promote relaxation, increase awareness of the body, and prepare the muscles for movement.\n\nStarting position:\nStand or sit comfortably. Keep your shoulders relaxed and breathe normally. Use an open, relaxed hand with the fingers together or slightly cupped.\n\n1. Inner elbow\n\n* Extend one arm comfortably without locking the elbow.\n\n* Using the opposite hand, gently pat the soft area around the inner elbow.\n\n* Keep the pressure light and rhythmic.\n\nContinue for 10–20 seconds, then switch arms.\n\n* Keep your toes spread out but evenly distribute your weight.\n\nCue:\n“Use a soft hand and light rhythm.”\n\nDo not strike directly over a painful vein, recent blood-draw site, swelling, bruising, or irritated skin.\n\n2. Armpit area\n\n* Raise one arm only as high as comfortable.\n\n* Use the opposite hand to lightly pat around the outer edge of the armpit and upper side of the rib cage.\n\n* Avoid forceful striking deep into the armpit.\n\nContinue for 10 to 15 seconds, then switch sides.\n\nCue:\n“Pat around the area, do not dig into it.”\n\nAvoid patting over enlarged or painful lymph nodes, unexplained lumps, recent surgery, infection, or a recent vaccination site.\n\n3. Inner thigh\n\n* Stand with the feet comfortably apart or sit with the leg supported.\n\n* Use a relaxed palm to gently pat the muscular portion of the inner thigh.\n\n* Begin above the knee and move gradually upward.\n\n* Stop before reaching the groin crease.\n\nContinue for 15 to 30 seconds per side.\n\nCue:\n“Stay on the muscle and keep the pressure gentle.”\n\nDo not pat directly over the groin, genitals, visible veins, painful swelling, or a suspected blood clot.\n\n4. Calves\n\n* Stand with support nearby or sit with the leg relaxed.\n\n* Gently pat the calf muscle from the lower portion upward toward the knee.\n\n* Pat the muscular areas rather than the shinbone or back of the knee.\n\nContinue for 15 to 30 seconds per calf.\n\nCue:\n“Light, springy contact is never pain",
+          ""
+        ]
+      ],
+      "rec": ""
+    },
+    "CALI": {
+      "es": [
+        [
+          "Verticale schiena muro + tentativi",
+          "5’",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Tentativi liberi",
+          "10’",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Pull up 90° + 2” hold scapular pull up",
+          "3x5",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Hold 3” in chiusura e negativa lenta",
+          "3x5",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Australian pull up zavorrati",
+          "5x10",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Australian liberi",
+          "2x20",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Tabata",
+          "30”-10”",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Candela",
+          "",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Barchetta",
+          "",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Reverse plank braccia tese",
+          "",
+          [],
+          "",
+          ""
+        ]
+      ],
+      "rec": "1’"
+    },
+    "SPRINT + CALI E CORE": {
+      "es": [
+        [
+          "Towel curl",
+          "2’ + 2’",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Marble swing",
+          "2’ + 2’",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Gait cycle x corsa",
+          "2’ + 2’",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Sprint",
+          "4/8 x 15” rec 1’30”",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Tabata",
+          "45”-15”",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Glute bridge one leg pump",
+          "",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Clamshell con loop",
+          "",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Side plank gambe staccate",
+          "",
+          [],
+          "",
+          ""
+        ]
+      ],
+      "rec": "1’"
+    },
+    "CALI + CORE": {
+      "es": [
+        [
+          "Pseudo HSPU",
+          "",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Approccio anelli → dip anelli",
+          "5 x 15/20” → 5 x 3-5",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Push up col battito",
+          "3 x 10",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Push up zavorrati",
+          "7 x 10",
+          [],
+          "",
+          ""
+        ],
+        [
+          "EMOM alternando push up e plank, una serie sì e una no",
+          "10/15’",
+          [],
+          "",
+          ""
+        ]
+      ],
+      "rec": "1’"
+    },
+    "FASCIA FULL": {
+      "es": [
+        [
+          "Towel curl",
+          "2’ + 2’",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Marble swing",
+          "2’ + 2’",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Gait cycle",
+          "2’ + 2’",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Hyperharc hop",
+          "3’",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Hand curl",
+          "2’",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Push hands",
+          "2’",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Wall bounce",
+          "2’",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Hyperarch wall sit",
+          "2’",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Standign leg stretch",
+          "2 volte gamba 1’",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Crescenti walk",
+          "3’",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Bit toe press",
+          "2’ + 2’",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Dorsiflextoewalking",
+          "3’",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Heel raise with marble",
+          "1’ + 1’",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Bear walk",
+          "4’",
+          [],
+          "",
+          ""
+        ],
+        [
+          "HFT lounge",
+          "2’ + 2’",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Towel sweep",
+          "3’ + 3’",
+          [],
+          "",
+          ""
+        ]
+      ],
+      "rec": ""
+    },
+    "CORE + STRETCH": {
+      "es": [
+        [
+          "Hand curl",
+          "2’",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Push hands",
+          "2’",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Wall bounce",
+          "2’",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Turkish get up",
+          "2x braccio 6 rep 5-15kg",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Planck one arm",
+          "",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Tabata",
+          "45”/15”",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Suitcase carry",
+          "20kg",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Starfish side plank",
+          "",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Russian twist",
+          "",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Glute bridge one leg",
+          "",
+          [],
+          "",
+          ""
+        ],
+        [
+          "Superman",
+          "",
+          [],
+          "",
+          ""
+        ]
+      ],
+      "rec": "1’"
+    }
+  },
   "slot": 1,
-  "mattina": "First 15 minuts"
+  "mattina": "FIRST 15'"
 }
