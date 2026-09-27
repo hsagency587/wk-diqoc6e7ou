@@ -420,7 +420,9 @@ function disegnaW() {
   const n = Math.max(1, ...giorni.map(x => x.pi.conti[x.g] || 0));
   const tab = el('div', 'tab tab-w');
   tab.style.setProperty('--wcol', n);
-  tab.appendChild(tabRiga([{ t: '' }].concat(ORDINALI_IT.slice(0, n).map(t => ({ t: t }))), 'capo'));
+  /* in cima alla tabella, sempre la stessa scritta, su tutta la riga */
+  const capo = tabRiga([{ t: 'SCHEDULING', cls: 'tuttariga' }], 'capo');
+  tab.appendChild(capo);
   for (const x of giorni) {
     const celle = [{ t: GIORNI2_IT[x.g] + ' ' + x.d.getDate(), cls: 'eti' }];
     const quanti = x.pi.conti[x.g] || 0;

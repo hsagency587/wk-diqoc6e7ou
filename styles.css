@@ -585,6 +585,7 @@ body.vland .vslot{
 /* le caselle in piu' di un giorno con meno workout: vuote, senza trattino */
 .tabc.fuori{background:var(--surface)}
 .tab-w .tabc.eti{font-variant-numeric:tabular-nums}
+.tab-w .tabc.tuttariga{grid-column:1 / -1}
 .tab-w .tabr{grid-template-columns:88px repeat(var(--wcol,2),minmax(0,1fr))}
 .tab-w .tabc.eti{overflow:visible}
 
