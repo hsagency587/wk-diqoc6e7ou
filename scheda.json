@@ -124,21 +124,21 @@
           ""
         ],
         [
-          "Pull up 90° + 2” hold scapular pull up",
-          "3x5",
+          "pull up 90° con fermo in attivazione",
+          "3x3/5",
           [],
           "",
           "vmuk7ihqdw6vozy.mp4"
         ],
         [
-          "Hold 3” in chiusura e negativa lenta",
-          "3x5",
+          "Fermo 3” in chiusura e negativa lenta",
+          "3x3/5",
           [],
           "",
           "vmuk8wiebib4ziz.mp4"
         ],
         [
-          "Australian pull up zavorrati",
+          "Australian pull up zavorrati (veste)",
           "5x10",
           [],
           "",
@@ -179,7 +179,7 @@
           ""
         ]
       ],
-      "rec": "1’"
+      "rec": "1 Min"
     },
     "SPRINT + CALI E CORE": {
       "es": [
@@ -1270,7 +1270,11 @@
         }
       },
       "mattina": "Morning Routine",
-      "mattinaVia": false
+      "mattinaVia": false,
+      "mattinaQuando": {
+        "modo": "sempre"
+      },
+      "altre": []
     }
   ]
 }
