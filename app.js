@@ -339,10 +339,19 @@ let chipX = 0;
    viene dal piano che vale oggi, e la tabella giorno per giorno: se una
    preparazione finisce a meta' settimana, da quel giorno torna il piano di
    sempre. */
+/* L'anteprima di una preparazione che sta per iniziare: la pagina si
+   disegna come se fosse gia' il primo giorno. null = la pagina di oggi. */
+let anteprima = null;
+/* Quanti giorni prima dell'inizio compare l'avviso: dal sabato per un lunedi'. */
+const AVVISO_GIORNI = 2;
+
 function disegnaW() {
   const pagina = $('wlist');
   pagina.textContent = '';
-  const t0 = today();
+  const vero = today();
+  const pAnt = anteprima ? tstore.prep.find(x => x.id === anteprima) : null;
+  if (!pAnt) anteprima = null;
+  const t0 = pAnt ? daChiave(pAnt.dal) : vero;
   const kOggi = chiaveData(t0);
   const oggi = pianoDi(kOggi);
 
@@ -351,6 +360,37 @@ function disegnaW() {
   pagina.appendChild(box);
   pagina.appendChild(dx);
 
+  /* in anteprima: la barra per tornare indietro */
+  if (pAnt) {
+    const bar = el('div', 'antbar');
+    const ind = el('button', 'schbtn antindietro', '‹ Back');
+    ind.type = 'button';
+    ind.dataset.antindietro = '1';
+    bar.appendChild(ind);
+    bar.appendChild(el('span', 'antbar-eti', 'PREVIEW'));
+    box.appendChild(bar);
+  }
+
+  /* una preparazione che inizia fra poco: l'avviso, con l'anteprima */
+  if (!pAnt) {
+    const kVero = chiaveData(vero);
+    const pross = tstore.prep.find(x => x.dal > kVero && giorniFra(kVero, x.dal) <= AVVISO_GIORNI);
+    if (pross) {
+      const fra = giorniFra(kVero, pross.dal);
+      const b = el('div', 'prepbanda prossima');
+      const testo = el('div', 'prossima-testo');
+      testo.appendChild(el('p', 'prepbanda-eti', (fra === 1 ? 'TOMORROW' : GIORNI[daChiave(pross.dal).getDay()].toUpperCase()) +
+        ' STARTS · ' + (pross.nome || 'PREPARATION')));
+      testo.appendChild(el('p', 'prepbanda-date', dataCorta(pross.dal) + ' → ' + dataCorta(pross.al)));
+      b.appendChild(testo);
+      const ap = el('button', 'schbtn', 'Preview');
+      ap.type = 'button';
+      ap.dataset.anteprima = pross.id;
+      b.appendChild(ap);
+      box.appendChild(b);
+    }
+  }
+
   /* la preparazione in corso: nome, date, quanto manca */
   if (oggi.prep) {
     const p = oggi.prep;
@@ -358,7 +398,7 @@ function disegnaW() {
     const b = el('div', 'prepbanda');
     b.appendChild(el('p', 'prepbanda-eti', 'PREPARATION' + (p.nome ? ' · ' + p.nome : '')));
     b.appendChild(el('p', 'prepbanda-date', dataCorta(p.dal) + ' → ' + dataCorta(p.al) +
-      ' · ' + (manca === 0 ? 'last day' : manca === 1 ? '1 day left' : manca + ' days left')));
+      (pAnt ? '' : ' · ' + (manca === 0 ? 'last day' : manca === 1 ? '1 day left' : manca + ' days left'))));
     box.appendChild(b);
   }
 
@@ -390,7 +430,7 @@ function disegnaW() {
   box.appendChild(tab);
 
   paintMorning(box, oggi);
-  paintOggi(box, oggi, t0.getDay());
+  paintOggi(box, oggi, t0.getDay(), pAnt ? GIORNI[t0.getDay()].toUpperCase() + ' ' + t0.getDate() + ' WORKOUTS' : 'TODAY WORKOUTS');
   paintSchede(dx, oggi);
 }
 
@@ -506,7 +546,7 @@ function paintMorning(box, pi) {
 
 /* Quello che si fa oggi, senza aprire niente: le schede del giorno, solo se
    hanno degli esercizi scritti. */
-function paintOggi(box, pi, g) {
+function paintOggi(box, pi, g, titolo) {
   let capo = false;
   for (const nome of workoutDelGiorno(pi, g)) {
     if (!nome) continue;
@@ -515,7 +555,7 @@ function paintOggi(box, pi, g) {
     if (nome === MORNING) {
       const scm = pi.schede[MORNING];
       if (!pi.mattinaVia || !scm || !scm.es.length) continue;
-      if (!capo) { box.appendChild(el('p', 'grp', 'TODAY WORKOUTS')); capo = true; }
+      if (!capo) { box.appendChild(el('p', 'grp', titolo || 'TODAY WORKOUTS')); capo = true; }
       const tm = tabScheda(nomeMattinaDi(pi), scm);
       tm.classList.add('tab-oggi');
       box.appendChild(righeScheda(tm, { es: scm.es, rec: '' }, pi.src, MORNING));
@@ -523,7 +563,7 @@ function paintOggi(box, pi, g) {
     }
     const sc = pi.schede[nome];
     if (!sc || (!sc.es.length && !sc.rec)) continue;
-    if (!capo) { box.appendChild(el('p', 'grp', 'TODAY WORKOUTS')); capo = true; }
+    if (!capo) { box.appendChild(el('p', 'grp', titolo || 'TODAY WORKOUTS')); capo = true; }
     const t = tabScheda(nome, sc);
     t.classList.add('tab-oggi');
     box.appendChild(righeScheda(t, sc, pi.src, nome));
@@ -587,6 +627,15 @@ function paintSchede(box, pi) {
 /* ------------------------------------------------- i tocchi sulla pagina ---- */
 
 $('wlist').addEventListener('click', ev => {
+  const ant = ev.target.closest('button[data-anteprima]');
+  if (ant) {
+    anteprima = ant.dataset.anteprima;
+    history.pushState({ ant: 1 }, '');
+    disegnaW();
+    window.scrollTo(0, 0);
+    return;
+  }
+  if (ev.target.closest('button[data-antindietro]')) { history.back(); return; }
   if (ev.target.closest('button[data-schroot]')) {
     mostra.sch = !mostra.sch;
     salvaMostra();
@@ -1652,3 +1701,12 @@ setInterval(() => {
   /* con l'editor aperto no: ridisegnerebbe sotto le dita di chi scrive */
   if (document.visibilityState === 'visible' && !tstore.dirty && !salvando && $('ed').hidden) pullTasks();
 }, 5 * 60 * 1000);
+
+/* Il tasto indietro (anche quello del telefono) chiude l'anteprima. */
+window.addEventListener('popstate', () => {
+  if (anteprima && !(history.state && history.state.ant)) {
+    anteprima = null;
+    disegnaW();
+    window.scrollTo(0, 0);
+  }
+});
