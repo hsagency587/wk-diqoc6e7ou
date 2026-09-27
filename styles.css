@@ -80,6 +80,9 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
   font-size:17px;font-weight:700;
 }
 .salva:disabled{opacity:.6}
+.salva{max-width:40vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar{min-width:0}
+body{overflow-x:clip}
 .salva.err{background:var(--danger);color:#fff}
 .sync{
   max-width:720px;margin:2px auto 0;min-height:1.2em;

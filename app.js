@@ -870,36 +870,60 @@ const b64Blob = blob => new Promise((ok, ko) => {
 
 /* Un video su GitHub: blob, albero, commit, e il branch che avanza. E' la via
    di GitHub per i file grandi; quella del piano si ferma molto prima. */
-async function caricaVideo(nome) {
+/* Il file mandato a GitHub con XMLHttpRequest e non con fetch: cosi' si sa a
+   che punto e' e la riga in alto lo dice. */
+function postaBlob(corpo, avanza) {
+  return new Promise(ok => {
+    const x = new XMLHttpRequest();
+    x.open('POST', API + '/git/blobs');
+    const H = Object.assign({ 'Content-Type': 'application/json' }, ghHeaders());
+    for (const k of Object.keys(H)) x.setRequestHeader(k, H[k]);
+    x.upload.onprogress = e => { if (e.lengthComputable && avanza) avanza(e.loaded / e.total); };
+    x.onload = () => { try { ok(x.status < 300 ? JSON.parse(x.responseText).sha : null); } catch (e) { ok(null); } };
+    x.onerror = x.ontimeout = () => ok(null);
+    x.send(corpo);
+  });
+}
+
+const aspetta = ms => new Promise(r => setTimeout(r, ms));
+
+async function caricaVideo(nome, avanza) {
   try {
     const blob = await vGet(nome);
     if (!blob) return true;                   /* sparito dal telefono: niente da mandare */
     const b64 = await b64Blob(new Blob([await cifraByte(await blob.arrayBuffer())]));
+    /* il file va su una volta sola; poi si prova ad attaccarlo al branch */
+    let sha = null;
+    for (let t = 0; t < 2 && !sha; t++) sha = await postaBlob(JSON.stringify({ content: b64, encoding: 'base64' }), avanza);
+    if (!sha) return false;
     const H = Object.assign({ 'Content-Type': 'application/json' }, ghHeaders());
     const leggiRef = () => fetch(API + '/git/ref/heads/' + BRANCH, { headers: ghHeaders(), cache: 'no-store' });
-    let ref = await leggiRef();
-    if (ref.status === 404) {
-      if (!(await creaBranch())) return false;
-      ref = await leggiRef();
+    /* Subito dopo il salvataggio del piano GitHub a volte da' ancora il
+       branch vecchio, e l'aggancio viene rifiutato: si rilegge e si riprova. */
+    for (let t = 0; t < 5; t++) {
+      if (t) await aspetta(1500 * t);
+      let ref = await leggiRef();
+      if (ref.status === 404) {
+        if (!(await creaBranch())) return false;
+        ref = await leggiRef();
+      }
+      if (!ref.ok) continue;
+      const base = (await ref.json()).object.sha;
+      const c0 = await fetch(API + '/git/commits/' + base, { headers: ghHeaders(), cache: 'no-store' });
+      if (!c0.ok) continue;
+      const albero0 = (await c0.json()).tree.sha;
+      const tr = await fetch(API + '/git/trees', { method: 'POST', headers: H,
+        body: JSON.stringify({ base_tree: albero0,
+          tree: [{ path: 'video/' + nome, mode: '100644', type: 'blob', sha: sha }] }) });
+      if (!tr.ok) continue;
+      const cm = await fetch(API + '/git/commits', { method: 'POST', headers: H,
+        body: JSON.stringify({ message: 'video: ' + nome, tree: (await tr.json()).sha, parents: [base] }) });
+      if (!cm.ok) continue;
+      const up = await fetch(API + '/git/refs/heads/' + BRANCH, { method: 'PATCH', headers: H,
+        body: JSON.stringify({ sha: (await cm.json()).sha }) });
+      if (up.ok) return true;
     }
-    if (!ref.ok) return false;
-    const base = (await ref.json()).object.sha;
-    const c0 = await fetch(API + '/git/commits/' + base, { headers: ghHeaders(), cache: 'no-store' });
-    if (!c0.ok) return false;
-    const albero0 = (await c0.json()).tree.sha;
-    const bl = await fetch(API + '/git/blobs', { method: 'POST', headers: H,
-      body: JSON.stringify({ content: b64, encoding: 'base64' }) });
-    if (!bl.ok) return false;
-    const tr = await fetch(API + '/git/trees', { method: 'POST', headers: H,
-      body: JSON.stringify({ base_tree: albero0,
-        tree: [{ path: 'video/' + nome, mode: '100644', type: 'blob', sha: (await bl.json()).sha }] }) });
-    if (!tr.ok) return false;
-    const cm = await fetch(API + '/git/commits', { method: 'POST', headers: H,
-      body: JSON.stringify({ message: 'video: ' + nome, tree: (await tr.json()).sha, parents: [base] }) });
-    if (!cm.ok) return false;
-    const up = await fetch(API + '/git/refs/heads/' + BRANCH, { method: 'PATCH', headers: H,
-      body: JSON.stringify({ sha: (await cm.json()).sha }) });
-    return up.ok;
+    return false;
   } catch (e) {
     return false;
   }
@@ -1473,7 +1497,8 @@ function paintSalva() {
     b.classList.toggle('err', !!salvaErr);
     /* il bottone dell'editor parla inglese, quello della pagina italiano */
     const it = b.id === 'salva';
-    b.textContent = salvando ? (it ? 'Salvo…' : 'Saving…') : (it ? 'Salva' : 'Save') + (salvaErr ? ' — ' + salvaErr : '');
+    /* con un errore il bottone dice solo Riprova: il perche' sta nella riga sotto */
+    b.textContent = salvando ? (it ? 'Salvo…' : 'Saving…') : salvaErr ? (it ? 'Riprova' : 'Retry') : (it ? 'Salva' : 'Save');
   }
 }
 
@@ -1684,8 +1709,9 @@ async function caricaPendenti() {
   salvando = true; paintSalva();
   const lista = tstore.daCaricare.slice();
   for (let i = 0; i < lista.length; i++) {
-    paintSync('carico il video ' + (i + 1) + ' di ' + lista.length + '…');
-    const ok = await caricaVideo(lista[i]);
+    const riga = 'carico il video ' + (i + 1) + ' di ' + lista.length;
+    paintSync(riga + '…');
+    const ok = await caricaVideo(lista[i], x => paintSync(riga + '… ' + Math.round(x * 100) + '%'));
     if (ok) {
       tstore.daCaricare = tstore.daCaricare.filter(x => x !== lista[i]);
       saveLocal();
@@ -1694,8 +1720,8 @@ async function caricaPendenti() {
   salvando = false;
   if (tstore.daCaricare.length) {
     tstore.dirty = true; saveLocal();
-    salvaErr = 'caricamento video fallito';
-    paintSalva(); paintSync('caricamento video fallito: premi Salva per riprovare', true);
+    salvaErr = 'video';
+    paintSalva(); paintSync('video non caricato: premi Riprova', true);
   } else {
     paintSalva(); paintSync('salvato alle ' + fmtTime.format(new Date()));
   }
