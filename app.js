@@ -127,7 +127,8 @@ const nomeVideoOk = v => typeof v === 'string' && /^[a-z0-9]{6,30}\.(mp4|webm|mo
 
 /* Il contenuto del file, e basta: serve a capire se due versioni sono uguali. */
 const contenuto = s => JSON.stringify({ workout: validWorkout(s.workout), schede: validSchede(s.schede),
-                                         slot: validSlot(s.slot), mattina: validMattina(s.mattina) });
+                                         slot: validSlot(s.slot), mattina: validMattina(s.mattina),
+                                         mattinaVia: !!s.mattinaVia });
 
 /* ------------------------------------------------------- lo stato ---- */
 
@@ -137,6 +138,8 @@ tstore.workout = validWorkout(tstore.workout);
 tstore.schede  = validSchede(tstore.schede);
 tstore.slot    = validSlot(tstore.slot);
 tstore.mattina = validMattina(tstore.mattina);
+/* la scheda del mattino si puo' togliere: nascosta per tutti, sta nel file */
+tstore.mattinaVia = !!tstore.mattinaVia;
 tstore.dirty   = !!tstore.dirty;
 /* i video scelti in questo telefono e non ancora arrivati su GitHub */
 if (!Array.isArray(tstore.daCaricare)) tstore.daCaricare = [];
@@ -184,6 +187,7 @@ function ripescaLocale() {
   tstore.schede  = validSchede(tstore.schede);
   tstore.slot    = validSlot(tstore.slot);
   tstore.mattina = validMattina(tstore.mattina);
+  tstore.mattinaVia = !!tstore.mattinaVia;
   if (!Array.isArray(tstore.daCaricare)) tstore.daCaricare = [];
   return true;
 }
@@ -302,6 +306,17 @@ function disegnaW() {
   /* se in una colonna nascosta c'e' ancora del testo, lo si dice */
   const nascosti = [1, 2, 3, 4, 5, 6, 0].some(g => (tstore.workout[g] || []).slice(n).some(Boolean));
   if (nascosti) box.appendChild(el('p', 'nota wnota', 'The hidden columns keep what you wrote: add them back and it returns.'));
+
+  /* La scheda del mattino si toglie da qui: spenta, sparisce per tutti, ma
+     quello che c'e' scritto dentro resta. Riaccesa, torna com'era. */
+  const mt = el('label', 'wconta wmattina');
+  const cb = el('input', 'schsel');
+  cb.type = 'checkbox';
+  cb.checked = !tstore.mattinaVia;
+  cb.dataset.mattinavia = '1';
+  mt.appendChild(cb);
+  mt.appendChild(el('span', 'wconta-eti', 'Show the list \u201c' + nomeMattina() + '\u201d'));
+  box.appendChild(mt);
 
   /* Il piano e' generico: da lunedi' a domenica, sempre uguale. */
   for (const g of [1, 2, 3, 4, 5, 6, 0]) {
@@ -600,6 +615,7 @@ function paintMorning(box) {
   const sc = tstore.schede[MORNING] || { es: [], rec: '' };
   const aperta = scheda === MORNING;
   /* chi legge e basta non vede la mattina vuota: non avrebbe niente da farci */
+  if (tstore.mattinaVia) return;       /* tolta: non la vede nessuno */
   if (!scrive() && !sc.es.length) return;
   const b = scrive() ? el('button', 'schbtn', aperta ? 'done' : 'edit') : null;
   if (b) { b.type = 'button'; b.dataset.scheda = MORNING; }
@@ -693,6 +709,12 @@ function paintSchede(box) {
 /* Si scrive quando si esce dalla casella: cosi' non si segna il file da
    salvare a ogni lettera battuta. */
 $('wlist').addEventListener('change', ev => {
+  const mv = ev.target.closest('input[data-mattinavia]');
+  if (mv) {
+    tstore.mattinaVia = !mv.checked;
+    touch();
+    return;
+  }
   const i = ev.target.closest('input.wcampo');
   if (!i) return;
   if (i.dataset.mattina) {
@@ -1665,7 +1687,8 @@ async function pullTasks() {
     return;
   }
   const remoto = { workout: validWorkout(data.workout), schede: validSchede(data.schede),
-                   slot: validSlot(data.slot), mattina: validMattina(data.mattina) };
+                   slot: validSlot(data.slot), mattina: validMattina(data.mattina),
+                   mattinaVia: !!data.mattinaVia };
 
   if (tstore.dirty) {
     if (contenuto(remoto) === contenuto(tstore)) {
@@ -1681,6 +1704,7 @@ async function pullTasks() {
   tstore.schede = remoto.schede;
   tstore.slot = remoto.slot;
   tstore.mattina = remoto.mattina;
+  tstore.mattinaVia = remoto.mattinaVia;
   rememberSha(j.sha);
   tstore.dirty = false;
   saveLocal();
@@ -1718,7 +1742,8 @@ async function pushTasks(opts) {
 
   const sent = contenuto(tstore);
   const testo = JSON.stringify({ workout: tstore.workout, schede: tstore.schede, slot: tstore.slot,
-                                 mattina: tstore.mattina || undefined }, null, 2) + '\n';
+                                 mattina: tstore.mattina || undefined,
+                                 mattinaVia: tstore.mattinaVia || undefined }, null, 2) + '\n';
   let corpo;
   try {
     corpo = await cifra(testo);
