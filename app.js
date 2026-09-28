@@ -300,6 +300,92 @@ const contenuto = s => JSON.stringify({ workout: validWorkout(s.workout), schede
                                          sorprese: validSorprese(s.sorprese), libreria: validLibreria(s.libreria),
                                          esercizi: validEsercizi(s.esercizi) });
 
+/* --- due telefoni che scrivono insieme -------------------------------------
+   Ogni telefono tiene `base`: il piano come era online l'ultima volta che si
+   sono visti. Se online c'e' una versione diversa, le due si uniscono
+   guardando cosa ha cambiato ognuno rispetto a `base`: quello che ha cambiato
+   uno solo resta; se tutti e due hanno cambiato la stessa cosa, vince questo
+   telefono. Le liste con un nome o un id (libreria, preparazioni, liste Every
+   day, sorprese) si uniscono voce per voce; le righe di un workout sono un
+   pezzo solo. */
+const istantanea = s => JSON.parse(contenuto(s));
+const CHIAVI_LISTE = { libreria: r => normEs(r[0]), prep: x => x.id, altre: x => x.id, sorprese: x => x.id };
+const eOgg = x => !!x && typeof x === 'object' && !Array.isArray(x);
+function unisci(b, l, r, via, conti) {
+  const J = JSON.stringify;
+  if (J(l) === J(r)) return l;
+  if (J(l) === J(b)) return r;
+  if (J(r) === J(b)) return l;
+  const chiave = CHIAVI_LISTE[via];
+  if (chiave && Array.isArray(l) && Array.isArray(r)) {
+    const mb = new Map((Array.isArray(b) ? b : []).map(x => [chiave(x), x]));
+    const ml = new Map(l.map(x => [chiave(x), x]));
+    const mr = new Map(r.map(x => [chiave(x), x]));
+    const out = [];
+    for (const k of l.map(chiave).concat(r.map(chiave).filter(k => !ml.has(k)))) {
+      const xb = mb.get(k), xl = ml.get(k), xr = mr.get(k);
+      /* tolta da una parte: sparisce se l'altra non l'ha toccata */
+      if (xl === undefined) { if (xb === undefined || J(xr) !== J(xb)) out.push(xr); continue; }
+      if (xr === undefined) { if (xb === undefined || J(xl) !== J(xb)) out.push(xl); continue; }
+      out.push(unisci(xb, xl, xr, via + '[]', conti));
+    }
+    return out;
+  }
+  /* una voce della libreria: casella per casella (nome, descrizione, video) */
+  if (via === 'libreria[]' && Array.isArray(l) && Array.isArray(r)) {
+    return l.map((x, i) => unisci(Array.isArray(b) ? b[i] : undefined, x, r[i], '', conti));
+  }
+  if (eOgg(l) && eOgg(r)) {
+    const ob = eOgg(b) ? b : {};
+    const out = {};
+    for (const k of [...new Set(Object.keys(l).concat(Object.keys(r)))]) {
+      const inB = k in ob;
+      if (!(k in l)) { if (!inB || J(r[k]) !== J(ob[k])) out[k] = r[k]; continue; }
+      if (!(k in r)) { if (!inB || J(l[k]) !== J(ob[k])) out[k] = l[k]; continue; }
+      out[k] = unisci(ob[k], l[k], r[k], k, conti);
+    }
+    return out;
+  }
+  conti.n++;
+  return l;
+}
+
+/* Il piano unito entra nel telefono. */
+function applicaPiano(d) {
+  tstore.workout = validWorkout(d.workout);
+  tstore.schede = validSchede(d.schede);
+  tstore.conti = validConti(d.conti, d.slot);
+  tstore.prep = validPrep(d.prep);
+  tstore.mattina = validMattina(d.mattina);
+  tstore.mattinaVia = !!d.mattinaVia;
+  tstore.mattinaQuando = validQuando(d.mattinaQuando);
+  tstore.altre = validAltre(d.altre);
+  tstore.sorprese = validSorprese(d.sorprese);
+  tstore.libreria = validLibreria(d.libreria);
+  tstore.esercizi = validEsercizi(d.esercizi);
+}
+
+/* Unisce questo telefono con la versione online `remoto`. Torna quante cose
+   erano cambiate da tutte e due le parti (dove ha vinto questo telefono), o
+   -1 se non si puo' (manca la base: allora vince questo telefono, come prima). */
+function uniscoConOnline(remoto) {
+  if (!tstore.base) return -1;
+  const conti = { n: 0 };
+  const R = istantanea(remoto);
+  const u = unisci(tstore.base, istantanea(tstore), R, '', conti);
+  /* chi sta scrivendo nell'editor non perde quello che ha scritto */
+  const a = document.activeElement;
+  if (!$('ed').hidden && a && $('ed').contains(a) && a.blur) a.blur();
+  applicaPiano(u);
+  tstore.base = R;
+  if (typeof edRidisegna === 'function') edRidisegna();
+  paintW();
+  return conti.n;
+}
+let notaUnione = '';
+const dettoUnione = n => n > 0 ? 'unito con l\'altro telefono · ' + n + (n === 1 ? ' punto cambiato da tutti e due: tenuto questo' : ' punti cambiati da tutti e due: tenuti questi')
+                              : 'unito con le modifiche dell\'altro telefono';
+
 /* ------------------------------------------------------- lo stato ---- */
 
 let tstore = readStore(STORE_KEY);
@@ -1866,7 +1952,7 @@ function paintSync(msg, err) {
 const leggi = () => fetch(FILE_API + '?ref=' + BRANCH, { headers: ghHeaders(), cache: 'no-store' });
 
 /* Il file dal branch. Senza token si legge lo stesso. Se il telefono ha
-   modifiche non salvate, vince il telefono: online si guarda soltanto. */
+   modifiche non salvate, le due versioni si uniscono (vedi unisci). */
 async function pullTasks() {
   let r;
   try { r = await leggi(); } catch (e) { paintSync('senza rete: uso la copia di questo telefono'); return; }
@@ -1915,11 +2001,15 @@ async function pullTasks() {
 
   if (tstore.dirty) {
     if (contenuto(remoto) === contenuto(tstore)) {
-      rememberSha(j.sha); tstore.dirty = false; saveLocal(); paintSalva();
+      rememberSha(j.sha); tstore.dirty = false; tstore.base = istantanea(remoto); saveLocal(); paintSalva();
       fine('sincronizzato');
-    } else {
-      fine('online c\'è un\'altra versione: salvando la sostituisci');
+      return;
     }
+    const n = uniscoConOnline(remoto);
+    if (n < 0) { fine('online c\'è un\'altra versione: salvando la sostituisci'); return; }
+    rememberSha(j.sha);
+    touch();                      /* il piano unito parte da solo */
+    fine(dettoUnione(n));
     return;
   }
 
@@ -1934,6 +2024,7 @@ async function pullTasks() {
   tstore.sorprese = remoto.sorprese;
   tstore.libreria = remoto.libreria;
   tstore.esercizi = remoto.esercizi;
+  tstore.base = istantanea(remoto);
   if (typeof edRidisegna === 'function') edRidisegna();
   rememberSha(j.sha);
   tstore.dirty = false;
@@ -2000,9 +2091,11 @@ async function pushTasks(opts) {
   const body = JSON.stringify(payload);
 
   const salvato = () => {
+    tstore.base = JSON.parse(sent);
     if (contenuto(tstore) === sent) tstore.dirty = false;
     saveLocal(); paintSalva();
-    paintSync('salvato alle ' + fmtTime.format(new Date()));
+    paintSync('salvato alle ' + fmtTime.format(new Date()) + (notaUnione ? ' · ' + notaUnione : ''));
+    notaUnione = '';
     if (tstore.dirty) autoSalva();       /* modifiche arrivate mentre salvava */
   };
 
@@ -2033,7 +2126,7 @@ async function pushTasks(opts) {
 
   /* sha vecchia: online e' cambiato qualcosa nel frattempo. Si rilegge; se e'
      la nostra stessa versione si e' a posto, altrimenti si riprova una volta
-     con la sha giusta. Vince il telefono. */
+     con la sha giusta, dopo aver unito le modifiche dell'altro telefono. */
   if ((r.status === 409 || r.status === 422) && !opts.retry) {
     try {
       const cur = await leggi();
@@ -2043,6 +2136,12 @@ async function pushTasks(opts) {
         let data = null;
         try { data = JSON.parse(await decifra(b64dec(j.content))); } catch (e) { /* si riprova comunque */ }
         if (data && contenuto(data) === sent) { salvato(); return; }
+        /* online c'e' la versione di un altro telefono: si unisce, poi si
+           salva il piano unito */
+        if (data) {
+          const n = uniscoConOnline(data);
+          if (n >= 0) { saveLocal(); notaUnione = dettoUnione(n); }
+        }
         return pushTasks(Object.assign({}, opts, { retry: true }));
       }
       if (cur.status === 404) {
