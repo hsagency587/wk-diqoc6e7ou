@@ -869,3 +869,20 @@ body.ed-aperto{overflow:hidden}
 .ed-lib-nomecampo{width:100%;margin:0 0 6px;font-weight:600}
 .ed-lib-nota{margin:0 0 var(--s2);font-size:13px;color:var(--muted);font-style:italic}
 .ed-lib-msg{color:var(--accent)}
+/* varianti: sotto il padre, meno in evidenza */
+.ed-lib-var .ed-lib-testa{padding-left:22px;padding-top:7px;padding-bottom:7px}
+.ed-lib-var .ed-lib-nome{font-weight:400;font-size:14px;color:var(--muted)}
+.ed-lib-var .ed-lib-corpo{padding-left:22px}
+.ed-lib-spunta{flex:0 0 auto;font-size:18px;color:var(--accent)}
+.ed-lib-sel{margin:0 0 var(--s2);padding:var(--s2);border:1px solid var(--line);border-radius:var(--radius)}
+.ed-lib-sel .ed-azioni{margin:var(--s2) 0 0}
+.ed-lib-meta{display:flex;flex-wrap:wrap;gap:6px var(--s3);margin:0 0 var(--s2)}
+.ed-lib-postilla{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.ed-lib-cat{padding:4px 8px;font-size:13px;min-width:0;max-width:200px}
+/* la domanda sotto un esercizio appena scritto */
+.ed-domanda{margin:0 var(--s3) var(--s2);padding:var(--s2);border:1px dashed var(--accent);border-radius:var(--radius)}
+.ed-domanda-t{margin:0 0 6px;font-size:14px}
+.ed-domanda-tasti{display:flex;flex-wrap:wrap;gap:6px}
+.ed-domanda-tasti .schbtn{margin-left:0}
+.ed-domanda-sel{max-width:100%;font-size:14px}
+.ed-lib-corpo .ed-domanda{margin:0 0 var(--s2)}

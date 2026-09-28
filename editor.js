@@ -482,12 +482,17 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
     nome.dataset.focus = chiave + '|0';
     nome.setAttribute('list', 'edEsNomi');
     nome.addEventListener('change', () => {
+      const prima = r[0] || '';
       r[0] = nome.value.slice(0, 60).trim();
       /* un esercizio che esiste gia': descrizione e video arrivano da soli,
          se questa riga non ne ha */
       const preso = edPrendiDallaLibreria(r);
+      /* un nome mai scritto: si chiede se e' un esercizio o una variante */
+      const k = edNorm(r[0]);
+      const chiedi = k && k !== edNorm(prima) && !edRigheDi(k).some(x => x !== r) && !edMeta(k).p;
+      if (chiedi) edChiedi.add(k);
       edCambio(false);
-      if (preso) edPagina();
+      if (preso || chiedi) edPagina();
     });
     const qta = el('input', 'campo ed-es-qta');
     qta.type = 'text'; qta.maxLength = 60; qta.placeholder = 'how much';
@@ -520,6 +525,8 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
 
     /* il gruppo in cui sta, se ci sta: si legge, si cambia dal bottone Groups */
     if ((r[2] || []).length) es.appendChild(el('p', 'ed-es-grp', 'in ' + r[2].join(' › ')));
+    const kr = edNorm(r[0]);
+    if (kr && edChiedi.has(kr)) es.appendChild(edDomanda(kr, r[0], sc));
 
     /* stesso nome, stesso esercizio: quello che si scrive o si carica qui va
        anche nelle altre righe con questo nome, dove era vuoto o uguale */
@@ -1155,7 +1162,7 @@ function edLibreria() {
   for (const r of tstore.libreria) {
     const n = edNorm(r[0]);
     if (!n) continue;
-    m.set(n, { nome: r[0], desc: r[3] || '', video: r[4] || '', usi: [], mia: r });
+    m.set(n, { k: n, nome: r[0], desc: r[3] || '', video: r[4] || '', usi: [], mia: r });
   }
   for (const f of fonti) {
     for (const k of Object.keys(f.o.schede)) {
@@ -1163,7 +1170,7 @@ function edLibreria() {
         const n = edNorm(r[0]);
         if (!n) continue;
         let x = m.get(n);
-        if (!x) { x = { nome: r[0], desc: '', video: '', usi: [] }; m.set(n, x); }
+        if (!x) { x = { k: n, nome: r[0], desc: '', video: '', usi: [] }; m.set(n, x); }
         if (!x.desc && r[3]) x.desc = r[3];
         if (!x.video && r[4]) x.video = r[4];
         const uso = f.nome + ' · ' + edNomeScheda(f.o, k);
@@ -1243,7 +1250,10 @@ function edLibApplica(n, d0, v0, d1, v1, tutte) {
 function edLibRinomina(n, nuovo) {
   const k = edNorm(nuovo);
   if (!k || k === n) {
-    if (k === n) for (const r of edRigheDi(n)) r[0] = nuovo;
+    if (k === n) {
+      for (const r of edRigheDi(n)) r[0] = nuovo;
+      for (const x of Object.keys(tstore.esercizi)) if (edNorm(tstore.esercizi[x].p) === n) edMetaSet(x, 'p', nuovo);
+    }
     return '';
   }
   const altro = edRigheDi(k);
@@ -1263,10 +1273,118 @@ function edLibRinomina(n, nuovo) {
   /* in libreria ne resta uno solo */
   const lib = tstore.libreria.filter(r => edNorm(r[0]) === k);
   if (lib.length > 1) tstore.libreria = tstore.libreria.filter(r => edNorm(r[0]) !== k || r === lib[0]);
+  /* variante e categoria: se l'altro non ne ha, prende queste */
+  const m = tstore.esercizi[n];
+  delete tstore.esercizi[n];
+  if (m) {
+    if (m.p && !edMeta(k).p && edNorm(m.p) !== k) edMetaSet(k, 'p', m.p);
+    if (m.c && !edMeta(k).c) edMetaSet(k, 'c', m.c);
+  }
+  for (const x of Object.keys(tstore.esercizi)) if (edNorm(tstore.esercizi[x].p) === n) edMetaSet(x, 'p', x === k ? '' : nomeFinale);
   return altro.length ? nomeFinale : '';
 }
 
+/* --- varianti e categorie -------------------------------------------------
+   Stanno in tstore.esercizi, per nome: p = il nome del padre, c = la
+   categoria. Una variante e' un esercizio a se', con descrizione e video
+   suoi: e' solo appesa a un padre. Un padre non e' mai a sua volta una
+   variante. La categoria si vede solo qui nell'editor. */
+const edMeta = n => tstore.esercizi[n] || {};
+function edMetaSet(n, campo, v) {
+  const x = Object.assign({}, tstore.esercizi[n] || {});
+  if (v) x[campo] = v; else delete x[campo];
+  if (x.p || x.c) tstore.esercizi[n] = x; else delete tstore.esercizi[n];
+}
+
+/* n diventa variante di `padre` (vuoto: torna esercizio principale). Le sue
+   varianti passano al nuovo padre; se non ha categoria prende quella del padre. */
+function edFaiVariante(n, padre) {
+  const pk = edNorm(padre);
+  if (!pk || pk === n) { edMetaSet(n, 'p', ''); return; }
+  if (edMeta(pk).p) return;
+  edMetaSet(n, 'p', padre);
+  for (const k of Object.keys(tstore.esercizi)) if (k !== n && edNorm(tstore.esercizi[k].p) === n) edMetaSet(k, 'p', padre);
+  if (!edMeta(n).c && edMeta(pk).c) edMetaSet(n, 'c', edMeta(pk).c);
+}
+
+/* Gli esercizi principali, per nome: quelli che possono fare da padre. */
+const edPrincipali = salta => edLibreria().filter(x => !edMeta(x.k).p && x.k !== salta).map(x => x.nome);
+
+/* I padri possibili per un nome nuovo: prima quelli scritti dentro il nome
+   (parole intere), poi quelli con la stessa prima parola. Al massimo tre. */
+function edPadriPossibili(nome) {
+  const n = edNorm(nome);
+  const w0 = n.split(' ')[0];
+  const dentro = [], prima = [];
+  for (const p of edPrincipali(n)) {
+    const k = edNorm(p);
+    if ((' ' + n + ' ').indexOf(' ' + k + ' ') >= 0) dentro.push(p);
+    else if (w0.length > 2 && k.split(' ')[0] === w0) prima.push(p);
+  }
+  dentro.sort((a, b) => b.length - a.length);
+  return dentro.concat(prima).slice(0, 3);
+}
+
+/* La categoria di un esercizio appena creato: quella del padre; se non e'
+   una variante, la piu' frequente fra gli altri esercizi dello stesso workout. */
+function edCatAuto(n, sc) {
+  const p = edMeta(n).p;
+  if (p) return edMeta(edNorm(p)).c || '';
+  if (!sc) return '';
+  const conta = {};
+  let meglio = '', max = 0;
+  for (const r of sc.es) {
+    const k = edNorm(r[0]);
+    const c = k && k !== n ? edMeta(k).c : '';
+    if (!c) continue;
+    conta[c] = (conta[c] || 0) + 1;
+    if (conta[c] > max) { max = conta[c]; meglio = c; }
+  }
+  return meglio;
+}
+
+/* I nomi appena scritti per la prima volta: aspettano la risposta. */
+let edChiedi = new Set();
+function edDomanda(k, nome, sc) {
+  const box = el('div', 'ed-domanda');
+  box.appendChild(el('p', 'ed-domanda-t', '"' + nome + '" is new: a main exercise, or a variant of another?'));
+  const t = el('div', 'ed-domanda-tasti');
+  const fatto = () => {
+    edChiedi.delete(k);
+    if (!edMeta(k).c) { const c = edCatAuto(k, sc); if (c) edMetaSet(k, 'c', c); }
+    edCambio(false);
+    edPagina();
+  };
+  edBottone(t, 'Main exercise', '', () => { edMetaSet(k, 'p', ''); fatto(); });
+  const proposti = edPadriPossibili(nome);
+  for (const p of proposti) edBottone(t, 'Variant of ' + p, '', () => { edFaiVariante(k, p); fatto(); });
+  const altri = edPrincipali(k).filter(p => proposti.indexOf(p) < 0);
+  if (altri.length) {
+    const sel = el('select', 'campo ed-domanda-sel');
+    const o0 = el('option', '', 'Variant of another…'); o0.value = ''; sel.appendChild(o0);
+    for (const p of altri) { const o = el('option', '', p); o.value = p; sel.appendChild(o); }
+    sel.addEventListener('change', () => { if (sel.value) { edFaiVariante(k, sel.value); fatto(); } });
+    t.appendChild(sel);
+  }
+  box.appendChild(t);
+  return box;
+}
+
+/* Via da tutto: libreria, piano, preparazioni. Le sue varianti restano, come
+   esercizi principali. */
+function edCancellaOvunque(n) {
+  tstore.libreria = tstore.libreria.filter(r => edNorm(r[0]) !== n);
+  for (const o of [tstore].concat(tstore.prep)) {
+    for (const k of Object.keys(o.schede)) o.schede[k].es = o.schede[k].es.filter(r => edNorm(r[0]) !== n);
+  }
+  delete tstore.esercizi[n];
+  for (const k of Object.keys(tstore.esercizi)) if (edNorm(tstore.esercizi[k].p) === n) edMetaSet(k, 'p', '');
+  edChiedi.delete(n);
+  edAperti = new Set();
+}
+
 let edLibAperti = new Set();
+let edLibSel = null;            /* in modalita' Select: i nomi spuntati */
 let edLibSenzaVideo = false;
 let edLibCerca = '';
 let edLibMsg = '';
@@ -1289,6 +1407,7 @@ function edPagLibreria(box) {
       return;
     }
     tstore.libreria.push([nome, '', [], '', '']);
+    edChiedi.add(k);
     edLibAperti.add(k); edLibCerca = '';
     edCambio(false);
     edPagina();
@@ -1307,27 +1426,95 @@ function edPagLibreria(box) {
   filtro.setAttribute('aria-pressed', edLibSenzaVideo ? 'true' : 'false');
   filtro.addEventListener('click', () => { edLibSenzaVideo = !edLibSenzaVideo; edPagina(); });
   box.appendChild(filtro);
+  const selez = el('button', 'ed-lib-filtro' + (edLibSel ? ' on' : ''), edLibSel ? 'Done' : 'Select');
+  selez.type = 'button';
+  selez.addEventListener('click', () => { edLibSel = edLibSel ? null : new Set(); edPagina(); });
+  box.appendChild(selez);
   const lista = el('div', 'ed-lib');
   box.appendChild(lista);
+  const perNome = new Map(tutti.map(x => [x.k, x]));
+  /* il padre di una voce, se c'e' davvero ed e' un esercizio principale */
+  const padreDi = x => { const pk = edNorm(edMeta(x.k).p); const px = pk && pk !== x.k ? perNome.get(pk) : null; return px && !edMeta(pk).p ? px : null; };
+  const figli = new Map();
+  for (const x of tutti) { const px = padreDi(x); if (px) { if (!figli.has(px.k)) figli.set(px.k, []); figli.get(px.k).push(x); } }
   function disegna() {
     lista.textContent = '';
     const q = edNorm(edLibCerca);
-    const visti = tutti.filter(x => (!q || edNorm(x.nome).indexOf(q) >= 0) && (!edLibSenzaVideo || !x.video));
-    lista.appendChild(el('p', 'ed-sotto', visti.length + (visti.length === 1 ? ' exercise' : ' exercises')));
-    for (const x of visti) {
-      const k = edNorm(x.nome);
-      const aperto = edLibAperti.has(k);
-      const v = el('div', 'ed-lib-voce' + (aperto ? ' aperto' : ''));
+    /* la ricerca guarda il nome, la categoria e il nome del padre */
+    const va = x => {
+      if (edLibSenzaVideo && x.video) return false;
+      if (!q) return true;
+      const px = padreDi(x);
+      return [x.nome, edMeta(x.k).c, px ? px.nome : ''].some(t => edNorm(t).indexOf(q) >= 0);
+    };
+    const righe = [];
+    for (const x of tutti) {
+      if (padreDi(x)) continue;
+      const vv = (figli.get(x.k) || []).filter(va);
+      if (va(x) || vv.length) { righe.push({ x: x, v: false }); for (const y of vv) righe.push({ x: y, v: true }); }
+    }
+    lista.appendChild(el('p', 'ed-sotto', righe.length + (righe.length === 1 ? ' exercise' : ' exercises')));
+    if (edLibSel) lista.appendChild(barraSel());
+    for (const { x, v: variante } of righe) voce(x, variante);
+  }
+  /* in Select: quello che si fa sugli esercizi spuntati */
+  function barraSel() {
+    const b = el('div', 'ed-lib-sel');
+    const n = edLibSel.size;
+    b.appendChild(el('p', 'ed-sotto', n ? n + ' selected' : 'Tap the exercises to select them.'));
+    if (!n) return b;
+    const scelti = tutti.filter(x => edLibSel.has(x.k));
+    const cat = el('div', 'ed-lib-nuovo');
+    const ci = el('input', 'campo');
+    ci.type = 'text'; ci.maxLength = 40; ci.placeholder = 'Category';
+    cat.appendChild(ci);
+    edBottone(cat, 'Set category', '', () => {
+      const c = ci.value.slice(0, 40).trim();
+      for (const x of scelti) edMetaSet(x.k, 'c', c);
+      edCambio(false); edPagina();
+    });
+    b.appendChild(cat);
+    const az = el('div', 'ed-lib-nuovo');
+    const sel = el('select', 'campo');
+    const o0 = el('option', '', 'Make them variants of…'); o0.value = ''; sel.appendChild(o0);
+    for (const p of edPrincipali('')) { const o = el('option', '', p); o.value = p; sel.appendChild(o); }
+    sel.addEventListener('change', () => {
+      if (!sel.value) return;
+      for (const x of scelti) if (x.k !== edNorm(sel.value)) edFaiVariante(x.k, sel.value);
+      edCambio(false); edPagina();
+    });
+    az.appendChild(sel);
+    edBottone(az, 'Make main', '', () => { for (const x of scelti) edMetaSet(x.k, 'p', ''); edCambio(false); edPagina(); });
+    b.appendChild(az);
+    const via = el('div', 'ed-azioni');
+    edConferma(via, 'Delete ' + n + ' everywhere', () => {
+      for (const x of scelti) edCancellaOvunque(x.k);
+      edLibSel = new Set();
+      edCambio(false); edPagina();
+    });
+    b.appendChild(via);
+    return b;
+  }
+  function voce(x, variante) {
+      const k = x.k;
+      const aperto = !edLibSel && edLibAperti.has(k);
+      const v = el('div', 'ed-lib-voce' + (aperto ? ' aperto' : '') + (variante ? ' ed-lib-var' : ''));
       const t = el('button', 'ed-lib-testa');
       t.type = 'button';
-      t.appendChild(el('span', 'ed-lib-nome', x.nome));
+      if (edLibSel) t.appendChild(el('span', 'ed-lib-spunta', edLibSel.has(k) ? '☑' : '☐'));
+      t.appendChild(el('span', 'ed-lib-nome', (variante ? '↳ ' : '') + x.nome));
       const segni = (x.video ? '▶ ' : '') + (x.desc ? '¶' : '');
       if (segni) t.appendChild(el('span', 'ed-lib-segni', segni));
-      t.appendChild(el('span', 'ed-freccia' + (aperto ? ' open' : ''), '▾'));
-      t.addEventListener('click', () => { if (aperto) edLibAperti.delete(k); else edLibAperti.add(k); disegna(); });
+      if (!edLibSel) t.appendChild(el('span', 'ed-freccia' + (aperto ? ' open' : ''), '▾'));
+      t.addEventListener('click', () => {
+        if (edLibSel) { if (edLibSel.has(k)) edLibSel.delete(k); else edLibSel.add(k); disegna(); return; }
+        if (aperto) edLibAperti.delete(k); else edLibAperti.add(k);
+        disegna();
+      });
       v.appendChild(t);
       if (aperto) {
         const c = el('div', 'ed-lib-corpo');
+        if (edChiedi.has(k)) c.appendChild(edDomanda(k, x.nome, null));
         c.appendChild(el('p', 'ed-lib-usi', (x.mia ? 'Written in the library' + (x.usi.length ? ' · also used in: ' : '') : 'Used in: ') + x.usi.join(', ')));
         /* il nome: cambiarlo qui lo cambia ovunque */
         const nomeC = el('input', 'campo ed-lib-nomecampo');
@@ -1345,22 +1532,35 @@ function edPagLibreria(box) {
         c.appendChild(nomeC);
         const posti = (x.posti || 0) + (x.mia ? 1 : 0);
         if (posti > 1) c.appendChild(el('p', 'ed-lib-nota', 'Changes here go to all ' + posti + ' places where it is written.'));
+        /* la postilla: categoria e padre, da correggere qui */
+        const meta = el('div', 'ed-lib-meta');
+        const lc = el('label', 'ed-lib-postilla', 'Category ');
+        const ci = el('input', 'campo ed-lib-cat');
+        ci.type = 'text'; ci.maxLength = 40; ci.placeholder = 'none'; ci.value = edMeta(k).c || '';
+        ci.addEventListener('change', () => { edMetaSet(k, 'c', ci.value.slice(0, 40).trim()); edCambio(false); });
+        lc.appendChild(ci);
+        meta.appendChild(lc);
+        const lp = el('label', 'ed-lib-postilla', 'Variant of ');
+        const ps = el('select', 'campo ed-lib-cat');
+        const o0 = el('option', '', '— main exercise'); o0.value = ''; ps.appendChild(o0);
+        const px = padreDi(x);
+        for (const p of edPrincipali(k)) { const o = el('option', '', p); o.value = p; if (px && px.nome === p) o.selected = true; ps.appendChild(o); }
+        ps.addEventListener('change', () => { edFaiVariante(k, ps.value); edCambio(false); edPagina(); });
+        lp.appendChild(ps);
+        meta.appendChild(lp);
+        c.appendChild(meta);
         /* descrizione e video: una riga di lavoro con quelli mostrati; ogni
            modifica va in tutte le righe con questo nome */
         const r = [x.nome, '', [], x.desc, x.video];
         c.appendChild(edDescrizione(r, (d0, v0) => { edLibApplica(k, d0, v0, r[3] || '', r[4] || '', true); }));
-        if (x.mia) {
-          const az = el('div', 'ed-azioni');
-          edConferma(az, 'Remove from library', () => {
-            tstore.libreria = tstore.libreria.filter(y => y !== x.mia);
-            edCambio(false); edPagina();
-          });
-          c.appendChild(az);
-        }
+        const az = el('div', 'ed-azioni');
+        const dove = x.usi.length ? x.usi.join(', ') : 'the library';
+        c.appendChild(el('p', 'ed-lib-nota', 'Delete everywhere removes it from: ' + dove + (x.mia && x.usi.length ? ', the library' : '') + '.'));
+        edConferma(az, 'Delete everywhere', () => { edCancellaOvunque(k); edLibAperti.delete(k); edCambio(false); edPagina(); });
+        c.appendChild(az);
         v.appendChild(c);
       }
       lista.appendChild(v);
-    }
   }
   cerca.addEventListener('input', () => { edLibCerca = cerca.value; disegna(); });
   disegna();

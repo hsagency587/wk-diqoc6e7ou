@@ -260,12 +260,32 @@ function validSorprese(l) {
    quelle delle schede (nome, quanto, gruppi, descrizione, video). */
 const validLibreria = l => { const v = validSchede({ l: { es: Array.isArray(l) ? l : [], rec: '' } }).l; return v ? v.es.filter(r => r[0]) : []; };
 
+/* Di ogni esercizio, per nome (minuscolo, spazi puliti): di chi e' variante
+   (p, il nome del padre) e la categoria (c). Serve solo all'editor. */
+function validEsercizi(o) {
+  const out = {};
+  if (!o || typeof o !== 'object' || Array.isArray(o)) return out;
+  for (const k of Object.keys(o).slice(0, 2000)) {
+    const n = normEs(k).slice(0, 60);
+    const x = o[k] || {};
+    const p = String(x.p == null ? '' : x.p).slice(0, 60).trim();
+    const c = String(x.c == null ? '' : x.c).slice(0, 40).trim();
+    if (!n || (!p && !c)) continue;
+    out[n] = {};
+    if (p && normEs(p) !== n) out[n].p = p;
+    if (c) out[n].c = c;
+    if (!out[n].p && !out[n].c) delete out[n];
+  }
+  return out;
+}
+
 /* Il contenuto del file, e basta: serve a capire se due versioni sono uguali. */
 const contenuto = s => JSON.stringify({ workout: validWorkout(s.workout), schede: validSchede(s.schede),
                                          conti: validConti(s.conti, s.slot), mattina: validMattina(s.mattina),
                                          mattinaVia: !!s.mattinaVia, prep: validPrep(s.prep),
                                          mattinaQuando: validQuando(s.mattinaQuando), altre: validAltre(s.altre),
-                                         sorprese: validSorprese(s.sorprese), libreria: validLibreria(s.libreria) });
+                                         sorprese: validSorprese(s.sorprese), libreria: validLibreria(s.libreria),
+                                         esercizi: validEsercizi(s.esercizi) });
 
 /* ------------------------------------------------------- lo stato ---- */
 
@@ -284,6 +304,7 @@ tstore.altre = validAltre(tstore.altre);
 /* le sorprese restano come sono scritte: si ripuliscono solo quando si salva */
 if (!Array.isArray(tstore.sorprese)) tstore.sorprese = [];
 if (!Array.isArray(tstore.libreria)) tstore.libreria = [];
+tstore.esercizi = validEsercizi(tstore.esercizi);
 tstore.dirty   = !!tstore.dirty;
 /* i video scelti in questo telefono e non ancora arrivati su GitHub */
 if (!Array.isArray(tstore.daCaricare)) tstore.daCaricare = [];
@@ -338,6 +359,7 @@ function ripescaLocale() {
   tstore.altre = validAltre(tstore.altre);
   if (!Array.isArray(tstore.sorprese)) tstore.sorprese = [];
   if (!Array.isArray(tstore.libreria)) tstore.libreria = [];
+  tstore.esercizi = validEsercizi(tstore.esercizi);
   if (!Array.isArray(tstore.daCaricare)) tstore.daCaricare = [];
   return true;
 }
@@ -1825,7 +1847,8 @@ async function pullTasks() {
                    conti: validConti(data.conti, data.slot), mattina: validMattina(data.mattina),
                    mattinaVia: !!data.mattinaVia, prep: validPrep(data.prep),
                    mattinaQuando: validQuando(data.mattinaQuando), altre: validAltre(data.altre),
-                   sorprese: validSorprese(data.sorprese), libreria: validLibreria(data.libreria) };
+                   sorprese: validSorprese(data.sorprese), libreria: validLibreria(data.libreria),
+                   esercizi: validEsercizi(data.esercizi) };
 
   /* chi sta scrivendo nell'editor non perde quello che ha scritto: il campo
      si chiude, e se c'era qualcosa di nuovo diventa da salvare */
@@ -1852,6 +1875,7 @@ async function pullTasks() {
   tstore.altre = remoto.altre;
   tstore.sorprese = remoto.sorprese;
   tstore.libreria = remoto.libreria;
+  tstore.esercizi = remoto.esercizi;
   if (typeof edRidisegna === 'function') edRidisegna();
   rememberSha(j.sha);
   tstore.dirty = false;
@@ -1899,7 +1923,8 @@ async function pushTasks(opts) {
                                  altre: tstore.altre.length ? validAltre(tstore.altre) : undefined,
                                  prep: tstore.prep.length ? validPrep(tstore.prep) : undefined,
                                  sorprese: validSorprese(tstore.sorprese).length ? validSorprese(tstore.sorprese) : undefined,
-                                 libreria: validLibreria(tstore.libreria).length ? validLibreria(tstore.libreria) : undefined }, null, 2) + '\n';
+                                 libreria: validLibreria(tstore.libreria).length ? validLibreria(tstore.libreria) : undefined,
+                                 esercizi: Object.keys(validEsercizi(tstore.esercizi)).length ? validEsercizi(tstore.esercizi) : undefined }, null, 2) + '\n';
   let corpo;
   try {
     corpo = await cifra(testo);
