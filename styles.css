@@ -927,3 +927,20 @@ body.ed-aperto{overflow:hidden}
   .ed-pane{padding:var(--s2) var(--s2) calc(var(--s5) * 3)}
   .ed-giorno{gap:4px}
 }
+
+/* ---------- Every day: calendario a settimane e ritmo ---------- */
+.ed-prossimi .ed-pross{font:inherit;font-size:13px;cursor:pointer}
+.ed-cal{margin:var(--s2) 0;max-width:420px}
+.ed-cal-testa{display:flex;align-items:center;justify-content:space-between;gap:var(--s2);margin-bottom:4px}
+.ed-cal-mese{font-weight:700;font-size:16px}
+.ed-cal-griglia{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.ed-cal-gs{text-align:center;font-size:12px;font-weight:700;color:var(--muted);padding:2px 0}
+.ed-cal-g{min-height:38px;border:1px solid var(--line);border-radius:6px;background:var(--surface-2);color:var(--text);font:inherit;font-size:15px;font-variant-numeric:tabular-nums;cursor:pointer}
+.ed-cal-g.fuori{opacity:.4}
+.ed-cal-g.oggi{border-color:var(--accent)}
+.ed-cal-g.si{background:var(--accent);border-color:var(--accent);color:#0d0f12;font-weight:700;opacity:1}
+.ed-ciclo{display:grid;gap:6px;margin-top:var(--s2)}
+.ed-ciclo-passo{display:flex;align-items:center;gap:6px}
+.ed-ciclo-n{flex:0 0 64px;text-align:center}
+.ed-ciclo-eti{flex:0 0 34px;font-size:14px;color:var(--muted)}
+.ed-ciclo-passo .chip{min-height:36px;padding:0 var(--s2);font-size:15px}

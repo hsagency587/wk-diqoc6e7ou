@@ -682,11 +682,13 @@ function edPagMattina(box, ctx, listaId) {
 }
 
 /* Quando si vede una lista: tutti i giorni, certi giorni della settimana, un
-   giorno si' e uno no (o ogni N), oppure date precise. Sotto, i prossimi 14
-   giorni, per vedere subito il risultato. L'oggetto `q` si cambia sul posto. */
+   giorno si' e uno no (o ogni N), date precise scelte sul calendario, oppure
+   un ritmo tutto suo (3 si', 2 no, 4 si', 1 no...). L'oggetto `q` si cambia
+   sul posto. */
+let edCalMese = null;           /* il primo del mese mostrato dal calendario */
 function edQuando(box, q) {
   box.appendChild(el('p', 'ed-sez-pag', 'WHEN'));
-  const modi = [['sempre', 'Every day'], ['giorni', 'Days of the week'], ['ogni', 'Every N days'], ['date', 'Specific dates']];
+  const modi = [['sempre', 'Every day'], ['giorni', 'Days of the week'], ['ogni', 'Every N days'], ['ciclo', 'Custom rhythm'], ['date', 'Specific dates']];
   const chips = el('div', 'chips');
   for (const [m, n] of modi) {
     const b = el('button', 'chip' + (q.modo === m ? ' sel' : ''), n);
@@ -697,6 +699,7 @@ function edQuando(box, q) {
       q.modo = m;
       if (m === 'giorni') q.giorni = [1, 2, 3, 4, 5, 6, 0];
       if (m === 'ogni') { q.n = 2; q.dal = chiaveData(today()); }
+      if (m === 'ciclo') { q.dal = chiaveData(today()); q.passi = [3, -2]; }
       if (m === 'date') q.date = [];
       edCambio(false);
       edPagina();
@@ -736,37 +739,100 @@ function edQuando(box, q) {
     box.appendChild(r);
     box.appendChild(el('p', 'ed-sotto', q.n === 2 ? 'One day yes, one day no.' : 'One day yes, then ' + (q.n - 1) + ' days no.'));
   }
+  if (q.modo === 'ciclo') edCiclo(box, q);
   if (q.modo === 'date') {
-    const lista = el('div', 'chips');
+    /* le date scelte, come piastrelle: un tocco la toglie */
+    const lista = el('div', 'ed-prossimi');
     for (const d of q.date) {
-      const b = el('button', 'chip sel', dataCorta(d) + ' ' + daChiave(d).getFullYear() + '  ×');
+      const b = el('button', 'ed-pross si', GIORNI2[daChiave(d).getDay()] + ' ' + dataCorta(d) + (daChiave(d).getFullYear() !== today().getFullYear() ? ' ' + daChiave(d).getFullYear() : '') + ' ×');
       b.type = 'button';
       b.setAttribute('aria-label', 'Remove ' + d);
       b.addEventListener('click', () => { q.date = q.date.filter(x => x !== d); edCambio(false); edPagina(); });
       lista.appendChild(b);
     }
-    if (!q.date.length) lista.appendChild(el('span', 'ed-sotto', 'No dates yet: the list is not shown.'));
-    box.appendChild(lista);
-    const r = el('div', 'ed-ogni');
-    const nuova = edCampo(r, 'Add a date', '', { type: 'date' }, val => {
-      if (dataOk(val) && q.date.indexOf(val) < 0) { q.date = q.date.concat([val]).sort(); edCambio(false); }
-      edPagina();
-    });
-    nuova.value = '';
-    box.appendChild(r);
+    if (!q.date.length) box.appendChild(el('p', 'ed-sotto', 'No dates yet: the list is not shown. Tap the days in the calendar.'));
+    else box.appendChild(lista);
+    edCalendario(box, q);
   }
+}
 
-  /* i prossimi 14 giorni: acceso dove la lista si vede */
-  box.appendChild(el('p', 'ed-sotto', 'Next 14 days:'));
-  const prossimi = el('div', 'ed-prossimi');
-  const t0 = today();
-  for (let i = 0; i < 14; i++) {
-    const d = piuGiorni(t0, i);
-    const k = chiaveData(d);
-    const si = quandoVale(q, k);
-    prossimi.appendChild(el('span', 'ed-pross' + (si ? ' si' : ''), GIORNI2[d.getDay()] + ' ' + d.getDate()));
+/* Il calendario, una settimana per riga (da lunedi'): si toccano i giorni,
+   quanti se ne vuole, e si accendono o si spengono. */
+function edCalendario(box, q) {
+  if (!edCalMese) { const t = today(); edCalMese = new Date(t.getFullYear(), t.getMonth(), 1); }
+  const m0 = edCalMese;
+  const cal = el('div', 'ed-cal');
+  const testa = el('div', 'ed-cal-testa');
+  const vai = n => { edCalMese = new Date(m0.getFullYear(), m0.getMonth() + n, 1); edPagina(); };
+  const pr = edBottone(testa, '‹', 'ed-tasto', () => vai(-1)); pr.setAttribute('aria-label', 'Previous month');
+  testa.appendChild(el('span', 'ed-cal-mese', MESI3[m0.getMonth()] + ' ' + m0.getFullYear()));
+  const nx = edBottone(testa, '›', 'ed-tasto', () => vai(1)); nx.setAttribute('aria-label', 'Next month');
+  cal.appendChild(testa);
+  const griglia = el('div', 'ed-cal-griglia');
+  for (const g of SETTIMANA) griglia.appendChild(el('span', 'ed-cal-gs', GIORNI2[g]));
+  const oggi = chiaveData(today());
+  let d = lunedi(m0);
+  const fine = new Date(m0.getFullYear(), m0.getMonth() + 1, 0);
+  while (d <= fine) {
+    for (let i = 0; i < 7; i++, d = piuGiorni(d, 1)) {
+      const k = chiaveData(d);
+      const on = q.date.indexOf(k) >= 0;
+      const b = el('button', 'ed-cal-g' + (on ? ' si' : '') + (d.getMonth() !== m0.getMonth() ? ' fuori' : '') + (k === oggi ? ' oggi' : ''), String(d.getDate()));
+      b.type = 'button';
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.addEventListener('click', () => {
+        q.date = on ? q.date.filter(x => x !== k) : q.date.concat([k]).sort();
+        edCambio(false);
+        edPagina();
+      });
+      griglia.appendChild(b);
+    }
   }
-  box.appendChild(prossimi);
+  cal.appendChild(griglia);
+  box.appendChild(cal);
+}
+
+/* Il ritmo: una fila di passi, ognuno "N giorni si'" o "N giorni no", che
+   si ripete da una data. Nel file: numeri positivi si', negativi no. */
+function edCiclo(box, q) {
+  const lista = el('div', 'ed-ciclo');
+  q.passi.forEach((x, i) => {
+    const r = el('div', 'ed-ciclo-passo');
+    const n = el('input', 'campo ed-ciclo-n');
+    n.type = 'number'; n.min = 1; n.max = 60; n.inputMode = 'numeric'; n.value = String(Math.abs(x));
+    n.setAttribute('aria-label', 'How many days');
+    n.addEventListener('change', () => {
+      const v = Math.round(+n.value);
+      if (v >= 1 && v <= 60) q.passi[i] = x > 0 ? v : -v;
+      edCambio(false); edPagina();
+    });
+    r.appendChild(n);
+    r.appendChild(el('span', 'ed-ciclo-eti', Math.abs(x) === 1 ? 'day' : 'days'));
+    const si = el('button', 'chip' + (x > 0 ? ' sel' : ''), 'yes');
+    si.type = 'button';
+    si.addEventListener('click', () => { q.passi[i] = Math.abs(x); edCambio(false); edPagina(); });
+    const no = el('button', 'chip' + (x < 0 ? ' sel' : ''), 'no');
+    no.type = 'button';
+    no.addEventListener('click', () => { q.passi[i] = -Math.abs(x); edCambio(false); edPagina(); });
+    r.appendChild(si); r.appendChild(no);
+    const via = edBottone(r, '×', 'ed-tasto ed-x', () => { q.passi.splice(i, 1); if (!q.passi.length) q.passi.push(1); edCambio(false); edPagina(); });
+    via.setAttribute('aria-label', 'Remove this step');
+    lista.appendChild(r);
+  });
+  box.appendChild(lista);
+  const piu = edBottone(box, '+ Step', 'ed-aggiungi', () => {
+    const ult = q.passi[q.passi.length - 1];
+    q.passi.push(ult > 0 ? -1 : 1);
+    edCambio(false); edPagina();
+  });
+  piu.disabled = q.passi.length >= 20;
+  const r = el('div', 'ed-ogni');
+  edCampo(r, 'Starting from', q.dal, { type: 'date' }, val => {
+    if (dataOk(val)) { q.dal = val; edCambio(false); }
+    edPagina();
+  });
+  box.appendChild(r);
+  box.appendChild(el('p', 'ed-sotto', q.passi.map(x => Math.abs(x) + ' ' + (x > 0 ? 'yes' : 'no')).join(', ') + ', then again from the start.'));
 }
 
 /* --- un workout --------------------------------------------------------- */

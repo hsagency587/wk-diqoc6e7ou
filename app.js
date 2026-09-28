@@ -93,7 +93,10 @@ const nomeMattina = () => tstore.mattina || MATTINA_BASE;
    { modo: 'sempre' }                         tutti i giorni
    { modo: 'giorni', giorni: [1, 3, 5] }      certi giorni della settimana (0 domenica)
    { modo: 'ogni', n: 2, dal: 'aaaa-mm-gg' }  un giorno si' e n-1 no, a partire da una data
-   { modo: 'date', date: ['aaaa-mm-gg'] }     solo in certe date */
+   { modo: 'date', date: ['aaaa-mm-gg'] }     solo in certe date
+   { modo: 'ciclo', dal: 'aaaa-mm-gg', passi: [3, -2, 4, -1] }
+                                              un ritmo che si ripete: 3 giorni si',
+                                              2 no, 4 si', 1 no, e daccapo */
 function validQuando(q) {
   if (!q || typeof q !== 'object') return { modo: 'sempre' };
   if (q.modo === 'giorni') {
@@ -105,8 +108,12 @@ function validQuando(q) {
     return { modo: 'ogni', n: n >= 2 && n <= 14 ? n : 2, dal: /^\d{4}-\d{2}-\d{2}$/.test(q.dal) ? q.dal : '2026-01-05' };
   }
   if (q.modo === 'date') {
-    const d = [...new Set((Array.isArray(q.date) ? q.date : []).filter(x => /^\d{4}-\d{2}-\d{2}$/.test(x)))].sort().slice(-200);
+    const d = [...new Set((Array.isArray(q.date) ? q.date : []).filter(x => /^\d{4}-\d{2}-\d{2}$/.test(x)))].sort().slice(-400);
     return { modo: 'date', date: d };
+  }
+  if (q.modo === 'ciclo') {
+    const p = (Array.isArray(q.passi) ? q.passi : []).map(x => Math.round(+x)).filter(x => x && Math.abs(x) <= 60).slice(0, 20);
+    return { modo: 'ciclo', dal: /^\d{4}-\d{2}-\d{2}$/.test(q.dal) ? q.dal : '2026-01-05', passi: p.length ? p : [1, -1] };
   }
   return { modo: 'sempre' };
 }
@@ -688,6 +695,14 @@ function quandoVale(q, k) {
   if (q.modo === 'giorni') return q.giorni.indexOf(daChiave(k).getDay()) >= 0;
   if (q.modo === 'ogni') { const d = giorniFra(q.dal, k); return d >= 0 && d % q.n === 0; }
   if (q.modo === 'date') return q.date.indexOf(k) >= 0;
+  if (q.modo === 'ciclo') {
+    const d = giorniFra(q.dal, k);
+    const giro = q.passi.reduce((a, x) => a + Math.abs(x), 0);
+    if (d < 0 || !giro) return false;
+    let r = d % giro;
+    for (const x of q.passi) { if (r < Math.abs(x)) return x > 0; r -= Math.abs(x); }
+    return false;
+  }
   return true;
 }
 
