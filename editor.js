@@ -256,6 +256,8 @@ function edElenco() {
   const y = nav.scrollTop;
   nav.textContent = '';
 
+  /* sopra tutto: la libreria degli esercizi, da consultare */
+  nav.appendChild(edVoce('Exercise library', { pag: 'lib', ctx: 'base' }, edVista.pag === 'lib', 'ed-lib-link'));
   nav.appendChild(el('p', 'ed-sez', 'PLAN'));
   const base = el('div', 'ed-gruppo');
   edVociFonte(base, 'base');
@@ -319,6 +321,7 @@ function edPagina() {
   else if (v.pag === 'prep') edPagPrep(pane, v.ctx);
   else if (v.pag === 'newprep') edPagNuovaPrep(pane);
   else if (v.pag === 'egg') edPagEgg(pane);
+  else if (v.pag === 'lib') edPagLibreria(pane);
   pane.scrollTop = y;
 }
 
@@ -467,6 +470,11 @@ const settimaneDel = p =>
 /* Le righe di una scheda da scrivere: nome, quantita', descrizione, frecce,
    croce. Il ▾ apre sotto la riga la descrizione e il video. */
 function edEsercizi(box, ctx, nomeScheda, sc) {
+  /* i nomi di tutti gli esercizi gia' scritti, suggeriti mentre si scrive */
+  const lista = el('datalist');
+  lista.id = 'edEsNomi';
+  for (const x of edLibreria()) { const o = el('option'); o.value = x.nome; lista.appendChild(o); }
+  box.appendChild(lista);
   const cont = el('div', 'ed-es-lista');
   box.appendChild(cont);
   sc.es.forEach((r, i) => {
@@ -479,7 +487,15 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
     nome.type = 'text'; nome.maxLength = 60; nome.placeholder = 'exercise';
     nome.value = r[0] || '';
     nome.dataset.focus = chiave + '|0';
-    nome.addEventListener('change', () => { r[0] = nome.value.slice(0, 60).trim(); edCambio(false); });
+    nome.setAttribute('list', 'edEsNomi');
+    nome.addEventListener('change', () => {
+      r[0] = nome.value.slice(0, 60).trim();
+      /* un esercizio che esiste gia': descrizione e video arrivano da soli,
+         se questa riga non ne ha */
+      const preso = edPrendiDallaLibreria(r);
+      edCambio(false);
+      if (preso) edPagina();
+    });
     const qta = el('input', 'campo ed-es-qta');
     qta.type = 'text'; qta.maxLength = 60; qta.placeholder = 'how much';
     qta.value = r[1] || '';
@@ -1124,4 +1140,112 @@ function edPagEgg(box) {
     edPagina();
   });
   box.appendChild(az2);
+}
+
+/* ------------------------------------------------ la libreria ---- */
+
+/* Tutti gli esercizi scritti, nel piano e nelle preparazioni, uno per nome
+   (senza badare a maiuscole e spazi). Di ognuno: la descrizione e i video
+   trovati per primi, e dove compare. */
+const edNorm = t => String(t || '').toLowerCase().replace(/\s+/g, ' ').trim();
+function edNomeScheda(o, k) {
+  if (k === MORNING) return nomeMattinaDi(o);
+  if (k.indexOf('__ev_') === 0) { const a = (o.altre || []).find(x => EV(x.id) === k); return a ? (a.nome || 'Every day') : 'Every day'; }
+  return k;
+}
+function edLibreria() {
+  const m = new Map();
+  const fonti = [{ nome: 'Plan', o: tstore }].concat(tstore.prep.map(p => ({ nome: nomePrep(p), o: p })));
+  for (const f of fonti) {
+    for (const k of Object.keys(f.o.schede)) {
+      for (const r of f.o.schede[k].es) {
+        const n = edNorm(r[0]);
+        if (!n) continue;
+        let x = m.get(n);
+        if (!x) { x = { nome: r[0], desc: '', video: '', usi: [] }; m.set(n, x); }
+        if (!x.desc && r[3]) x.desc = r[3];
+        if (!x.video && r[4]) x.video = r[4];
+        const uso = f.nome + ' · ' + edNomeScheda(f.o, k);
+        if (x.usi.indexOf(uso) < 0) x.usi.push(uso);
+      }
+    }
+  }
+  return [...m.values()].sort((a, b) => a.nome.localeCompare(b.nome, 'it', { sensitivity: 'base' }));
+}
+
+/* Una riga nuova con il nome di un esercizio che esiste gia': prende
+   descrizione e video dagli altri, se lei non ne ha. Torna true se ha preso. */
+function edPrendiDallaLibreria(r) {
+  const n = edNorm(r[0]);
+  if (!n || r[3] || r[4]) return false;
+  let desc = '', video = '', nome = '';
+  for (const o of [tstore].concat(tstore.prep)) {
+    for (const k of Object.keys(o.schede)) {
+      for (const x of o.schede[k].es) {
+        if (x === r || edNorm(x[0]) !== n) continue;
+        if (!nome) nome = x[0];
+        if (!desc && x[3]) desc = x[3];
+        if (!video && x[4]) video = x[4];
+      }
+    }
+  }
+  if (!desc && !video) return false;
+  r[0] = nome;                  /* scritto come nella libreria */
+  r[3] = desc; r[4] = video;
+  return true;
+}
+
+let edLibAperti = new Set();
+let edLibCerca = '';
+function edPagLibreria(box) {
+  const tutti = edLibreria();
+  edTitolo(box, 'Exercise library', 'Every exercise written in the plan and in the preparations, once. When you write one of these names in a workout, its description and videos come along by themselves.');
+  const cerca = el('input', 'campo ed-lib-cerca');
+  cerca.type = 'search'; cerca.placeholder = 'Search an exercise…';
+  cerca.value = edLibCerca;
+  box.appendChild(cerca);
+  const lista = el('div', 'ed-lib');
+  box.appendChild(lista);
+  function disegna() {
+    lista.textContent = '';
+    const q = edNorm(edLibCerca);
+    const visti = tutti.filter(x => !q || edNorm(x.nome).indexOf(q) >= 0);
+    lista.appendChild(el('p', 'ed-sotto', visti.length + (visti.length === 1 ? ' exercise' : ' exercises')));
+    for (const x of visti) {
+      const k = edNorm(x.nome);
+      const aperto = edLibAperti.has(k);
+      const v = el('div', 'ed-lib-voce' + (aperto ? ' aperto' : ''));
+      const t = el('button', 'ed-lib-testa');
+      t.type = 'button';
+      t.appendChild(el('span', 'ed-lib-nome', x.nome));
+      const segni = (x.video ? '▶ ' : '') + (x.desc ? '¶' : '');
+      if (segni) t.appendChild(el('span', 'ed-lib-segni', segni));
+      t.appendChild(el('span', 'ed-freccia' + (aperto ? ' open' : ''), '▾'));
+      t.addEventListener('click', () => { if (aperto) edLibAperti.delete(k); else edLibAperti.add(k); disegna(); });
+      v.appendChild(t);
+      if (aperto) {
+        const c = el('div', 'ed-lib-corpo');
+        c.appendChild(el('p', 'ed-lib-usi', 'Used in: ' + x.usi.join(', ')));
+        const nomiV = x.video ? x.video.split(',').filter(Boolean) : [];
+        for (const nv of nomiV) {
+          const st = el('p', 'ed-video-stato', 'Loading video…');
+          c.appendChild(st);
+          (async () => {
+            const b = (await vGet(nv)) || (await prendiVideo(nv));
+            if (!b || !st.isConnected) { if (st.isConnected) st.textContent = 'Video not on this device yet.'; return; }
+            const u = URL.createObjectURL(b); edUrl.push(u);
+            const vid = el('video'); vid.src = u; vid.controls = true; vid.playsInline = true; vid.preload = 'metadata';
+            st.replaceWith(vid);
+          })();
+        }
+        const d = el('div', 'ed-lib-desc');
+        if (x.desc) testoDesc(d, x.desc); else d.appendChild(el('p', 'ed-ant-vuota', 'No description.'));
+        c.appendChild(d);
+        v.appendChild(c);
+      }
+      lista.appendChild(v);
+    }
+  }
+  cerca.addEventListener('input', () => { edLibCerca = cerca.value; disegna(); });
+  disegna();
 }
