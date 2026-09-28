@@ -1281,44 +1281,20 @@
             ]
           ],
           "rec": ""
-        },
-        "__ev_lppu0x9l5": {
-          "es": [
-            [
-              "Full Roll",
-              "15'",
-              [],
-              "Rullati le seguenti parti nel seguente ordine:\n\nPiedi - polpacci - quadricipiti - glutei - loweback - scapole - petto",
-              ""
-            ]
-          ],
-          "rec": ""
         }
       },
       "mattina": "Morning Routine",
-      "mattinaVia": false,
+      "mattinaVia": true,
       "mattinaQuando": {
         "modo": "sempre"
       },
       "altre": [
         {
           "id": "lplmbcmyl",
-          "nome": "List 2",
+          "nome": "Full roll",
           "via": false,
           "quando": {
             "modo": "sempre"
-          }
-        },
-        {
-          "id": "lppu0x9l5",
-          "nome": "List 3",
-          "via": false,
-          "quando": {
-            "modo": "date",
-            "date": [
-              "2026-09-29",
-              "2026-09-30"
-            ]
           }
         }
       ]
