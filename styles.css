@@ -143,7 +143,7 @@ body{overflow-x:clip}
 /* con tre o quattro workout al giorno le colonne sono strette: il testo cala */
 .tab-w[style*="--wcol: 3"],.tab-w[style*="--wcol: 4"]{font-size:16px}
 .tab-w[style*="--wcol: 4"] .tabc{padding-left:6px;padding-right:6px}
-.tab-i .tabr{grid-template-columns:3fr 1fr}
+.tab-i .tabr{grid-template-columns:3fr 1.25fr}
 .tabc.val{color:var(--accent)}
 .tabc{
   min-width:0;padding:10px var(--s2);
