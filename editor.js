@@ -488,6 +488,11 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
     const es = el('div', 'ed-es' + (aperto ? ' aperto' : ''));
     const riga = el('div', 'ed-es-riga');
 
+    /* sul telefono si sposta col dito, dalla maniglia; sul PC con le frecce */
+    const man = el('span', 'ed-maniglia solo-tel', '⠿');
+    man.setAttribute('aria-hidden', 'true');
+    edTrascina(man, es, cont, sc, i);
+    riga.appendChild(man);
     const nome = el('input', 'campo ed-es-nome');
     nome.type = 'text'; nome.maxLength = 60; nome.placeholder = 'exercise';
     nome.value = r[0] || '';
@@ -524,19 +529,20 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
     d.setAttribute('aria-label', 'Description, videos and note');
     d.title = 'Description, videos and note';
     if (L) {
-      const pen = edBottone(tasti, '✎', 'ed-tasto', () => edApriInLibreria(edNorm(r[0])));
+      const pen = edBottone(tasti, '✎', 'ed-tasto solo-pc', () => edApriInLibreria(edNorm(r[0])));
       pen.setAttribute('aria-label', 'Edit in the library'); pen.title = 'Edit in the library';
     }
-    const su = edBottone(tasti, '↑', 'ed-tasto', () => edSposta(sc, i, -1));
+    const su = edBottone(tasti, '↑', 'ed-tasto solo-pc', () => edSposta(sc, i, -1));
     su.disabled = i === 0; su.setAttribute('aria-label', 'Move up');
-    const giu = edBottone(tasti, '↓', 'ed-tasto', () => edSposta(sc, i, 1));
+    const giu = edBottone(tasti, '↓', 'ed-tasto solo-pc', () => edSposta(sc, i, 1));
     giu.disabled = i === sc.es.length - 1; giu.setAttribute('aria-label', 'Move down');
-    const x = edBottone(tasti, '×', 'ed-tasto ed-x', () => {
+    const togli = () => {
       sc.es.splice(i, 1);
       edAperti = new Set();
       edCambio(false);
       edPagina();
-    });
+    };
+    const x = edBottone(tasti, '×', 'ed-tasto ed-x solo-pc', togli);
     x.setAttribute('aria-label', 'Remove this exercise');
     riga.appendChild(tasti);
     es.appendChild(riga);
@@ -548,7 +554,13 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
 
     /* aperta: quello che c'e' in libreria, da leggere, e la nota di questa
        riga sola */
-    if (aperto) es.appendChild(edNotaRiga(r, L));
+    if (aperto) {
+      es.appendChild(edNotaRiga(r, L));
+      /* sul telefono la riga e' corta: togliere sta qui dentro */
+      const az = el('div', 'ed-video-tasti ed-nota-az solo-tel');
+      edBottone(az, 'Remove from this workout', 'btn-del', togli);
+      es.appendChild(az);
+    }
     cont.appendChild(es);
   });
 
@@ -557,6 +569,55 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
     edPagina();
     const campi = $('edPane').querySelectorAll('.ed-es-nome');
     if (campi.length) campi[campi.length - 1].focus();
+  });
+}
+
+/* Trascinare una riga col dito, dalla maniglia: le altre si scostano per
+   fargli posto; lasciata, la riga va li'. Vicino ai bordi la pagina scorre. */
+function edTrascina(man, es, cont, sc, i) {
+  man.addEventListener('pointerdown', ev => {
+    ev.preventDefault();
+    man.setPointerCapture(ev.pointerId);
+    const pane = $('edPane');
+    const carte = [...cont.children];
+    const rects = carte.map(c => c.getBoundingClientRect());
+    const alto = rects[i].height + 6;
+    const y0 = ev.clientY, s0 = pane.scrollTop;
+    let j = i;
+    es.classList.add('trascina');
+    const muovi = e => {
+      const bordo = pane.getBoundingClientRect();
+      if (e.clientY > bordo.bottom - 40) pane.scrollTop += 14;
+      else if (e.clientY < bordo.top + 40) pane.scrollTop -= 14;
+      const dy = e.clientY - y0 + (pane.scrollTop - s0);
+      es.style.transform = 'translateY(' + dy + 'px)';
+      const centro = rects[i].top + rects[i].height / 2 + dy;
+      j = i;
+      for (let t = 0; t < i; t++) if (centro < rects[t].top + rects[t].height / 2) { j = t; break; }
+      for (let t = rects.length - 1; t > i; t--) if (centro > rects[t].top + rects[t].height / 2) { j = t; break; }
+      carte.forEach((c, t) => {
+        if (t === i) return;
+        const sp = j > i && t > i && t <= j ? -alto : j < i && t >= j && t < i ? alto : 0;
+        c.style.transform = sp ? 'translateY(' + sp + 'px)' : '';
+      });
+    };
+    const fine = () => {
+      man.removeEventListener('pointermove', muovi);
+      man.removeEventListener('pointerup', fine);
+      man.removeEventListener('pointercancel', fine);
+      for (const c of carte) c.style.transform = '';
+      es.classList.remove('trascina');
+      if (j !== i) {
+        const [r] = sc.es.splice(i, 1);
+        sc.es.splice(j, 0, r);
+        edAperti = new Set();
+        edCambio(false);
+      }
+      edPagina();
+    };
+    man.addEventListener('pointermove', muovi);
+    man.addEventListener('pointerup', fine);
+    man.addEventListener('pointercancel', fine);
   });
 }
 
