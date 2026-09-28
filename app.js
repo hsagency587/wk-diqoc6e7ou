@@ -900,6 +900,10 @@ function apriDesc(src, nome, i) {
   if (!r) return;
   const lista = nome.indexOf('__') === 0 ? listeDi(src === 'base' ? tstore : tstore.prep.find(p => p.id === src) || tstore).find(l => l.chiave === nome) : null;
   $('descTit').textContent = r[0] || (lista ? lista.nome : nome);
+  /* sotto il nome, per esteso: quanto (ripetizioni, tempi) e in che gruppo */
+  const quanto = [r[1], (r[2] || []).join(' › ')].filter(Boolean);
+  $('descQta').textContent = quanto.join('  ·  ');
+  $('descQta').hidden = !quanto.length;
   /* i link video scritti nel testo salgono nello slot, dopo i video caricati */
   testoDesc($('descTesto'), r[3], true);
   dlgDesc.showModal();

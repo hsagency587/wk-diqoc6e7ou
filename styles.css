@@ -395,6 +395,8 @@ body{overflow-x:clip}
   color:var(--accent);text-align:center;
   border-bottom:1px solid var(--line);
 }
+.descbox .desctit{margin-bottom:var(--s2)}
+.descqta{margin:0 0 var(--s3);font-size:20px;font-weight:700;color:var(--text);text-align:center;line-height:1.35}
 .desctesto{
   flex:1;margin:0;overflow-y:auto;
   font-size:24px;line-height:1.5;
