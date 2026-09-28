@@ -1288,7 +1288,16 @@
       "mattinaQuando": {
         "modo": "sempre"
       },
-      "altre": []
+      "altre": [
+        {
+          "id": "lplmbcmyl",
+          "nome": "List 2",
+          "via": false,
+          "quando": {
+            "modo": "sempre"
+          }
+        }
+      ]
     }
   ]
 }
