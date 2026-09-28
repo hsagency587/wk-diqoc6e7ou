@@ -788,8 +788,9 @@ function edConverti() {
       }
       if (r[4]) {
         L[4] = [...new Set(videiDi(L).concat(videiDi(r)))].slice(0, 6).join(',');
-        r[4] = '';
-        cambiato = true;
+        /* un video che in libreria non ci sta (piu' di 6) resta nella riga */
+        const resta = videiDi(r).filter(v => videiDi(L).indexOf(v) < 0).join(',');
+        if (resta !== r[4]) { r[4] = resta; cambiato = true; }
       }
     }
   }
