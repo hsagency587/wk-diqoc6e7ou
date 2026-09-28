@@ -323,14 +323,15 @@ let chiaveKo = false;
 try { chiave = localStorage.getItem(CHIAVE_KEY) || ''; } catch (e) { /* niente chiave */ }
 
 /* mw: i campi del piano aperti; sch: la tendina WORKOUTS aperta;
+   cal: la tendina della programmazione aperta;
    solo: la sola scheda scelta con la sua pastiglia; vuoto = tutte */
 let mostra = (() => {
   try {
     const v = JSON.parse(localStorage.getItem(VISTA_KEY) || 'null');
     if (v && typeof v === 'object')
-      return { mw: !!v.mw, sch: v.sch !== false, solo: typeof v.solo === 'string' ? v.solo : '' };
+      return { mw: !!v.mw, sch: v.sch !== false, cal: !!v.cal, solo: typeof v.solo === 'string' ? v.solo : '' };
   } catch (e) { /* si parte col piano da leggere */ }
-  return { mw: false, sch: true, solo: '' };
+  return { mw: false, sch: true, cal: false, solo: '' };
 })();
 function salvaMostra() {
   try { localStorage.setItem(VISTA_KEY, JSON.stringify(mostra)); } catch (e) {}
@@ -536,6 +537,9 @@ function disegnaW() {
     }
   }
 
+  /* la programmazione (preparazione in corso e settimana) sta in una tendina
+     sopra gli allenamenti: la pagina comincia da quello che si fa oggi */
+  const cal = el('div', 'calcorpo');
   /* la preparazione in corso: nome, date, quanto manca */
   if (oggi.prep) {
     const p = oggi.prep;
@@ -544,7 +548,7 @@ function disegnaW() {
     b.appendChild(el('p', 'prepbanda-eti', 'PREPARAZIONE' + (p.nome ? ' · ' + p.nome : '')));
     b.appendChild(el('p', 'prepbanda-date', dataIt(p.dal) + ' → ' + dataIt(p.al) +
       (pAnt ? '' : ' · ' + (manca === 0 ? 'ultimo giorno' : manca === 1 ? 'manca 1 giorno' : 'mancano ' + manca + ' giorni'))));
-    box.appendChild(b);
+    cal.appendChild(b);
   }
 
   /* La settimana di adesso, da lunedi' a domenica, ogni giorno col piano che
@@ -558,7 +562,7 @@ function disegnaW() {
     return { g: g, d: d, k: k, pi: pi, w: workoutDelGiorno(pi, g) };
   }).filter(x => !pAnt || (x.k >= pAnt.dal && x.k <= pAnt.al));   /* in anteprima: solo i giorni della preparazione */
   const n = Math.max(1, ...giorni.map(x => x.pi.conti[x.g] || 0));
-  if (!pAnt) postille(box, 'week');
+  if (!pAnt) postille(cal, 'week');
   const tab = el('div', 'tab tab-w');
   tab.style.setProperty('--wcol', n);
   /* in cima alla tabella, sempre la stessa scritta, su tutta la riga */
@@ -575,12 +579,24 @@ function disegnaW() {
     const cls = [x.k === kOggi ? 'oggi' : '', x.pi.prep ? 'inprep' : ''].filter(Boolean).join(' ');
     tab.appendChild(tabRiga(celle, cls));
   }
-  box.appendChild(tab);
+  cal.appendChild(tab);
 
   if (!pAnt) postille(box, 'every');
   paintMorning(box, oggi, kOggi);
   if (!pAnt) postille(box, 'oggi');
   paintOggi(box, oggi, kOggi, t0.getDay(), pAnt ? 'ALLENAMENTI DI ' + GIORNI_IT[t0.getDay()].toUpperCase() + ' ' + t0.getDate() : 'ALLENAMENTI DI OGGI');
+
+  /* la tendina della programmazione: in anteprima resta aperta, si guarda
+     proprio quella */
+  const aperta = mostra.cal || !!pAnt;
+  const bar = el('button', 'wkbar calbar' + (aperta ? ' open' : ''));
+  bar.type = 'button';
+  bar.dataset.calroot = '1';
+  bar.setAttribute('aria-expanded', aperta ? 'true' : 'false');
+  bar.appendChild(el('span', 'wkbar-nome', 'PROGRAMMAZIONE' + (oggi.prep && !aperta ? ' · ' + (oggi.prep.nome || 'preparazione') : '')));
+  bar.appendChild(el('span', 'wkbar-frec', '▾'));
+  dx.appendChild(bar);
+  if (aperta) dx.appendChild(cal);
   if (!pAnt) postille(dx, 'wk');
   paintSchede(dx, oggi);
 }
@@ -820,6 +836,12 @@ $('wlist').addEventListener('click', ev => {
     return;
   }
   if (ev.target.closest('button[data-antindietro]')) { history.back(); return; }
+  if (ev.target.closest('button[data-calroot]')) {
+    mostra.cal = !mostra.cal;
+    salvaMostra();
+    paintW();
+    return;
+  }
   if (ev.target.closest('button[data-schroot]')) {
     mostra.sch = !mostra.sch;
     salvaMostra();

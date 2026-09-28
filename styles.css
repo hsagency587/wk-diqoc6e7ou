@@ -957,3 +957,7 @@ body.ed-aperto{overflow:hidden}
 /* il pennino delle preparazioni: porta alla modifica */
 .ed-pennino{flex:0 0 44px;border:0;background:none;color:var(--muted);font-size:20px;cursor:pointer;border-radius:var(--radius)}
 @media (hover:hover){ .ed-pennino:hover{color:var(--accent);background:var(--surface-2)} }
+
+/* la tendina della programmazione, sopra gli allenamenti */
+.calbar .wkbar-nome{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.calbar.open{margin-bottom:var(--s2)}
