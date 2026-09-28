@@ -299,6 +299,9 @@ function edElenco() {
     }
   }
   nav.appendChild(edVoce('+ Add preparation', { pag: 'newprep', ctx: 'base' }, edVista.pag === 'newprep', 'piu'));
+  /* in fondo, le sorprese: una voce come le altre */
+  nav.appendChild(el('p', 'ed-sez', 'EXTRA'));
+  nav.appendChild(edVoce('Easter egg', { pag: 'egg', ctx: 'base' }, edVista.pag === 'egg', ''));
   nav.scrollTop = y;
 }
 
@@ -1181,7 +1184,6 @@ if (stretto.addEventListener) stretto.addEventListener('change', () => { if (!st
 
 /* Cose divertenti, solo nel giorno scelto: un'immagine a tutto schermo alla
    prima apertura, e postille colorate che spariscono al primo tocco. */
-$('edEgg').addEventListener('click', () => edVai({ pag: 'egg', ctx: 'base' }));
 
 const EGG_COLORI = ['Yellow', 'Pink', 'Blue', 'Green'];
 
