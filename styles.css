@@ -886,3 +886,44 @@ body.ed-aperto{overflow:hidden}
 .ed-domanda-tasti .schbtn{margin-left:0}
 .ed-domanda-sel{max-width:100%;font-size:14px}
 .ed-lib-corpo .ed-domanda{margin:0 0 var(--s2)}
+
+/* ---------- editor compatto: meno aria fra i pezzi, stessi tocchi ---------- */
+.ed .campo{min-height:40px;font-size:16px}
+.ed .schbtn{min-height:36px;padding:0 10px;font-size:15px}
+.ed input[type=date]{min-height:40px}
+.ed-h{font-size:22px}
+.ed-sotto{margin:2px 0 var(--s2);font-size:14px;line-height:1.35}
+.ed-sez{margin:var(--s3) var(--s2) 2px}
+.ed-sez-pag{margin:var(--s3) 0 6px;font-size:13px}
+.ed-campo{margin:0 0 var(--s2)}
+.ed-eti{margin-bottom:2px;font-size:13px}
+.ed-azioni{margin:var(--s2) 0}
+.ed-voce{min-height:38px;padding:7px var(--s2);font-size:16px}
+.ed-voce.wk{padding-left:var(--s4)}
+.ed-giorno{padding:var(--s1) 0;gap:var(--s2)}
+.ed-giorno-testa{min-height:38px}
+.ed-giorno-campi{gap:6px}
+.ed-piumeno{min-width:36px;min-height:36px}
+.ed-riposo{min-height:38px}
+.ed-spunta{min-height:36px;margin:0 0 var(--s1);font-size:16px}
+.ed-es{margin-bottom:6px}
+.ed-es-riga{gap:4px;padding:4px}
+.ed-tasto{min-width:36px;min-height:38px;padding:0 4px;font-size:17px}
+.ed-es-grp{margin:0 var(--s2) 4px;font-size:12px}
+.ed-desc-box{padding:0 4px 4px}
+.ed-video{margin-bottom:6px}
+.ed-desc-testo{padding:var(--s1) var(--s2);font-size:16px}
+.ed-aggiungi{min-height:40px;margin-top:6px;font-size:16px}
+.ed-lib-testa{padding:7px 4px}
+.ed-lib-var .ed-lib-testa{padding-top:5px;padding-bottom:5px}
+.ed-lib-corpo{padding:0 4px var(--s2)}
+.ed-lib-usi,.ed-lib-nota{margin-bottom:6px}
+.ed-lib-nomecampo{margin-bottom:4px}
+.ed-lib-filtro{padding:4px 12px;margin-bottom:6px}
+.ed-domanda{margin:0 4px 4px;padding:6px var(--s2)}
+.ed-prossimi{margin:2px 0 var(--s2)}
+@media (max-width: 899px){
+  .ed-nav{padding:var(--s1) var(--s2) var(--s5)}
+  .ed-pane{padding:var(--s2) var(--s2) calc(var(--s5) * 3)}
+  .ed-giorno{gap:4px}
+}
