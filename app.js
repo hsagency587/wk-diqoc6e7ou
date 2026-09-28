@@ -1827,6 +1827,11 @@ async function pullTasks() {
                    mattinaQuando: validQuando(data.mattinaQuando), altre: validAltre(data.altre),
                    sorprese: validSorprese(data.sorprese), libreria: validLibreria(data.libreria) };
 
+  /* chi sta scrivendo nell'editor non perde quello che ha scritto: il campo
+     si chiude, e se c'era qualcosa di nuovo diventa da salvare */
+  const edA = document.activeElement;
+  if (!$('ed').hidden && edA && $('ed').contains(edA) && edA.blur) edA.blur();
+
   if (tstore.dirty) {
     if (contenuto(remoto) === contenuto(tstore)) {
       rememberSha(j.sha); tstore.dirty = false; saveLocal(); paintSalva();

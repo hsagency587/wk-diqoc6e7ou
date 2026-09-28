@@ -613,7 +613,6 @@ function edDescrizione(r, sync) {
   box.appendChild(v);
 
   const t = el('textarea', 'commento ed-desc-testo');
-  t.placeholder = 'How it goes, what to watch out for. Lines starting with - become a list; a video link on its own line (YouTube, Vimeo, Wistia, Loom, Drive, Patreon…) goes in the video slot at the top.';
   t.value = r[3] || '';
   const alto = () => { t.rows = Math.max(4, Math.min(24, t.value.split('\n').length + 1)); };
   alto();
@@ -1220,10 +1219,13 @@ function edRigheDi(n) {
    La descrizione: dove era uguale alla vecchia, o vuota, diventa la nuova;
    dove la vecchia sta dentro un testo piu' lungo (per esempio una premessa
    scritta per la montagna) si cambia solo quel pezzo. Un testo tutto suo
-   resta com'e'. I video: dove erano gli stessi, o nessuno, diventano i nuovi. */
-function edLibApplica(n, d0, v0, d1, v1) {
+   resta com'e'. I video: dove erano gli stessi, o nessuno, diventano i nuovi.
+   Dalla libreria (`tutte`) invece vale quello che si scrive: descrizione e
+   video vanno in tutte le righe con quel nome, senza eccezioni. */
+function edLibApplica(n, d0, v0, d1, v1, tutte) {
   let fuori = 0;
   for (const r of edRigheDi(n)) {
+    if (tutte) { r[3] = d1; r[4] = v1; continue; }
     const d = r[3] || '', v = r[4] || '';
     if (d !== d1) {
       if (d === d0 || !d) r[3] = d1;
@@ -1346,10 +1348,7 @@ function edPagLibreria(box) {
         /* descrizione e video: una riga di lavoro con quelli mostrati; ogni
            modifica va in tutte le righe con questo nome */
         const r = [x.nome, '', [], x.desc, x.video];
-        c.appendChild(edDescrizione(r, (d0, v0) => {
-          const fuori = edLibApplica(k, d0, v0, r[3] || '', r[4] || '');
-          if (fuori) edLibMsg = fuori + (fuori === 1 ? ' place has' : ' places have') + ' its own description for "' + x.nome + '": left as it was.';
-        }));
+        c.appendChild(edDescrizione(r, (d0, v0) => { edLibApplica(k, d0, v0, r[3] || '', r[4] || '', true); }));
         if (x.mia) {
           const az = el('div', 'ed-azioni');
           edConferma(az, 'Remove from library', () => {
