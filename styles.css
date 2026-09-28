@@ -953,3 +953,7 @@ body.ed-aperto{overflow:hidden}
 .ed-vpick-ant{margin:4px 0 0 28px}
 .ed-vpick-ant video{display:block;width:100%;max-height:180px;background:#000;border-radius:var(--radius)}
 .ed-vpick > .ed-video-tasti{position:sticky;top:0;z-index:1;padding:4px 0;background:var(--surface)}
+
+/* il pennino delle preparazioni: porta alla modifica */
+.ed-pennino{flex:0 0 44px;border:0;background:none;color:var(--muted);font-size:20px;cursor:pointer;border-radius:var(--radius)}
+@media (hover:hover){ .ed-pennino:hover{color:var(--accent);background:var(--surface-2)} }

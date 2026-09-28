@@ -247,9 +247,10 @@ function edVociFonte(box, ctx) {
   }
 }
 
-/* La preparazione aperta nell'elenco: il primo tocco la apre sotto, il
-   secondo porta alla pagina per modificarla. */
-let edPrepAperta = null;
+/* Le preparazioni aperte nell'elenco: la casella le apre e le chiude, il
+   pennino porta alla pagina per modificarla. */
+let edPrepAperte = new Set();
+let edPrepUltima = null;
 
 function edElenco() {
   const nav = $('edNav');
@@ -265,24 +266,31 @@ function edElenco() {
 
   nav.appendChild(el('p', 'ed-sez', 'PREPARATIONS'));
   const kOggi = chiaveData(today());
+  /* una preparazione appena raggiunta (anche appena creata) si apre da sola */
+  if (edVista.ctx !== edPrepUltima) { edPrepUltima = edVista.ctx; if (edVista.ctx !== 'base') edPrepAperte.add(edVista.ctx); }
   for (const p of tstore.prep) {
     const stato = p.al < kOggi ? ' fatta' : (p.dal <= kOggi ? ' incorso' : '');
+    const aperta = edPrepAperte.has(p.id);
+    const riga = el('div', 'ed-riga');
+    /* la casella apre e chiude; il pennino a destra porta alla modifica */
     const testa = el('button', 'ed-voce ed-prep' + stato +
       (edVista.pag === 'prep' && edVista.ctx === p.id ? ' on' : ''));
     testa.type = 'button';
     testa.appendChild(el('span', 'ed-prep-nome', nomePrep(p)));
-    const aperta0 = edPrepAperta === p.id || edVista.ctx === p.id;
     testa.appendChild(el('span', 'ed-prep-date', datePrep(p) +
       (stato === ' incorso' ? ' · now' : stato === ' fatta' ? ' · ended' : '')));
-    if (aperta0 && !(edVista.pag === 'prep' && edVista.ctx === p.id)) testa.appendChild(el('span', 'ed-prep-date ed-prep-hint', 'Tap again to edit it'));
-    const aperta = edPrepAperta === p.id || edVista.ctx === p.id;
     testa.setAttribute('aria-expanded', aperta ? 'true' : 'false');
     testa.addEventListener('click', () => {
-      if (!aperta) { edPrepAperta = p.id; edElenco(); return; }
-      edPrepAperta = p.id;
-      edVai({ pag: 'prep', ctx: p.id });
+      if (aperta) edPrepAperte.delete(p.id); else edPrepAperte.add(p.id);
+      edElenco();
     });
-    nav.appendChild(testa);
+    riga.appendChild(testa);
+    const pen = el('button', 'ed-pennino', '✎');
+    pen.type = 'button';
+    pen.setAttribute('aria-label', 'Edit ' + nomePrep(p));
+    pen.addEventListener('click', ev => { ev.stopPropagation(); edPrepAperte.add(p.id); edVai({ pag: 'prep', ctx: p.id }); });
+    riga.appendChild(pen);
+    nav.appendChild(riga);
     /* le pagine della preparazione si vedono quando la si apre */
     if (aperta) {
       const g = el('div', 'ed-gruppo ed-figli');
