@@ -167,31 +167,37 @@ function validSchede(w) {
 /* I video di un esercizio: la quinta casella ne tiene uno o piu'. */
 const videiDi = r => String((r && r[4]) || '').split(',').filter(Boolean);
 
-/* Stesso nome, stesso esercizio: una riga senza descrizione o senza video
-   mostra quelli scritti per lo stesso esercizio altrove (prima la libreria,
-   poi il piano, poi le preparazioni). I dati salvati non cambiano. */
+/* Stesso nome, stesso esercizio: descrizione e video stanno nella libreria.
+   La riga di un workout puo' avere una nota sua, che si legge sopra la
+   descrizione. Un nome che in libreria non c'e' (dati scritti alla vecchia)
+   prende quello scritto altrove con lo stesso nome. */
 const normEs = t => String(t || '').toLowerCase().replace(/\s+/g, ' ').trim();
 function indiceEs() {
   const m = new Map();
-  const metti = r => {
+  const metti = (r, lib) => {
     const n = normEs(r && r[0]);
     if (!n) return;
-    const x = m.get(n) || { d: '', v: '' };
+    const x = m.get(n) || { d: '', v: '', lib: false };
+    if (x.lib && !lib) return;
     if (!x.d && r[3]) x.d = r[3];
     if (!x.v && r[4]) x.v = r[4];
+    if (lib) x.lib = true;
     m.set(n, x);
   };
-  for (const r of tstore.libreria || []) metti(r);
+  for (const r of tstore.libreria || []) metti(r, true);
   for (const o of [tstore].concat(tstore.prep || [])) {
     for (const k of Object.keys(o.schede || {})) for (const r of o.schede[k].es) metti(r);
   }
   return m;
 }
 function completo(r, ind) {
-  if (!r || (r[3] && r[4])) return r;
+  if (!r) return r;
   const x = (ind || indiceEs()).get(normEs(r[0]));
   if (!x) return r;
-  return [r[0], r[1], r[2], r[3] || x.d, r[4] || x.v];
+  const nota = r[3] || '';
+  const d = !nota ? x.d : (!x.d || nota.indexOf(x.d) >= 0) ? nota : nota + '\n\n' + x.d;
+  const v = [...new Set(videiDi(r).concat(videiDi([0, 0, 0, 0, x.v])))].slice(0, 6).join(',');
+  return [r[0], r[1], r[2], d, v];
 }
 const nomeVideoOk = v => typeof v === 'string' && /^[a-z0-9]{6,30}\.(mp4|webm|mov|m4v|jpg)$/.test(v);
 

@@ -954,3 +954,9 @@ body.ed-aperto{overflow:hidden}
 /* la tendina della programmazione, sopra gli allenamenti */
 .calbar .wkbar-nome{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .calbar.open{margin-bottom:var(--s2)}
+
+/* la riga di un workout aperta: la libreria da leggere, poi la nota sua */
+.ed-nota-lib{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px;margin:0 0 6px}
+.ed-nota-cosa{font-size:13px;color:var(--muted)}
+.ed-nota-vai{margin-left:0}
+.ed-nota-anteprima{margin:0 0 var(--s2);padding:6px var(--s2);border-left:2px solid var(--line);font-size:14px;line-height:1.4;color:var(--text-2);white-space:pre-wrap;max-height:9em;overflow:hidden}

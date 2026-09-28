@@ -62,6 +62,7 @@ function edCambio(ridisegnaElenco) {
 
 function edApri() {
   if (!scrive()) return;
+  edConverti();                   /* descrizioni e video in libreria, se non lo sono gia' */
   edVista = { pag: 'week', ctx: 'base', sett: 0 };
   edInPagina = !stretto.matches;
   edAperti = new Set();
@@ -495,15 +496,16 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
     nome.addEventListener('change', () => {
       const prima = r[0] || '';
       r[0] = nome.value.slice(0, 60).trim();
-      /* un esercizio che esiste gia': descrizione e video arrivano da soli,
-         se questa riga non ne ha */
-      const preso = edPrendiDallaLibreria(r);
-      /* un nome mai scritto: si chiede se e' un esercizio o una variante */
       const k = edNorm(r[0]);
+      /* un nome mai scritto: si chiede se e' un esercizio o una variante */
       const chiedi = k && k !== edNorm(prima) && !edRigheDi(k).some(x => x !== r) && !edMeta(k).p;
       if (chiedi) edChiedi.add(k);
+      /* ogni esercizio ha la sua scheda in libreria: descrizione e video
+         stanno li'; se esiste gia', il nome si scrive come la' */
+      const L = k ? edLib(k, r[0]) : null;
+      if (L) r[0] = L[0];
       edCambio(false);
-      if (preso || chiedi) edPagina();
+      edPagina();
     });
     const qta = el('input', 'campo ed-es-qta');
     qta.type = 'text'; qta.maxLength = 60; qta.placeholder = 'how much';
@@ -513,13 +515,18 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
     riga.appendChild(qta);
 
     const tasti = el('div', 'ed-es-tasti');
-    const pieno = !!(r[3] || r[4]);
-    const d = edBottone(tasti, aperto ? '▴' : (r[4] ? '▶' : '▾'), 'ed-tasto ed-desc' + (pieno ? ' piena' : ''), () => {
+    const L = edLib(edNorm(r[0]));
+    const pieno = !!(r[3] || (L && (L[3] || L[4])));
+    const d = edBottone(tasti, aperto ? '▴' : (L && L[4] ? '▶' : '▾'), 'ed-tasto ed-desc' + (pieno ? ' piena' : ''), () => {
       if (edAperti.has(chiave)) edAperti.delete(chiave); else edAperti.add(chiave);
       edPagina();
     });
-    d.setAttribute('aria-label', 'Description and video');
-    d.title = 'Description and video';
+    d.setAttribute('aria-label', 'Description, videos and note');
+    d.title = 'Description, videos and note';
+    if (L) {
+      const pen = edBottone(tasti, '✎', 'ed-tasto', () => edApriInLibreria(edNorm(r[0])));
+      pen.setAttribute('aria-label', 'Edit in the library'); pen.title = 'Edit in the library';
+    }
     const su = edBottone(tasti, '↑', 'ed-tasto', () => edSposta(sc, i, -1));
     su.disabled = i === 0; su.setAttribute('aria-label', 'Move up');
     const giu = edBottone(tasti, '↓', 'ed-tasto', () => edSposta(sc, i, 1));
@@ -539,9 +546,9 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
     const kr = edNorm(r[0]);
     if (kr && edChiedi.has(kr)) es.appendChild(edDomanda(kr, r[0], sc));
 
-    /* stesso nome, stesso esercizio: quello che si scrive o si carica qui va
-       anche nelle altre righe con questo nome, dove era vuoto o uguale */
-    if (aperto) es.appendChild(edDescrizione(r, (d0, v0) => edLibApplica(edNorm(r[0]), d0, v0, r[3] || '', r[4] || '')));
+    /* aperta: quello che c'e' in libreria, da leggere, e la nota di questa
+       riga sola */
+    if (aperto) es.appendChild(edNotaRiga(r, L));
     cont.appendChild(es);
   });
 
@@ -624,6 +631,108 @@ function edPannelloVideo(box, tutti, aggiungi, posto) {
     r.appendChild(ant);
     box.appendChild(r);
   }
+}
+
+/* --- la libreria e' l'unico posto di descrizione e video -----------------
+   Ogni esercizio ha una riga in tstore.libreria: [nome, '', [], descrizione,
+   video]. Le righe dei workout tengono nome, quanto e gruppo; nella quarta
+   casella, se c'e', una nota che vale solo li'. */
+
+/* La riga di libreria di un nome; con `nuovo` la crea se manca. */
+function edLib(n, nuovo) {
+  if (!n) return null;
+  let L = tstore.libreria.find(x => edNorm(x[0]) === n);
+  if (!L && nuovo) { L = [nuovo, '', [], '', '']; tstore.libreria.push(L); }
+  return L || null;
+}
+
+/* Dalla riga di un workout alla sua scheda in libreria, gia' aperta. */
+let edLibVai = '';
+function edApriInLibreria(n) {
+  edLibAperti.add(n);
+  edLibCerca = '';
+  edLibSel = null;
+  edLibVai = n;
+  edVai({ pag: 'lib', ctx: 'base' });
+}
+
+/* Sotto la riga aperta: descrizione e video della libreria, da leggere, con
+   il tasto per cambiarli la'; e la nota di questa riga sola. */
+function edNotaRiga(r, L) {
+  const box = el('div', 'ed-desc-box ed-nota-box');
+  const n = edNorm(r[0]);
+  if (L) {
+    const vv = videiDi(L).length;
+    const cosa = [L[3] ? 'description' : '', vv ? vv + (vv === 1 ? ' video' : ' videos') : ''].filter(Boolean).join(' · ');
+    const t = el('div', 'ed-nota-lib');
+    t.appendChild(el('span', 'ed-nota-cosa', cosa ? 'In the library: ' + cosa : 'Nothing in the library yet.'));
+    const b = edBottone(t, '✎ Edit in library', '', () => edApriInLibreria(n));
+    b.classList.add('ed-nota-vai');
+    box.appendChild(t);
+    if (L[3]) box.appendChild(el('p', 'ed-nota-anteprima', L[3]));
+  }
+  const lab = el('p', 'ed-eti', 'Note for this workout only');
+  box.appendChild(lab);
+  const t = el('textarea', 'commento ed-desc-testo');
+  t.value = r[3] || '';
+  const alto = () => { t.rows = Math.max(2, Math.min(16, t.value.split('\n').length + 1)); };
+  alto();
+  t.addEventListener('input', alto);
+  t.addEventListener('change', () => { r[3] = t.value.slice(0, 4000).trim(); edCambio(false); });
+  box.appendChild(t);
+  return box;
+}
+
+/* Una volta sola (e di nuovo se arrivano dati scritti alla vecchia):
+   descrizioni e video delle righe passano in libreria. Niente si perde: una
+   descrizione uguale a quella della libreria sparisce dalla riga; se la
+   contiene con qualcosa in piu', resta solo il di piu' come nota; se e' tutta
+   diversa, resta intera come nota. I video vanno tutti in libreria. */
+function edConverti() {
+  const perNome = new Map();
+  for (const L of tstore.libreria) {
+    const n = edNorm(L[0]);
+    if (n && !perNome.has(n)) perNome.set(n, { lib: L, righe: [] });
+  }
+  for (const o of [tstore].concat(tstore.prep)) {
+    for (const k of Object.keys(o.schede)) {
+      for (const r of o.schede[k].es) {
+        const n = edNorm(r[0]);
+        if (!n) continue;
+        if (!perNome.has(n)) perNome.set(n, { lib: null, righe: [] });
+        perNome.get(n).righe.push(r);
+      }
+    }
+  }
+  let cambiato = false;
+  for (const x of perNome.values()) {
+    if (!x.lib) { x.lib = [x.righe[0][0], '', [], '', '']; tstore.libreria.push(x.lib); cambiato = true; }
+    const L = x.lib;
+    if (!L[3]) {
+      /* la descrizione della libreria: quella che sta dentro piu' righe
+         (la base comune), poi la piu' usata */
+      const tutte = x.righe.map(r => r[3]).filter(Boolean);
+      const cand = [...new Set(tutte)];
+      const dentro = a => cand.filter(c => c.indexOf(a) >= 0).length;
+      const usata = a => tutte.filter(c => c === a).length;
+      cand.sort((a, b) => dentro(b) - dentro(a) || usata(b) - usata(a));
+      if (cand.length) { L[3] = cand[0]; cambiato = true; }
+    }
+    for (const r of x.righe) {
+      if (r[3] && L[3]) {
+        let nota = r[3];
+        if (nota === L[3]) nota = '';
+        else if (nota.indexOf(L[3]) >= 0) nota = nota.split(L[3]).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+        if (nota !== r[3]) { r[3] = nota; cambiato = true; }
+      }
+      if (r[4]) {
+        L[4] = [...new Set(videiDi(L).concat(videiDi(r)))].slice(0, 6).join(',');
+        r[4] = '';
+        cambiato = true;
+      }
+    }
+  }
+  if (cambiato) edCambio(false);
 }
 
 /* La descrizione di un esercizio, aperta sotto la sua riga: in cima il video,
@@ -1339,8 +1448,6 @@ function edLibreria() {
         if (!n) continue;
         let x = m.get(n);
         if (!x) { x = { k: n, nome: r[0], desc: '', video: '', usi: [] }; m.set(n, x); }
-        if (!x.desc && r[3]) x.desc = r[3];
-        if (!x.video && r[4]) x.video = r[4];
         const uso = f.nome + ' · ' + edNomeScheda(f.o, k);
         if (x.usi.indexOf(uso) < 0) x.usi.push(uso);
         x.posti = (x.posti || 0) + 1;
@@ -1348,34 +1455,6 @@ function edLibreria() {
     }
   }
   return [...m.values()].sort((a, b) => a.nome.localeCompare(b.nome, 'it', { sensitivity: 'base' }));
-}
-
-/* Una riga nuova con il nome di un esercizio che esiste gia': prende
-   descrizione e video dagli altri, se lei non ne ha. Torna true se ha preso. */
-function edPrendiDallaLibreria(r) {
-  const n = edNorm(r[0]);
-  if (!n || r[3] || r[4]) return false;
-  let desc = '', video = '', nome = '';
-  for (const x of tstore.libreria) {
-    if (x === r || edNorm(x[0]) !== n) continue;
-    if (!nome) nome = x[0];
-    if (!desc && x[3]) desc = x[3];
-    if (!video && x[4]) video = x[4];
-  }
-  for (const o of [tstore].concat(tstore.prep)) {
-    for (const k of Object.keys(o.schede)) {
-      for (const x of o.schede[k].es) {
-        if (x === r || edNorm(x[0]) !== n) continue;
-        if (!nome) nome = x[0];
-        if (!desc && x[3]) desc = x[3];
-        if (!video && x[4]) video = x[4];
-      }
-    }
-  }
-  if (!desc && !video) return false;
-  r[0] = nome;                  /* scritto come nella libreria */
-  r[3] = desc; r[4] = video;
-  return true;
 }
 
 /* Tutte le righe con quel nome: libreria, piano, preparazioni. */
@@ -1388,28 +1467,6 @@ function edRigheDi(n) {
     }
   }
   return out;
-}
-
-/* Una modifica fatta dalla libreria va in tutte le righe con quel nome.
-   La descrizione: dove era uguale alla vecchia, o vuota, diventa la nuova;
-   dove la vecchia sta dentro un testo piu' lungo (per esempio una premessa
-   scritta per la montagna) si cambia solo quel pezzo. Un testo tutto suo
-   resta com'e'. I video: dove erano gli stessi, o nessuno, diventano i nuovi.
-   Dalla libreria (`tutte`) invece vale quello che si scrive: descrizione e
-   video vanno in tutte le righe con quel nome, senza eccezioni. */
-function edLibApplica(n, d0, v0, d1, v1, tutte) {
-  let fuori = 0;
-  for (const r of edRigheDi(n)) {
-    if (tutte) { r[3] = d1; r[4] = v1; continue; }
-    const d = r[3] || '', v = r[4] || '';
-    if (d !== d1) {
-      if (d === d0 || !d) r[3] = d1;
-      else if (d0 && d.indexOf(d0) >= 0) r[3] = d.split(d0).join(d1);
-      else fuori++;
-    }
-    if (v !== v1 && (v === v0 || !v)) r[4] = v1;
-  }
-  return fuori;
 }
 
 /* Il nome cambiato dalla libreria cambia in tutte le righe. Se il nome nuovo
@@ -1426,21 +1483,15 @@ function edLibRinomina(n, nuovo) {
   }
   const altro = edRigheDi(k);
   const nomeFinale = altro.length ? altro[0][0] : nuovo;
-  let desc = '', video = '';
-  for (const r of altro) { if (!desc && r[3]) desc = r[3]; if (!video && r[4]) video = r[4]; }
-  const mie = edRigheDi(n);
-  for (const r of mie) {
-    r[0] = nomeFinale;
-    if (!r[3] && desc) r[3] = desc;
-    if (!r[4] && video) r[4] = video;
+  const mioL = edLib(n), suoL = edLib(k);
+  for (const r of edRigheDi(n)) r[0] = nomeFinale;
+  /* in libreria ne resta uno solo: quello che c'era prende da questo quello
+     che gli manca */
+  if (mioL && suoL && mioL !== suoL) {
+    if (!suoL[3]) suoL[3] = mioL[3];
+    suoL[4] = [...new Set(videiDi(suoL).concat(videiDi(mioL)))].slice(0, 6).join(',');
+    tstore.libreria = tstore.libreria.filter(r => r !== mioL);
   }
-  /* e le righe dell'altro, senza descrizione o video, li prendono da queste */
-  let d2 = '', v2 = '';
-  for (const r of mie) { if (!d2 && r[3]) d2 = r[3]; if (!v2 && r[4]) v2 = r[4]; }
-  for (const r of altro) { if (!r[3] && d2) r[3] = d2; if (!r[4] && v2) r[4] = v2; }
-  /* in libreria ne resta uno solo */
-  const lib = tstore.libreria.filter(r => edNorm(r[0]) === k);
-  if (lib.length > 1) tstore.libreria = tstore.libreria.filter(r => edNorm(r[0]) !== k || r === lib[0]);
   /* variante e categoria: se l'altro non ne ha, prende queste */
   const m = tstore.esercizi[n];
   delete tstore.esercizi[n];
@@ -1624,6 +1675,13 @@ function edPagLibreria(box) {
     lista.appendChild(el('p', 'ed-sotto', righe.length + (righe.length === 1 ? ' exercise' : ' exercises')));
     if (edLibSel) lista.appendChild(barraSel());
     for (const { x, v: variante } of righe) voce(x, variante);
+    /* arrivati dal ✎ di un workout: la scheda aperta si porta in vista */
+    if (edLibVai) {
+      const i = righe.findIndex(y => y.x.k === edLibVai);
+      edLibVai = '';
+      const voci = lista.querySelectorAll('.ed-lib-voce');
+      if (i >= 0 && voci[i]) requestAnimationFrame(() => voci[i].scrollIntoView({ block: 'start' }));
+    }
   }
   /* in Select: quello che si fa sugli esercizi spuntati */
   function barraSel() {
@@ -1683,7 +1741,7 @@ function edPagLibreria(box) {
       if (aperto) {
         const c = el('div', 'ed-lib-corpo');
         if (edChiedi.has(k)) c.appendChild(edDomanda(k, x.nome, null));
-        c.appendChild(el('p', 'ed-lib-usi', (x.mia ? 'Written in the library' + (x.usi.length ? ' · also used in: ' : '') : 'Used in: ') + x.usi.join(', ')));
+        c.appendChild(el('p', 'ed-lib-usi', x.usi.length ? 'Used in: ' + x.usi.join(', ') : 'Only in the library, not in a workout yet.'));
         /* il nome: cambiarlo qui lo cambia ovunque */
         const nomeC = el('input', 'campo ed-lib-nomecampo');
         nomeC.type = 'text'; nomeC.maxLength = 60; nomeC.value = x.nome;
@@ -1698,8 +1756,7 @@ function edPagLibreria(box) {
           edCambio(false); edPagina();
         });
         c.appendChild(nomeC);
-        const posti = (x.posti || 0) + (x.mia ? 1 : 0);
-        if (posti > 1) c.appendChild(el('p', 'ed-lib-nota', 'Changes here go to all ' + posti + ' places where it is written.'));
+        if (x.posti > 1) c.appendChild(el('p', 'ed-lib-nota', 'Shown in all ' + x.posti + ' places where it is written.'));
         /* la postilla: categoria e padre, da correggere qui */
         const meta = el('div', 'ed-lib-meta');
         const lc = el('label', 'ed-lib-postilla', 'Category ');
@@ -1720,10 +1777,9 @@ function edPagLibreria(box) {
         /* descrizione e video: una riga di lavoro con quelli mostrati; ogni
            modifica va in tutte le righe con questo nome */
         const r = [x.nome, '', [], x.desc, x.video];
-        c.appendChild(edDescrizione(r, (d0, v0) => { edLibApplica(k, d0, v0, r[3] || '', r[4] || '', true); }));
+        c.appendChild(edDescrizione(r, () => { const L = edLib(k, x.nome); L[3] = r[3] || ''; L[4] = r[4] || ''; }));
         const az = el('div', 'ed-azioni');
-        const dove = x.usi.length ? x.usi.join(', ') : 'the library';
-        c.appendChild(el('p', 'ed-lib-nota', 'Delete everywhere removes it from: ' + dove + (x.mia && x.usi.length ? ', the library' : '') + '.'));
+        c.appendChild(el('p', 'ed-lib-nota', 'Delete everywhere removes it from the library' + (x.usi.length ? ' and from: ' + x.usi.join(', ') : '') + '.'));
         edConferma(az, 'Delete everywhere', () => { edCancellaOvunque(k); edLibAperti.delete(k); edCambio(false); edPagina(); });
         c.appendChild(az);
         v.appendChild(c);
