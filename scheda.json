@@ -1281,6 +1281,18 @@
             ]
           ],
           "rec": ""
+        },
+        "__ev_lplmbcmyl": {
+          "es": [
+            [
+              "Full roll",
+              "",
+              [],
+              "Rullati le seguenti parti nel seguente ordine:\n\nPiedi - polpacci - quadricipiti - glutei - loweback - scapole - petto",
+              ""
+            ]
+          ],
+          "rec": ""
         }
       },
       "mattina": "Morning Routine",
@@ -1294,7 +1306,11 @@
           "nome": "Full roll",
           "via": false,
           "quando": {
-            "modo": "sempre"
+            "modo": "date",
+            "date": [
+              "2026-09-29",
+              "2026-09-30"
+            ]
           }
         }
       ]
