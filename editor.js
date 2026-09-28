@@ -547,8 +547,10 @@ function edSposta(sc, i, dir) {
 /* La descrizione di un esercizio, aperta sotto la sua riga: in cima il video,
    sotto il testo. Un link scritto da solo su una riga del testo e' un video
    anche lui, come prima. */
-function edDescrizione(r) {
+function edDescrizione(r, sync) {
   const box = el('div', 'ed-desc-box');
+  /* dalla libreria: ogni modifica va anche in tutte le righe con lo stesso nome */
+  const cambia = fn => { const d0 = r[3] || '', v0 = r[4] || ''; fn(); if (sync) sync(d0, v0); };
 
   const v = el('div', 'ed-video');
   /* uno o piu' video: ognuno con la sua anteprima e il suo Remove */
@@ -570,7 +572,7 @@ function edDescrizione(r) {
     })();
     const az = el('div', 'ed-video-tasti');
     edBottone(az, 'Remove video', 'btn-del', () => {
-      r[4] = videiDi(r).filter(x => x !== nomeV).join(',');
+      cambia(() => { r[4] = videiDi(r).filter(x => x !== nomeV).join(','); });
       edCambio(false); edPagina();
     });
     riga.appendChild(az);
@@ -593,7 +595,7 @@ function edDescrizione(r) {
     errore.classList.add('err');
     errore.hidden = true;
     if (esito.errore) { errore.textContent = esito.errore; errore.hidden = false; return; }
-    r[4] = videiDi(r).concat([esito.nome]).slice(0, 6).join(',');
+    cambia(() => { r[4] = videiDi(r).concat([esito.nome]).slice(0, 6).join(','); });
     if (tstore.daCaricare.indexOf(esito.nome) < 0) tstore.daCaricare.push(esito.nome);
     edCambio(false);
     edPagina();
@@ -614,7 +616,7 @@ function edDescrizione(r) {
   const alto = () => { t.rows = Math.max(4, Math.min(24, t.value.split('\n').length + 1)); };
   alto();
   t.addEventListener('input', alto);
-  t.addEventListener('change', () => { r[3] = t.value.slice(0, 4000).trim(); edCambio(false); });
+  t.addEventListener('change', () => { cambia(() => { r[3] = t.value.slice(0, 4000).trim(); }); edCambio(false); });
   box.appendChild(t);
   return box;
 }
@@ -1165,6 +1167,7 @@ function edLibreria() {
         if (!x.video && r[4]) x.video = r[4];
         const uso = f.nome + ' · ' + edNomeScheda(f.o, k);
         if (x.usi.indexOf(uso) < 0) x.usi.push(uso);
+        x.posti = (x.posti || 0) + 1;
       }
     }
   }
@@ -1199,7 +1202,68 @@ function edPrendiDallaLibreria(r) {
   return true;
 }
 
+/* Tutte le righe con quel nome: libreria, piano, preparazioni. */
+function edRigheDi(n) {
+  const out = [];
+  for (const x of tstore.libreria) if (edNorm(x[0]) === n) out.push(x);
+  for (const o of [tstore].concat(tstore.prep)) {
+    for (const k of Object.keys(o.schede)) {
+      for (const x of o.schede[k].es) if (edNorm(x[0]) === n) out.push(x);
+    }
+  }
+  return out;
+}
+
+/* Una modifica fatta dalla libreria va in tutte le righe con quel nome.
+   La descrizione: dove era uguale alla vecchia, o vuota, diventa la nuova;
+   dove la vecchia sta dentro un testo piu' lungo (per esempio una premessa
+   scritta per la montagna) si cambia solo quel pezzo. Un testo tutto suo
+   resta com'e'. I video: dove erano gli stessi, o nessuno, diventano i nuovi. */
+function edLibApplica(n, d0, v0, d1, v1) {
+  let fuori = 0;
+  for (const r of edRigheDi(n)) {
+    const d = r[3] || '', v = r[4] || '';
+    if (d !== d1) {
+      if (d === d0 || !d) r[3] = d1;
+      else if (d0 && d.indexOf(d0) >= 0) r[3] = d.split(d0).join(d1);
+      else fuori++;
+    }
+    if (v !== v1 && (v === v0 || !v)) r[4] = v1;
+  }
+  return fuori;
+}
+
+/* Il nome cambiato dalla libreria cambia in tutte le righe. Se il nome nuovo
+   e' quello di un altro esercizio, i due diventano uno: le righe rimaste senza
+   descrizione o video li prendono dall'altro. */
+function edLibRinomina(n, nuovo) {
+  const k = edNorm(nuovo);
+  if (!k || k === n) {
+    if (k === n) for (const r of edRigheDi(n)) r[0] = nuovo;
+    return '';
+  }
+  const altro = edRigheDi(k);
+  const nomeFinale = altro.length ? altro[0][0] : nuovo;
+  let desc = '', video = '';
+  for (const r of altro) { if (!desc && r[3]) desc = r[3]; if (!video && r[4]) video = r[4]; }
+  const mie = edRigheDi(n);
+  for (const r of mie) {
+    r[0] = nomeFinale;
+    if (!r[3] && desc) r[3] = desc;
+    if (!r[4] && video) r[4] = video;
+  }
+  /* e le righe dell'altro, senza descrizione o video, li prendono da queste */
+  let d2 = '', v2 = '';
+  for (const r of mie) { if (!d2 && r[3]) d2 = r[3]; if (!v2 && r[4]) v2 = r[4]; }
+  for (const r of altro) { if (!r[3] && d2) r[3] = d2; if (!r[4] && v2) r[4] = v2; }
+  /* in libreria ne resta uno solo */
+  const lib = tstore.libreria.filter(r => edNorm(r[0]) === k);
+  if (lib.length > 1) tstore.libreria = tstore.libreria.filter(r => edNorm(r[0]) !== k || r === lib[0]);
+  return altro.length ? nomeFinale : '';
+}
+
 let edLibAperti = new Set();
+let edLibSenzaVideo = false;
 let edLibCerca = '';
 let edLibMsg = '';
 function edPagLibreria(box) {
@@ -1210,7 +1274,7 @@ function edPagLibreria(box) {
   const nomeN = el('input', 'campo');
   nomeN.type = 'text'; nomeN.maxLength = 60; nomeN.placeholder = 'New exercise name';
   nuovo.appendChild(nomeN);
-  const errN = el('p', 'nota err'); errN.hidden = !edLibMsg; errN.textContent = edLibMsg; edLibMsg = '';
+  const errN = el('p', 'nota ed-lib-msg'); errN.hidden = !edLibMsg; errN.textContent = edLibMsg; edLibMsg = '';
   const aggiungi = () => {
     const nome = nomeN.value.slice(0, 60).trim();
     if (!nome) return;
@@ -1233,12 +1297,18 @@ function edPagLibreria(box) {
   cerca.type = 'search'; cerca.placeholder = 'Search an exercise…';
   cerca.value = edLibCerca;
   box.appendChild(cerca);
+  const senza = tutti.filter(x => !x.video).length;
+  const filtro = el('button', 'ed-lib-filtro' + (edLibSenzaVideo ? ' on' : ''), 'Without video · ' + senza);
+  filtro.type = 'button';
+  filtro.setAttribute('aria-pressed', edLibSenzaVideo ? 'true' : 'false');
+  filtro.addEventListener('click', () => { edLibSenzaVideo = !edLibSenzaVideo; edPagina(); });
+  box.appendChild(filtro);
   const lista = el('div', 'ed-lib');
   box.appendChild(lista);
   function disegna() {
     lista.textContent = '';
     const q = edNorm(edLibCerca);
-    const visti = tutti.filter(x => !q || edNorm(x.nome).indexOf(q) >= 0);
+    const visti = tutti.filter(x => (!q || edNorm(x.nome).indexOf(q) >= 0) && (!edLibSenzaVideo || !x.video));
     lista.appendChild(el('p', 'ed-sotto', visti.length + (visti.length === 1 ? ' exercise' : ' exercises')));
     for (const x of visti) {
       const k = edNorm(x.nome);
@@ -1255,35 +1325,37 @@ function edPagLibreria(box) {
       if (aperto) {
         const c = el('div', 'ed-lib-corpo');
         c.appendChild(el('p', 'ed-lib-usi', (x.mia ? 'Written in the library' + (x.usi.length ? ' · also used in: ' : '') : 'Used in: ') + x.usi.join(', ')));
-        /* quelli scritti in libreria si modificano qui: video e descrizione */
+        /* il nome: cambiarlo qui lo cambia ovunque */
+        const nomeC = el('input', 'campo ed-lib-nomecampo');
+        nomeC.type = 'text'; nomeC.maxLength = 60; nomeC.value = x.nome;
+        nomeC.setAttribute('aria-label', 'Exercise name');
+        nomeC.addEventListener('change', () => {
+          const nuovo = nomeC.value.slice(0, 60).trim();
+          if (!nuovo) { nomeC.value = x.nome; return; }
+          const unito = edLibRinomina(k, nuovo);
+          edLibAperti.delete(k); edLibAperti.add(edNorm(unito || nuovo));
+          edLibMsg = unito ? '"' + x.nome + '" is now one exercise with "' + unito + '".' : '';
+          if (edLibCerca) edLibCerca = unito || nuovo;
+          edCambio(false); edPagina();
+        });
+        c.appendChild(nomeC);
+        const posti = (x.posti || 0) + (x.mia ? 1 : 0);
+        if (posti > 1) c.appendChild(el('p', 'ed-lib-nota', 'Changes here go to all ' + posti + ' places where it is written.'));
+        /* descrizione e video: una riga di lavoro con quelli mostrati; ogni
+           modifica va in tutte le righe con questo nome */
+        const r = [x.nome, '', [], x.desc, x.video];
+        c.appendChild(edDescrizione(r, (d0, v0) => {
+          const fuori = edLibApplica(k, d0, v0, r[3] || '', r[4] || '');
+          if (fuori) edLibMsg = fuori + (fuori === 1 ? ' place has' : ' places have') + ' its own description for "' + x.nome + '": left as it was.';
+        }));
         if (x.mia) {
-          const r = x.mia;
-          c.appendChild(edDescrizione(r));
           const az = el('div', 'ed-azioni');
           edConferma(az, 'Remove from library', () => {
-            tstore.libreria = tstore.libreria.filter(y => y !== r);
+            tstore.libreria = tstore.libreria.filter(y => y !== x.mia);
             edCambio(false); edPagina();
           });
           c.appendChild(az);
-          v.appendChild(c);
-          lista.appendChild(v);
-          continue;
         }
-        const nomiV = x.video ? x.video.split(',').filter(Boolean) : [];
-        for (const nv of nomiV) {
-          const st = el('p', 'ed-video-stato', 'Loading video…');
-          c.appendChild(st);
-          (async () => {
-            const b = (await vGet(nv)) || (await prendiVideo(nv));
-            if (!b || !st.isConnected) { if (st.isConnected) st.textContent = 'Video not on this device yet.'; return; }
-            const u = URL.createObjectURL(b); edUrl.push(u);
-            const vid = el('video'); vid.src = u; vid.controls = true; vid.playsInline = true; vid.preload = 'metadata';
-            st.replaceWith(vid);
-          })();
-        }
-        const d = el('div', 'ed-lib-desc');
-        if (x.desc) testoDesc(d, x.desc); else d.appendChild(el('p', 'ed-ant-vuota', 'No description.'));
-        c.appendChild(d);
         v.appendChild(c);
       }
       lista.appendChild(v);

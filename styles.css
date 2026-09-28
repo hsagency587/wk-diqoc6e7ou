@@ -864,3 +864,8 @@ body.ed-aperto{overflow:hidden}
 .ed-lib-desc .desriga{margin:0 0 4px}
 .ed-lib-nuovo{display:flex;gap:var(--s2);margin:0 0 var(--s2)}
 .ed-lib-nuovo .campo{flex:1;min-width:0}
+.ed-lib-filtro{margin:0 0 var(--s2);padding:6px 14px;border:1px solid var(--line);border-radius:999px;background:none;color:var(--muted);font:inherit;font-size:14px;cursor:pointer}
+.ed-lib-filtro.on{border-color:var(--accent);color:var(--accent);font-weight:700}
+.ed-lib-nomecampo{width:100%;margin:0 0 6px;font-weight:600}
+.ed-lib-nota{margin:0 0 var(--s2);font-size:13px;color:var(--muted);font-style:italic}
+.ed-lib-msg{color:var(--accent)}
