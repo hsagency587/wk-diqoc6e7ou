@@ -521,7 +521,9 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
     /* il gruppo in cui sta, se ci sta: si legge, si cambia dal bottone Groups */
     if ((r[2] || []).length) es.appendChild(el('p', 'ed-es-grp', 'in ' + r[2].join(' › ')));
 
-    if (aperto) es.appendChild(edDescrizione(r));
+    /* stesso nome, stesso esercizio: quello che si scrive o si carica qui va
+       anche nelle altre righe con questo nome, dove era vuoto o uguale */
+    if (aperto) es.appendChild(edDescrizione(r, (d0, v0) => edLibApplica(edNorm(r[0]), d0, v0, r[3] || '', r[4] || '')));
     cont.appendChild(es);
   });
 

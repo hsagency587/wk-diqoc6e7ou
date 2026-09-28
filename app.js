@@ -159,6 +159,33 @@ function validSchede(w) {
    l'app quando si carica il file, e non cambia piu'. */
 /* I video di un esercizio: la quinta casella ne tiene uno o piu'. */
 const videiDi = r => String((r && r[4]) || '').split(',').filter(Boolean);
+
+/* Stesso nome, stesso esercizio: una riga senza descrizione o senza video
+   mostra quelli scritti per lo stesso esercizio altrove (prima la libreria,
+   poi il piano, poi le preparazioni). I dati salvati non cambiano. */
+const normEs = t => String(t || '').toLowerCase().replace(/\s+/g, ' ').trim();
+function indiceEs() {
+  const m = new Map();
+  const metti = r => {
+    const n = normEs(r && r[0]);
+    if (!n) return;
+    const x = m.get(n) || { d: '', v: '' };
+    if (!x.d && r[3]) x.d = r[3];
+    if (!x.v && r[4]) x.v = r[4];
+    m.set(n, x);
+  };
+  for (const r of tstore.libreria || []) metti(r);
+  for (const o of [tstore].concat(tstore.prep || [])) {
+    for (const k of Object.keys(o.schede || {})) for (const r of o.schede[k].es) metti(r);
+  }
+  return m;
+}
+function completo(r, ind) {
+  if (!r || (r[3] && r[4])) return r;
+  const x = (ind || indiceEs()).get(normEs(r[0]));
+  if (!x) return r;
+  return [r[0], r[1], r[2], r[3] || x.d, r[4] || x.v];
+}
 const nomeVideoOk = v => typeof v === 'string' && /^[a-z0-9]{6,30}\.(mp4|webm|mov|m4v|jpg)$/.test(v);
 
 /* Quanti workout ha ogni giorno: da zero a quattro, giorno per giorno. Zero
@@ -569,8 +596,10 @@ function tabScheda(nome, sc) {
    descrizione di un esercizio. */
 function righeScheda(tab, sc, src, nome) {
   const pila = new Pila(tab);
-  sc.es.forEach((r, i) => {
-    if (!r[0]) return;              /* senza nome: sta nella banda, o e' vuota */
+  const ind = indiceEs();
+  sc.es.forEach((r0, i) => {
+    if (!r0[0]) return;
+    const r = completo(r0, ind);              /* senza nome: sta nella banda, o e' vuota */
     const dove = pila.vai(r[2] || []);
     const riga = r[1]
       ? tabRiga([{ t: r[0] || '—', cls: r[0] ? 'eti' : 'eti vuota' },
@@ -902,7 +931,7 @@ function testoDesc(box, txt, senzaLink) {
    se l'esercizio sta nel piano di sempre o in una preparazione. */
 function apriDesc(src, nome, i) {
   const sc = schedeDi(src)[nome];
-  const r = sc && sc.es[i];
+  const r = completo(sc && sc.es[i]);
   if (!r) return;
   const lista = nome.indexOf('__') === 0 ? listeDi(src === 'base' ? tstore : tstore.prep.find(p => p.id === src) || tstore).find(l => l.chiave === nome) : null;
   $('descTit').textContent = r[0] || (lista ? lista.nome : nome);
