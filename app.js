@@ -606,11 +606,11 @@ function righeScheda(tab, sc, src, nome) {
                  { t: r[1], cls: 'val' }])
       : tabRiga([{ t: r[0], cls: 'eti' }], 'solo');
     /* con una descrizione dentro, la riga si tocca e si apre. La freccia dice
-       che sotto c'e' qualcosa da leggere; il triangolo che c'e' un video. */
+       che sotto c'e' qualcosa da leggere o da guardare. */
     if (r[3] || r[4]) {
       riga.classList.add('condesc');
       riga.dataset.desces = JSON.stringify([src, nome, i]);
-      riga.lastChild.appendChild(el('span', 'desfrec', r[4] || haVideo(r[3]) ? '▶' : '▾'));
+      riga.lastChild.appendChild(el('span', 'desfrec', '▾'));   /* uguale per tutti: con o senza video */
     }
     dove.appendChild(riga);
   });
