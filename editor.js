@@ -401,14 +401,7 @@ function edPagSettimana(box, ctx, si) {
     const nomeG = el('span', 'ed-giorno-nome', GIORNI_ED[g]);
     if (kGiorno) nomeG.appendChild(el('span', 'ed-giorno-data', ' ' + dataCorta(kGiorno)));
     testa.appendChild(nomeG);
-    if (fuori) {
-      riga.appendChild(testa);
-      riga.appendChild(el('span', 'ed-riposo', kGiorno < f.prep.dal
-        ? 'Before the preparation: the normal plan applies'
-        : 'After the preparation: the normal plan applies'));
-      box.appendChild(riga);
-      return;
-    }
+    if (fuori) return;             /* fuori dal periodo: non si vede proprio */
     const conta = el('div', 'ed-conta');
     const meno = edBottone(conta, '−', 'ed-piumeno', () => { w.conti[g] = Math.max(0, n - 1); edCambio(true); edPagina(); });
     meno.disabled = n <= 0;
@@ -1156,6 +1149,11 @@ function edNomeScheda(o, k) {
 function edLibreria() {
   const m = new Map();
   const fonti = [{ nome: 'Plan', o: tstore }].concat(tstore.prep.map(p => ({ nome: nomePrep(p), o: p })));
+  for (const r of tstore.libreria) {
+    const n = edNorm(r[0]);
+    if (!n) continue;
+    m.set(n, { nome: r[0], desc: r[3] || '', video: r[4] || '', usi: [], mia: r });
+  }
   for (const f of fonti) {
     for (const k of Object.keys(f.o.schede)) {
       for (const r of f.o.schede[k].es) {
@@ -1179,6 +1177,12 @@ function edPrendiDallaLibreria(r) {
   const n = edNorm(r[0]);
   if (!n || r[3] || r[4]) return false;
   let desc = '', video = '', nome = '';
+  for (const x of tstore.libreria) {
+    if (x === r || edNorm(x[0]) !== n) continue;
+    if (!nome) nome = x[0];
+    if (!desc && x[3]) desc = x[3];
+    if (!video && x[4]) video = x[4];
+  }
   for (const o of [tstore].concat(tstore.prep)) {
     for (const k of Object.keys(o.schede)) {
       for (const x of o.schede[k].es) {
@@ -1197,9 +1201,34 @@ function edPrendiDallaLibreria(r) {
 
 let edLibAperti = new Set();
 let edLibCerca = '';
+let edLibMsg = '';
 function edPagLibreria(box) {
   const tutti = edLibreria();
-  edTitolo(box, 'Exercise library', 'Every exercise written in the plan and in the preparations, once. When you write one of these names in a workout, its description and videos come along by themselves.');
+  edTitolo(box, 'Exercise library', 'Every exercise written in the plan and in the preparations, once, plus the ones you add here. When you write one of these names in a workout, its description and videos come along by themselves.');
+  /* un esercizio nuovo, solo in libreria: il nome, poi video e descrizione */
+  const nuovo = el('div', 'ed-lib-nuovo');
+  const nomeN = el('input', 'campo');
+  nomeN.type = 'text'; nomeN.maxLength = 60; nomeN.placeholder = 'New exercise name';
+  nuovo.appendChild(nomeN);
+  const errN = el('p', 'nota err'); errN.hidden = !edLibMsg; errN.textContent = edLibMsg; edLibMsg = '';
+  const aggiungi = () => {
+    const nome = nomeN.value.slice(0, 60).trim();
+    if (!nome) return;
+    const k = edNorm(nome);
+    if (edLibreria().some(x => edNorm(x.nome) === k)) {
+      edLibMsg = '"' + nome + '" is already in the library: it is open below.';
+      edLibAperti.add(k); edLibCerca = nome; edPagina();
+      return;
+    }
+    tstore.libreria.push([nome, '', [], '', '']);
+    edLibAperti.add(k); edLibCerca = '';
+    edCambio(false);
+    edPagina();
+  };
+  edBottone(nuovo, '+ Add to library', 'ed-ok', aggiungi);
+  nomeN.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); aggiungi(); } });
+  box.appendChild(nuovo);
+  box.appendChild(errN);
   const cerca = el('input', 'campo ed-lib-cerca');
   cerca.type = 'search'; cerca.placeholder = 'Search an exercise…';
   cerca.value = edLibCerca;
@@ -1225,7 +1254,21 @@ function edPagLibreria(box) {
       v.appendChild(t);
       if (aperto) {
         const c = el('div', 'ed-lib-corpo');
-        c.appendChild(el('p', 'ed-lib-usi', 'Used in: ' + x.usi.join(', ')));
+        c.appendChild(el('p', 'ed-lib-usi', (x.mia ? 'Written in the library' + (x.usi.length ? ' · also used in: ' : '') : 'Used in: ') + x.usi.join(', ')));
+        /* quelli scritti in libreria si modificano qui: video e descrizione */
+        if (x.mia) {
+          const r = x.mia;
+          c.appendChild(edDescrizione(r));
+          const az = el('div', 'ed-azioni');
+          edConferma(az, 'Remove from library', () => {
+            tstore.libreria = tstore.libreria.filter(y => y !== r);
+            edCambio(false); edPagina();
+          });
+          c.appendChild(az);
+          v.appendChild(c);
+          lista.appendChild(v);
+          continue;
+        }
         const nomiV = x.video ? x.video.split(',').filter(Boolean) : [];
         for (const nv of nomiV) {
           const st = el('p', 'ed-video-stato', 'Loading video…');

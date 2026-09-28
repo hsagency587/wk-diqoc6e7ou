@@ -229,12 +229,16 @@ function validSorprese(l) {
   }).filter(Boolean);
 }
 
+/* La libreria degli esercizi scritti a parte, fuori dai workout: righe come
+   quelle delle schede (nome, quanto, gruppi, descrizione, video). */
+const validLibreria = l => { const v = validSchede({ l: { es: Array.isArray(l) ? l : [], rec: '' } }).l; return v ? v.es.filter(r => r[0]) : []; };
+
 /* Il contenuto del file, e basta: serve a capire se due versioni sono uguali. */
 const contenuto = s => JSON.stringify({ workout: validWorkout(s.workout), schede: validSchede(s.schede),
                                          conti: validConti(s.conti, s.slot), mattina: validMattina(s.mattina),
                                          mattinaVia: !!s.mattinaVia, prep: validPrep(s.prep),
                                          mattinaQuando: validQuando(s.mattinaQuando), altre: validAltre(s.altre),
-                                         sorprese: validSorprese(s.sorprese) });
+                                         sorprese: validSorprese(s.sorprese), libreria: validLibreria(s.libreria) });
 
 /* ------------------------------------------------------- lo stato ---- */
 
@@ -252,6 +256,7 @@ tstore.mattinaQuando = validQuando(tstore.mattinaQuando);
 tstore.altre = validAltre(tstore.altre);
 /* le sorprese restano come sono scritte: si ripuliscono solo quando si salva */
 if (!Array.isArray(tstore.sorprese)) tstore.sorprese = [];
+if (!Array.isArray(tstore.libreria)) tstore.libreria = [];
 tstore.dirty   = !!tstore.dirty;
 /* i video scelti in questo telefono e non ancora arrivati su GitHub */
 if (!Array.isArray(tstore.daCaricare)) tstore.daCaricare = [];
@@ -305,6 +310,7 @@ function ripescaLocale() {
   tstore.mattinaQuando = validQuando(tstore.mattinaQuando);
   tstore.altre = validAltre(tstore.altre);
   if (!Array.isArray(tstore.sorprese)) tstore.sorprese = [];
+  if (!Array.isArray(tstore.libreria)) tstore.libreria = [];
   if (!Array.isArray(tstore.daCaricare)) tstore.daCaricare = [];
   return true;
 }
@@ -494,7 +500,7 @@ function disegnaW() {
     const k = chiaveData(d);
     const pi = pianoDi(k);
     return { g: g, d: d, k: k, pi: pi, w: workoutDelGiorno(pi, g) };
-  });
+  }).filter(x => !pAnt || (x.k >= pAnt.dal && x.k <= pAnt.al));   /* in anteprima: solo i giorni della preparazione */
   const n = Math.max(1, ...giorni.map(x => x.pi.conti[x.g] || 0));
   if (!pAnt) postille(box, 'week');
   const tab = el('div', 'tab tab-w');
@@ -1790,7 +1796,7 @@ async function pullTasks() {
                    conti: validConti(data.conti, data.slot), mattina: validMattina(data.mattina),
                    mattinaVia: !!data.mattinaVia, prep: validPrep(data.prep),
                    mattinaQuando: validQuando(data.mattinaQuando), altre: validAltre(data.altre),
-                   sorprese: validSorprese(data.sorprese) };
+                   sorprese: validSorprese(data.sorprese), libreria: validLibreria(data.libreria) };
 
   if (tstore.dirty) {
     if (contenuto(remoto) === contenuto(tstore)) {
@@ -1811,6 +1817,7 @@ async function pullTasks() {
   tstore.mattinaQuando = remoto.mattinaQuando;
   tstore.altre = remoto.altre;
   tstore.sorprese = remoto.sorprese;
+  tstore.libreria = remoto.libreria;
   if (typeof edRidisegna === 'function') edRidisegna();
   rememberSha(j.sha);
   tstore.dirty = false;
@@ -1857,7 +1864,8 @@ async function pushTasks(opts) {
                                  mattinaQuando: tstore.mattinaQuando.modo === 'sempre' ? undefined : validQuando(tstore.mattinaQuando),
                                  altre: tstore.altre.length ? validAltre(tstore.altre) : undefined,
                                  prep: tstore.prep.length ? validPrep(tstore.prep) : undefined,
-                                 sorprese: validSorprese(tstore.sorprese).length ? validSorprese(tstore.sorprese) : undefined }, null, 2) + '\n';
+                                 sorprese: validSorprese(tstore.sorprese).length ? validSorprese(tstore.sorprese) : undefined,
+                                 libreria: validLibreria(tstore.libreria).length ? validLibreria(tstore.libreria) : undefined }, null, 2) + '\n';
   let corpo;
   try {
     corpo = await cifra(testo);
@@ -1962,6 +1970,7 @@ function nomiNelPiano() {
     for (const k of Object.keys(tutte)) for (const r of tutte[k].es) for (const v of videiDi(r)) nomi.add(v);
   }
   for (const x of tstore.sorprese || []) if (x && x.img) nomi.add(x.img);
+  for (const r of tstore.libreria || []) for (const v of videiDi(r)) nomi.add(v);
   return nomi;
 }
 

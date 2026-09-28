@@ -862,3 +862,5 @@ body.ed-aperto{overflow:hidden}
 .ed-lib-corpo video{display:block;width:100%;max-height:320px;background:#000;border-radius:var(--radius);margin-bottom:var(--s2)}
 .ed-lib-desc{font-size:15px;line-height:1.45;color:var(--text)}
 .ed-lib-desc .desriga{margin:0 0 4px}
+.ed-lib-nuovo{display:flex;gap:var(--s2);margin:0 0 var(--s2)}
+.ed-lib-nuovo .campo{flex:1;min-width:0}
