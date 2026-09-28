@@ -386,6 +386,19 @@ function touch() {
   saveLocal();
   paintSalva();
   paintSync();
+  autoSalva();
+}
+
+/* Si salva da solo, poco dopo l'ultima modifica: piu' modifiche di fila
+   partono insieme, in un salvataggio solo. */
+let autoT = null;
+function autoSalva() {
+  clearTimeout(autoT);
+  if (!token) return;
+  autoT = setTimeout(() => {
+    if (salvando) { autoSalva(); return; }
+    if (tstore.dirty && !salvaErr) pushTasks();
+  }, 2500);
 }
 
 /* ------------------------------------------------ il piano ---- */
@@ -1822,7 +1835,9 @@ function paintSalva() {
   const coda = tstore.daCaricare.length && !caricandoVideo && token;
   for (const b of [$('salva'), $('edSalva')]) {
     if (!b) continue;
-    b.hidden = !(tstore.dirty || coda);
+    /* si salva da solo: il bottone compare solo se qualcosa non e' andato
+       (Riprova) o se ci sono video fermi in coda */
+    b.hidden = !((tstore.dirty && salvaErr) || coda);
     b.disabled = salvando;
     b.classList.toggle('err', !!salvaErr);
     /* il bottone dell'editor parla inglese, quello della pagina italiano */
@@ -1834,7 +1849,7 @@ function paintSalva() {
 
 function paintSync(msg, err) {
   if (msg !== undefined) { syncMsg = msg; syncErr = !!err; }
-  const t = syncErr ? syncMsg : tstore.dirty ? 'modifiche non salvate' : syncMsg;
+  const t = syncErr ? syncMsg : tstore.dirty ? (salvando ? 'salvataggio…' : 'modifiche da salvare…') : syncMsg;
   for (const s of [$('sync'), $('edStato')]) {
     if (!s) continue;
     s.textContent = t;
@@ -1948,7 +1963,7 @@ async function pushTasks(opts) {
   if (!token) { salvaErr = 'token mancante'; paintSalva(); paintSync('token mancante: apri ⚙ Impostazioni', true); return; }
 
   salvando = true; salvaErr = ''; salvaRetry = false;
-  paintSalva();
+  paintSalva(); paintSync();
 
   const sent = contenuto(tstore);
   /* il file si scrive gia' ripulito: righe vuote e schede vuote restano fuori */
@@ -1982,6 +1997,7 @@ async function pushTasks(opts) {
     if (contenuto(tstore) === sent) tstore.dirty = false;
     saveLocal(); paintSalva();
     paintSync('salvato alle ' + fmtTime.format(new Date()));
+    if (tstore.dirty) autoSalva();       /* modifiche arrivate mentre salvava */
   };
 
   let r;
