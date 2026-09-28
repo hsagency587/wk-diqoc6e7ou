@@ -553,6 +553,68 @@ function edSposta(sc, i, dir) {
   edPagina();
 }
 
+let edAvvisoVideo = '';
+
+/* Tutti i video gia' caricati, con gli esercizi che li usano; tranne `salta`. */
+function edTuttiVideo(salta) {
+  const m = new Map();
+  const metti = x => {
+    const vv = videiDi(x);
+    vv.forEach((n, i) => {
+      if (salta.indexOf(n) >= 0) return;
+      if (!m.has(n)) m.set(n, []);
+      const t = (x[0] || '') + (vv.length > 1 ? ' · video ' + (i + 1) + ' of ' + vv.length : '');
+      const a = m.get(n);
+      if (x[0] && a.indexOf(t) < 0) a.push(t);
+    });
+  };
+  for (const x of tstore.libreria) metti(x);
+  for (const o of [tstore].concat(tstore.prep)) for (const k of Object.keys(o.schede)) for (const x of o.schede[k].es) metti(x);
+  return [...m.entries()].map(([nome, es]) => ({ nome: nome, es: es }))
+    .sort((a, b) => (a.es[0] || '').localeCompare(b.es[0] || '', 'it', { sensitivity: 'base' }));
+}
+
+/* La scelta fra i video gia' caricati: si spuntano, si aggiungono insieme.
+   L'anteprima c'e' se il video e' nel telefono; se no, si scarica al tocco. */
+function edPannelloVideo(box, tutti, aggiungi, posto) {
+  const scelti = new Set();
+  const ok = el('button', 'schbtn ed-ok', 'Add');
+  ok.type = 'button'; ok.disabled = true;
+  const conta = () => { ok.textContent = scelti.size ? 'Add ' + scelti.size + (scelti.size === 1 ? ' video' : ' videos') : 'Add'; ok.disabled = !scelti.size; };
+  box.appendChild(el('p', 'ed-sotto', 'Tick the videos to add' + (posto < 6 ? ' (room for ' + posto + ' more)' : '') + '.'));
+  const az = el('div', 'ed-video-tasti');
+  ok.addEventListener('click', () => aggiungi([...scelti]));
+  az.appendChild(ok);
+  box.appendChild(az);
+  for (const x of tutti) {
+    const r = el('div', 'ed-vpick-uno');
+    const lab = el('label', 'ed-vpick-eti');
+    const c = el('input'); c.type = 'checkbox';
+    c.addEventListener('change', () => {
+      if (c.checked && scelti.size >= posto) { c.checked = false; return; }
+      if (c.checked) scelti.add(x.nome); else scelti.delete(x.nome);
+      conta();
+    });
+    lab.appendChild(c);
+    lab.appendChild(el('span', '', x.es.join(', ') || x.nome));
+    r.appendChild(lab);
+    const ant = el('div', 'ed-vpick-ant');
+    const mostra = blob => {
+      const u = URL.createObjectURL(blob); edUrl.push(u);
+      const vid = el('video'); vid.src = u; vid.controls = true; vid.playsInline = true; vid.preload = 'metadata';
+      ant.textContent = ''; ant.appendChild(vid);
+    };
+    vGet(x.nome).then(blob => {
+      if (blob) { mostra(blob); return; }
+      const b = el('button', 'schbtn', 'Show preview'); b.type = 'button';
+      b.addEventListener('click', async () => { b.disabled = true; b.textContent = 'Loading…'; const bl = await prendiVideo(x.nome); if (bl) mostra(bl); else b.textContent = 'Not available yet'; });
+      ant.appendChild(b);
+    });
+    r.appendChild(ant);
+    box.appendChild(r);
+  }
+}
+
 /* La descrizione di un esercizio, aperta sotto la sua riga: in cima il video,
    sotto il testo. Un link scritto da solo su una riga del testo e' un video
    anche lui, come prima. */
@@ -589,33 +651,63 @@ function edDescrizione(r, sync) {
   });
   const tasti = el('div', 'ed-video-tasti');
   const file = el('input');
-  file.type = 'file'; file.accept = 'video/*'; file.hidden = true;
+  file.type = 'file'; file.accept = 'video/*'; file.hidden = true; file.multiple = true;
+  /* dalla galleria, anche piu' video insieme: si comprimono uno dopo l'altro */
   file.addEventListener('change', async () => {
-    const f = file.files && file.files[0];
+    const posto = 6 - videiDi(r).length;
+    const scelti = [...(file.files || [])].slice(0, Math.max(0, posto));
+    const troppi = (file.files ? file.files.length : 0) - scelti.length;
     file.value = '';
-    if (!f) return;
+    if (!scelti.length) return;
     /* la compressione puo' durare: si dice a che punto e', e i tasti aspettano */
     errore.classList.remove('err');
     errore.hidden = false;
-    errore.textContent = 'Compressing the video…';
     for (const b of tasti.querySelectorAll('button')) b.disabled = true;
-    const esito = await tieniVideo(f, x => { errore.textContent = 'Compressing the video… ' + Math.min(99, Math.round(x * 100)) + '%'; });
+    const nuovi = [], sbagli = [];
+    for (let i = 0; i < scelti.length; i++) {
+      const di = scelti.length > 1 ? ' ' + (i + 1) + ' of ' + scelti.length : '';
+      errore.textContent = 'Compressing video' + di + '…';
+      const esito = await tieniVideo(scelti[i], x => { errore.textContent = 'Compressing video' + di + '… ' + Math.min(99, Math.round(x * 100)) + '%'; });
+      if (esito.errore) { sbagli.push(esito.errore); continue; }
+      nuovi.push(esito.nome);
+      if (tstore.daCaricare.indexOf(esito.nome) < 0) tstore.daCaricare.push(esito.nome);
+    }
     for (const b of tasti.querySelectorAll('button')) b.disabled = false;
     errore.classList.add('err');
-    errore.hidden = true;
-    if (esito.errore) { errore.textContent = esito.errore; errore.hidden = false; return; }
-    cambia(() => { r[4] = videiDi(r).concat([esito.nome]).slice(0, 6).join(','); });
-    if (tstore.daCaricare.indexOf(esito.nome) < 0) tstore.daCaricare.push(esito.nome);
-    edCambio(false);
-    edPagina();
-    codaVideo();                  /* il video parte subito, mentre si continua a scrivere */
+    const note = sbagli.concat(troppi > 0 ? [troppi + (troppi === 1 ? ' video left out' : ' videos left out') + ': at most 6 per exercise.'] : []);
+    errore.textContent = note.join(' ');
+    errore.hidden = !note.length;
+    if (nuovi.length) {
+      cambia(() => { r[4] = videiDi(r).concat(nuovi).slice(0, 6).join(','); });
+      edCambio(false);
+      edAvvisoVideo = note.join(' ');      /* dopo il ridisegno l'avviso resta */
+      edPagina();
+    }
+    if (nuovi.length) codaVideo();  /* i video partono subito, mentre si continua a scrivere */
   });
   tasti.appendChild(file);
-  const piu = edBottone(tasti, lista.length ? '+ Another video' : '+ Video', '', () => file.click());
+  const piu = edBottone(tasti, lista.length ? '+ More videos' : '+ Videos', '', () => file.click());
   piu.disabled = lista.length >= 6;
+  /* oppure fra quelli gia' caricati per altri esercizi */
+  const gia = edTuttiVideo(videiDi(r));
+  if (gia.length) {
+    const sc = edBottone(tasti, 'From uploaded (' + gia.length + ')', '', () => {
+      pannello.hidden = !pannello.hidden;
+      if (!pannello.hidden && !pannello.children.length) edPannelloVideo(pannello, gia, nomi => {
+        cambia(() => { r[4] = videiDi(r).concat(nomi).slice(0, 6).join(','); });
+        edCambio(false); edPagina();
+      }, 6 - lista.length);
+    });
+    sc.disabled = lista.length >= 6;
+  }
   v.appendChild(tasti);
+  const pannello = el('div', 'ed-vpick');
+  pannello.hidden = true;
+  v.appendChild(pannello);
   const errore = el('p', 'nota err');
-  errore.hidden = true;
+  errore.hidden = !edAvvisoVideo;
+  errore.textContent = edAvvisoVideo;
+  edAvvisoVideo = '';
   v.appendChild(errore);
   box.appendChild(v);
 

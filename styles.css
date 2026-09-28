@@ -944,3 +944,12 @@ body.ed-aperto{overflow:hidden}
 .ed-ciclo-n{flex:0 0 64px;text-align:center}
 .ed-ciclo-eti{flex:0 0 34px;font-size:14px;color:var(--muted)}
 .ed-ciclo-passo .chip{min-height:36px;padding:0 var(--s2);font-size:15px}
+
+/* ---------- scegliere fra i video gia' caricati ---------- */
+.ed-vpick{margin:var(--s2) 0;padding:var(--s2);border:1px solid var(--line);border-radius:var(--radius)}
+.ed-vpick-uno{padding:6px 0;border-bottom:1px solid var(--line)}
+.ed-vpick-eti{display:flex;align-items:center;gap:var(--s2);font-size:15px;cursor:pointer}
+.ed-vpick-eti input{width:20px;height:20px;accent-color:var(--accent)}
+.ed-vpick-ant{margin:4px 0 0 28px}
+.ed-vpick-ant video{display:block;width:100%;max-height:180px;background:#000;border-radius:var(--radius)}
+.ed-vpick > .ed-video-tasti{position:sticky;top:0;z-index:1;padding:4px 0;background:var(--surface)}
