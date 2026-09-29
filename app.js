@@ -1142,7 +1142,7 @@ function mostraElemento(x) {
   $('vStato').textContent = '';
   if (x.tipo === 'file') {
     const v = $('vVideo');
-    v.muted = true;
+    v.muted = true; paintAudio();
     v.src = x.src; v.hidden = false; $('vFull').hidden = false; $('vAudio').hidden = false;
     return;
   }
@@ -1633,7 +1633,7 @@ async function mostraVideo(nome, scrivibile) {
     return;
   }
   vURL = URL.createObjectURL(blob);
-  v.muted = true;                            /* ogni video parte muto */
+  v.muted = true; paintAudio();                            /* ogni video parte muto */
   v.src = vURL;
   v.hidden = false;
   $('vFull').hidden = false;
@@ -1650,16 +1650,18 @@ $('vVideo').addEventListener('loadedmetadata', () => {
 
 /* L'audio: i video partono muti, il bottone lo accende e lo spegne. Anche
    dai comandi del video: il bottone segue. */
+function paintAudio() {
+  const muto = $('vVideo').muted || !$('vVideo').volume;
+  $('vAudio').textContent = muto ? '🔇' : '🔊';
+  $('vAudio').setAttribute('aria-label', muto ? "Attiva l'audio" : "Togli l'audio");
+}
 $('vAudio').addEventListener('click', () => {
   const v = $('vVideo');
   v.muted = !v.muted;
   if (!v.muted && !v.volume) v.volume = 1;
+  paintAudio();
 });
-$('vVideo').addEventListener('volumechange', () => {
-  const muto = $('vVideo').muted || !$('vVideo').volume;
-  $('vAudio').textContent = muto ? '🔇' : '🔊';
-  $('vAudio').setAttribute('aria-label', muto ? "Attiva l'audio" : "Togli l'audio");
-});
+$('vVideo').addEventListener('volumechange', paintAudio);
 
 /* Il bottone a schermo intero. Un video orizzontale gira anche il telefono,
    dove il browser lo permette; uno verticale resta dritto e riempie lo schermo. */
