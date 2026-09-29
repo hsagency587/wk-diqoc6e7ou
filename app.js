@@ -986,7 +986,8 @@ const haVideo = txt => String(txt || '').split('\n').some(r => RIGA_LINK.test(r)
 
 /* Da un link al modo di mostrarlo. YouTube, Vimeo e Google Drive hanno un
    lettore da incorporare; un file video diretto si suona da solo; tutto il
-   resto (Instagram, TikTok...) diventa un bottone che apre il link. */
+   resto (Instagram, TikTok...) diventa un bottone che apre il link. I
+   lettori che lo permettono partono muti: l'audio si accende dal lettore. */
 function videoDi(link) {
   let u;
   try { u = new URL(link); } catch (e) { return null; }
@@ -1008,12 +1009,12 @@ function videoDi(link) {
     const hms = t.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?)?$/);
     if (hms) inizio = (+hms[1] || 0) * 3600 + (+hms[2] || 0) * 60 + (+hms[3] || 0);
     return { tipo: 'frame', verticale: verticale,
-             src: 'https://www.youtube-nocookie.com/embed/' + id + '?rel=0&playsinline=1' + (inizio ? '&start=' + inizio : '') };
+             src: 'https://www.youtube-nocookie.com/embed/' + id + '?rel=0&playsinline=1&mute=1' + (inizio ? '&start=' + inizio : '') };
   }
   /* Wistia, Loom, Dailymotion, Streamable: tutti hanno un lettore da incorporare */
   if (/(^|\.)wistia\.(com|net)$/.test(host) || host === 'wi.st') {
     const m = u.pathname.match(/\/(?:medias|embed\/iframe|embed\/medias|iframe)\/([a-z0-9]+)/i);
-    if (m) return { tipo: 'frame', src: 'https://fast.wistia.net/embed/iframe/' + m[1] };
+    if (m) return { tipo: 'frame', src: 'https://fast.wistia.net/embed/iframe/' + m[1] + '?muted=true' };
   }
   if (host === 'loom.com') {
     const m = u.pathname.match(/^\/(?:share|embed)\/([a-f0-9]+)/i);
@@ -1021,7 +1022,7 @@ function videoDi(link) {
   }
   if (host === 'dailymotion.com' || host === 'dai.ly') {
     const m = host === 'dai.ly' ? u.pathname.match(/^\/([a-z0-9]+)/i) : u.pathname.match(/^\/video\/([a-z0-9]+)/i);
-    if (m) return { tipo: 'frame', src: 'https://www.dailymotion.com/embed/video/' + m[1] };
+    if (m) return { tipo: 'frame', src: 'https://www.dailymotion.com/embed/video/' + m[1] + '?mute=true' };
   }
   if (host === 'streamable.com') {
     const m = u.pathname.match(/^\/(?:e\/)?([a-z0-9]+)/i);
@@ -1029,7 +1030,7 @@ function videoDi(link) {
   }
   if (host === 'vimeo.com') {
     const m = u.pathname.match(/^\/(\d+)/);
-    if (m) return { tipo: 'frame', src: 'https://player.vimeo.com/video/' + m[1] };
+    if (m) return { tipo: 'frame', src: 'https://player.vimeo.com/video/' + m[1] + '?muted=1' };
   }
   if (host === 'drive.google.com') {
     const m = u.pathname.match(/\/file\/d\/([^/]+)/);
@@ -1103,6 +1104,11 @@ function apriDesc(src, nome, i) {
   const quanto = [r[1], (r[2] || []).join(' › ')].filter(Boolean);
   $('descQta').textContent = quanto.join('  ·  ');
   $('descQta').hidden = !quanto.length;
+  /* se i tempi sono tempi veri, accanto c'e' il tasto del timer */
+  tPiano = pianoTimer(sc.es, sc.es[i]);
+  $('tAvvia').hidden = !tPiano;
+  if (tPiano) $('tAvviaTxt').textContent = tPiano.sequenza ? 'Inizia sequenza' : 'Inizia';
+  $('descQtaRiga').hidden = !quanto.length && !tPiano;
   /* i link video scritti nel testo salgono nello slot, dopo i video caricati */
   testoDesc($('descTesto'), r[3], true);
   dlgDesc.showModal();
@@ -1132,10 +1138,12 @@ function mostraElemento(x) {
   slot.hidden = false;
   $('vVideo').hidden = true;
   $('vFull').hidden = true;
+  $('vAudio').hidden = true;
   $('vStato').textContent = '';
   if (x.tipo === 'file') {
     const v = $('vVideo');
-    v.src = x.src; v.hidden = false; $('vFull').hidden = false;
+    v.muted = true;
+    v.src = x.src; v.hidden = false; $('vFull').hidden = false; $('vAudio').hidden = false;
     return;
   }
   if (x.tipo === 'frame') {
@@ -1179,6 +1187,7 @@ $('vSlot').addEventListener('pointerdown', () => { $('vAvviso').hidden = true; }
 
 /* Chiudendo, i video si fermano: la finestra si svuota. */
 function chiudiDesc() {
+  tmrFerma();
   pulisciVideo();
   $('vNav').hidden = true;
   $('vAvviso').hidden = true;
@@ -1187,7 +1196,194 @@ function chiudiDesc() {
 }
 
 $('descChiudi').addEventListener('click', chiudiDesc);
-dlgDesc.addEventListener('cancel', () => { pulisciVideo(); $('descTesto').textContent = ''; });
+dlgDesc.addEventListener('cancel', ev => {
+  /* col timer aperto, il tasto indietro chiude il timer e non la descrizione */
+  if (!$('tmr').hidden) { ev.preventDefault(); tmrFerma(); return; }
+  pulisciVideo(); $('descTesto').textContent = '';
+});
+
+/* ------------------------------------------------------------ il timer --- */
+
+/* I tempi si leggono da come sono scritti nelle schede. Un tempo e' 2' o 2’,
+   30" o 30” (anche 30''), 1'30", 10min. Quattro casi:
+   - un tempo solo, "2’": un timer di 2 minuti;
+   - tempi col +, "2’ + 2’": uno dopo l'altro, con 10 secondi in mezzo;
+   - un gruppo Tabata, "Tabata 45”/15”": gli esercizi del gruppo in fila,
+     45" di lavoro e 15" di pausa. I giri si scrivono nel nome del gruppo
+     ("x3", "3 giri"); se non ci sono, la sequenza gira finche' non si ferma;
+   - un EMOM, "EMOM 10min": ogni minuto il timer riparte, per 10 minuti. Se
+     l'EMOM e' un gruppo, ogni minuto passa all'esercizio dopo. Senza i
+     minuti scritti, gira finche' non si ferma. */
+const T_UNO = String.raw`(?:(\d{1,3})\s*(?:["”″]|''|’’)|(\d{1,3})\s*(?:['’′]|min(?:uti)?\.?)(?:\s*(\d{1,2})\s*(?:["”″]|''|’’))?)`;
+const T_RE = new RegExp(T_UNO, 'gi');
+const T_SOLI = new RegExp('^\\s*' + T_UNO + '(?:\\s*\\+\\s*' + T_UNO + ')*\\s*$', 'i');
+const T_PAUSA_PIU = 10;
+const secondiDi = m => m[1] ? +m[1] : +m[2] * 60 + (+m[3] || 0);
+const tempiIn = t => [...String(t || '').matchAll(T_RE)].map(secondiDi).filter(x => x > 0);
+const giriIn = t => { const m = String(t).match(/(?:^|\s)[x×]\s*(\d{1,2})\b|\b(\d{1,2})\s*(?:giri|round|rounds)\b/i); return m ? +(m[1] || m[2]) : 0; };
+
+/* Il piano del timer per una riga della scheda, o null se non ci sono tempi.
+   `fase(i)` dice la fase numero i: { pausa, sec, nome, info }, o null alla fine. */
+let tPiano = null;
+function pianoTimer(righe, r) {
+  if (!r) return null;
+  const g = r[2] || [];
+  const nomi = via => righe.filter(x => x[0] && dentroVia(x[2] || [], via)).map(x => x[0]);
+
+  const kt = g.findIndex(x => /tabata/i.test(x));
+  if (kt >= 0) {
+    const via = g.slice(0, kt + 1), es = nomi(via), t = tempiIn(g[kt]);
+    const lav = t[0] || 20, rec = t.length > 1 ? t[1] : 10, giri = giriIn(g[kt]), n = es.length;
+    if (!n) return null;
+    return { sequenza: true, fase: i => {
+      const passo = Math.floor(i / 2), pausa = i % 2 === 1;
+      const giro = Math.floor(passo / n), j = passo % n;
+      if (giri && giro >= giri) return null;
+      const ultimo = giri && giro === giri - 1 && j === n - 1;
+      if (pausa && ultimo) return null;
+      const dove = 'Giro ' + (giro + 1) + (giri ? ' di ' + giri : '') + '  ·  ' + (j + 1) + ' di ' + n;
+      return pausa ? { pausa: true, sec: rec, nome: 'Poi: ' + es[(j + 1) % n], info: dove }
+                   : { sec: lav, nome: es[j], info: dove };
+    } };
+  }
+
+  const ke = g.findIndex(x => /emom/i.test(x));
+  if (ke >= 0 || /emom/i.test(r[0] + ' ' + r[1])) {
+    const testo = ke >= 0 ? g[ke] : r[0] + ' ' + r[1];
+    const m = testo.match(/emom\s*(?:x\s*|di\s*)?(\d{1,3})(?!\d|\s*["”″\/])/i) || testo.match(/(\d{1,3})\s*(?:min|['’′])/i);
+    const min = m ? +m[1] : 0;
+    const es = ke >= 0 ? nomi(g.slice(0, ke + 1)) : [r[0]];
+    return { sequenza: false, fase: i => {
+      if (min && i >= min) return null;
+      return { sec: 60, nome: es[i % es.length] || '', info: 'Minuto ' + (i + 1) + (min ? ' di ' + min : '') };
+    } };
+  }
+
+  if (!T_SOLI.test(r[1] || '')) return null;
+  const t = tempiIn(r[1]);
+  if (!t.length) return null;
+  const fasi = [];
+  t.forEach((sec, j) => {
+    if (j) fasi.push({ pausa: true, sec: T_PAUSA_PIU, nome: r[0], info: 'Poi: ' + (j + 1) + ' di ' + t.length });
+    fasi.push({ sec: sec, nome: r[0], info: t.length > 1 ? (j + 1) + ' di ' + t.length : '' });
+  });
+  return { sequenza: false, fase: i => fasi[i] || null };
+}
+
+/* Il timer che corre. Il tempo si conta dall'orologio e non dai tic: se il
+   telefono rallenta la pagina, i secondi restano giusti. A ogni cambio di
+   fase un bip e una vibrazione; alla fine tre bip. Lo schermo resta acceso. */
+const tmr = { piano: null, i: 0, f: null, fine: 0, resto: 0, fermo: false, tic: 0, audio: null, lock: null };
+
+function bip(volte) {
+  if (navigator.vibrate) navigator.vibrate(volte > 1 ? [200, 120, 200, 120, 400] : 250);
+  const a = tmr.audio;
+  if (!a) return;
+  for (let k = 0; k < volte; k++) {
+    const o = a.createOscillator(), g = a.createGain(), t = a.currentTime + k * 0.3;
+    o.frequency.value = 880;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.5, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+    o.connect(g); g.connect(a.destination);
+    o.start(t); o.stop(t + 0.25);
+  }
+}
+
+async function tieniAcceso() {
+  try { if (navigator.wakeLock && !tmr.lock) tmr.lock = await navigator.wakeLock.request('screen'); } catch (e) { /* niente */ }
+  if (tmr.lock) tmr.lock.addEventListener('release', () => { tmr.lock = null; });
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && tmr.piano) tieniAcceso();
+});
+
+const mmss = sec => Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+
+function tmrDisegna() {
+  const f = tmr.f, box = $('tmr');
+  if (!f) return;
+  const ms = tmr.fermo ? tmr.resto : tmr.fine - Date.now();
+  box.classList.toggle('pausa', !!f.pausa);
+  box.classList.toggle('fermo', tmr.fermo);
+  $('tmrFase').textContent = f.fine ? 'Fatto' : f.pausa ? 'Pausa' : 'Via';
+  $('tmrNome').textContent = f.nome || '';
+  $('tmrTempo').textContent = mmss(Math.max(0, Math.ceil(ms / 1000)));
+  $('tmrInfo').textContent = f.info || '';
+}
+
+/* Entra nella fase i, che comincia al momento `da`. Le fasi da zero secondi
+   si saltano. Se il telefono e' rimasto indietro, si recupera il passo. */
+function tmrEntra(i, da) {
+  for (;;) {
+    const f = tmr.piano.fase(i);
+    if (!f) { tmrFine(); return; }
+    if (f.sec > 0) {
+      tmr.i = i; tmr.f = f; tmr.fine = da + f.sec * 1000;
+      if (tmr.fine > Date.now()) break;
+      da = tmr.fine;
+    }
+    i++;
+  }
+  tmrDisegna();
+}
+
+function tmrTic() {
+  if (tmr.fermo || !tmr.f) return;
+  if (Date.now() >= tmr.fine) {
+    tmrEntra(tmr.i + 1, tmr.fine);
+    if (tmr.piano) bip(tmr.f && tmr.f.fine ? 3 : 1);
+    return;
+  }
+  tmrDisegna();
+}
+
+function tmrAvvia(piano) {
+  tmrFerma();
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (AC) { tmr.audio = tmr.audio || new AC(); tmr.audio.resume(); }
+  } catch (e) { tmr.audio = null; }
+  const v = $('vVideo');
+  if (!v.paused) v.pause();
+  tmr.piano = piano;
+  tmr.fermo = false;
+  $('tmrPausa').textContent = 'Pausa';
+  $('tmrPausa').hidden = false;
+  $('tmrStop').textContent = 'Stop';
+  $('tmr').hidden = false;
+  tmrEntra(0, Date.now());
+  tmr.tic = setInterval(tmrTic, 200);
+  tieniAcceso();
+}
+
+function tmrFine() {
+  clearInterval(tmr.tic);
+  tmr.f = { fine: true, sec: 0, nome: tmr.f ? tmr.f.nome : '', info: '' };
+  tmr.fermo = true; tmr.resto = 0;
+  $('tmrPausa').hidden = true;
+  $('tmrStop').textContent = 'Chiudi';
+  tmrDisegna();
+  $('tmr').classList.remove('fermo');
+  if (tmr.lock) tmr.lock.release().catch(() => {});
+}
+
+function tmrFerma() {
+  clearInterval(tmr.tic);
+  tmr.piano = null; tmr.f = null;
+  $('tmr').hidden = true;
+  if (tmr.lock) tmr.lock.release().catch(() => {});
+}
+
+$('tAvvia').addEventListener('click', () => { if (tPiano) tmrAvvia(tPiano); });
+$('tmrStop').addEventListener('click', tmrFerma);
+$('tmrPausa').addEventListener('click', () => {
+  if (!tmr.f) return;
+  if (tmr.fermo) { tmr.fine = Date.now() + tmr.resto; tmr.fermo = false; }
+  else { tmr.resto = Math.max(0, tmr.fine - Date.now()); tmr.fermo = true; }
+  $('tmrPausa').textContent = tmr.fermo ? 'Riprendi' : 'Pausa';
+  tmrDisegna();
+});
 
 /* ------------------------------------------------------ i video ---- */
 
@@ -1422,6 +1618,7 @@ async function mostraVideo(nome, scrivibile) {
   slot.hidden = !nome;
   v.hidden = true;
   $('vFull').hidden = true;
+  $('vAudio').hidden = true;
   if (!nome) { st.textContent = 'Nessun video'; return; }
   st.textContent = 'Carico il video…';
   let blob = await vGet(nome);
@@ -1436,9 +1633,11 @@ async function mostraVideo(nome, scrivibile) {
     return;
   }
   vURL = URL.createObjectURL(blob);
+  v.muted = true;                            /* ogni video parte muto */
   v.src = vURL;
   v.hidden = false;
   $('vFull').hidden = false;
+  $('vAudio').hidden = false;
   st.textContent = '';
 }
 
@@ -1447,6 +1646,19 @@ $('vVideo').addEventListener('loadedmetadata', () => {
   const v = $('vVideo');
   $('vSlot').classList.toggle('verticale', v.videoHeight > v.videoWidth);
   ruota();
+});
+
+/* L'audio: i video partono muti, il bottone lo accende e lo spegne. Anche
+   dai comandi del video: il bottone segue. */
+$('vAudio').addEventListener('click', () => {
+  const v = $('vVideo');
+  v.muted = !v.muted;
+  if (!v.muted && !v.volume) v.volume = 1;
+});
+$('vVideo').addEventListener('volumechange', () => {
+  const muto = $('vVideo').muted || !$('vVideo').volume;
+  $('vAudio').textContent = muto ? '🔇' : '🔊';
+  $('vAudio').setAttribute('aria-label', muto ? "Attiva l'audio" : "Togli l'audio");
 });
 
 /* Il bottone a schermo intero. Un video orizzontale gira anche il telefono,
