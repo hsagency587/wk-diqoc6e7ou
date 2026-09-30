@@ -1890,6 +1890,9 @@
     },
     "plank one arm": {
       "p": "Plank"
+    },
+    "roll quadricipiti": {
+      "p": "Full roll"
     }
   }
 }
