@@ -2616,7 +2616,22 @@ function armaPostille() {
   }, 400);
 }
 
-/* L'immagine a tutto schermo: si chiude toccandola. */
+/* L'immagine a tutto schermo: si chiude toccandola. Prima di chiuderla si
+   puo' salvare: sul telefono si apre la condivisione, da dove va in galleria
+   ("Salva immagine"); dove la condivisione non c'e', si scarica il file. */
+async function salvaImmagine(blob) {
+  const f = new File([blob], 'sorpresa-' + chiaveData(today()) + '.jpg', { type: blob.type || 'image/jpeg' });
+  if (navigator.canShare && navigator.canShare({ files: [f] })) {
+    try { await navigator.share({ files: [f] }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  const u = URL.createObjectURL(f);
+  const a = el('a');
+  a.href = u; a.download = f.name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(u), 10000);
+}
+
 function mostraImmagine(blob) {
   return new Promise(ok => {
     const u = URL.createObjectURL(blob);
@@ -2624,6 +2639,10 @@ function mostraImmagine(blob) {
     const img = el('img');
     img.src = u; img.alt = '';
     box.appendChild(img);
+    const salva = el('button', 'egg-img-salva', 'Salva nella galleria');
+    salva.type = 'button';
+    salva.addEventListener('click', ev => { ev.stopPropagation(); salvaImmagine(blob); });
+    box.appendChild(salva);
     box.appendChild(el('p', 'egg-img-nota', 'tocca per chiudere'));
     const chiudi = () => { box.classList.remove('on'); setTimeout(() => { box.remove(); URL.revokeObjectURL(u); ok(); }, 250); };
     box.addEventListener('click', chiudi);
