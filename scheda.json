@@ -576,7 +576,11 @@
   "mattina": "Morning Routine",
   "mattinaQuando": {
     "modo": "giorni",
-    "giorni": []
+    "giorni": [
+      1,
+      3,
+      5
+    ]
   },
   "altre": [
     {
