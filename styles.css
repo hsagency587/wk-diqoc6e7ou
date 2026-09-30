@@ -737,6 +737,24 @@ body.ed-aperto{overflow:hidden}
 .ed-es-riga{display:flex;align-items:center;gap:var(--s1);padding:var(--s1)}
 .ed-es-nome{flex:1 1 auto;min-width:0}
 .ed-es-qta{flex:0 1 140px;min-width:70px}
+/* la tendina sotto un campo: le voci che esistono, da toccare */
+.ed-tend-w{position:relative;min-width:0}
+.ed-tend-w > .campo{width:100%}
+.ed-tend-w.nome{flex:1 1 auto}
+.ed-lib-nuovo .ed-tend-w{flex:1}
+.ed-tend{
+  position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:30;
+  max-height:min(50vh,320px);overflow-y:auto;
+  background:var(--surface);border:1px solid var(--accent);border-radius:var(--radius);
+  box-shadow:0 8px 24px rgba(0,0,0,.35);
+}
+.ed-tend-voce{display:block;width:100%;text-align:left;padding:12px 14px;font-size:16px;color:var(--text);border-bottom:1px solid var(--line)}
+.ed-tend-voce:last-child{border-bottom:0}
+.ed-tend-voce:active,.ed-tend-voce.uguale{background:var(--surface-2)}
+.ed-tend-voce.uguale{font-weight:700;color:var(--accent)}
+.ed-tend-vuota{margin:0;padding:10px 14px;font-size:14px;color:var(--muted)}
+.ed-tend-padre{flex:1 1 200px;max-width:320px}
+.ed-in-gruppo{margin:4px 0 var(--s2);min-height:40px;font-size:15px}
 .ed-es-tasti{display:flex;gap:2px;flex:0 0 auto}
 .ed-tasto{margin-left:0;min-width:40px;min-height:44px;padding:0 6px;font-size:18px;color:var(--text-2)}
 .ed-tasto:disabled{opacity:.25}
@@ -765,7 +783,7 @@ body.ed-aperto{overflow:hidden}
   .ed.in-pagina .ed-indietro{display:inline-flex;align-items:center;justify-content:center}
   .ed-giorno{grid-template-columns:1fr;gap:var(--s2)}
   .ed-es-riga{flex-wrap:wrap}
-  .ed-es-nome{flex:1 1 100%}
+  .ed-es-nome,.ed-tend-w.nome{flex:1 1 100%}
   .ed-es-qta{flex:1 1 90px}
   .ed-tit{font-size:20px}
 }
@@ -1004,7 +1022,7 @@ body.ed-aperto{overflow:hidden}
   .solo-tel{display:block}
   .ed-maniglia.solo-tel{display:flex}
   .ed-es-riga{flex-wrap:nowrap}
-  .ed-es-nome{flex:1 1 auto;min-width:0}
+  .ed-es-nome,.ed-tend-w.nome{flex:1 1 auto;min-width:0}
   .ed-es-qta{flex:0 0 78px;min-width:0}
   .ed-nota-az.solo-tel{display:flex}
 }

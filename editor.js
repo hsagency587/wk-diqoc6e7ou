@@ -470,16 +470,71 @@ function edPagSettimana(box, ctx, si) {
 const settimaneDel = p =>
   Math.floor(giorniFra(chiaveData(lunedi(daChiave(p.dal))), chiaveData(lunedi(daChiave(p.al)))) / 7) + 1;
 
+/* --- la tendina sotto un campo --------------------------------------------
+   Mentre si scrive, sotto il campo si apre l'elenco delle voci che
+   contengono quello che si e' scritto: prima quelle che cominciano cosi'.
+   Si sceglie col dito. `voci` e' una funzione che torna l'elenco; `scegli`
+   riceve la voce toccata. Con `subito` la tendina si apre anche a campo
+   vuoto, con tutte le voci. Torna il contenitore da mettere al posto del
+   campo. */
+function edTendina(inp, voci, scegli, opt) {
+  opt = opt || {};
+  const w = el('div', 'ed-tend-w' + (opt.cls ? ' ' + opt.cls : ''));
+  const box = el('div', 'ed-tend');
+  box.hidden = true;
+  w.appendChild(inp);
+  w.appendChild(box);
+  const chiudi = () => { box.hidden = true; box.textContent = ''; };
+  const apri = () => {
+    const q = edNorm(inp.value);
+    box.textContent = '';
+    if (!q && !opt.subito) { chiudi(); return; }
+    const tutte = voci();
+    const inizio = [], dentro = [];
+    for (const v of tutte) {
+      const n = edNorm(v);
+      if (!q || n.indexOf(q) === 0) inizio.push(v);
+      else if (n.indexOf(q) > 0) dentro.push(v);
+    }
+    const trovate = inizio.concat(dentro).slice(0, 60);
+    for (const v of trovate) {
+      const b = el('button', 'ed-tend-voce' + (edNorm(v) === q ? ' uguale' : ''), v);
+      b.type = 'button';
+      /* pointerdown e non click: il campo non perde il fuoco prima della scelta */
+      b.addEventListener('pointerdown', ev => { ev.preventDefault(); chiudi(); scegli(v); });
+      box.appendChild(b);
+    }
+    if (!trovate.length) box.appendChild(el('p', 'ed-tend-vuota', opt.vuota || 'Nothing found'));
+    else if (opt.nuova && q && !trovate.some(v => edNorm(v) === q)) box.appendChild(el('p', 'ed-tend-vuota', opt.nuova));
+    box.hidden = false;
+  };
+  inp.setAttribute('autocomplete', 'off');
+  inp.addEventListener('input', apri);
+  inp.addEventListener('focus', () => { if (opt.subito || inp.value) apri(); });
+  inp.addEventListener('blur', () => setTimeout(chiudi, 150));
+  inp.addEventListener('keydown', ev => { if (ev.key === 'Escape') chiudi(); });
+  return w;
+}
+
+/* Il padre di una variante, da scegliere cercando: la tendina di tutti gli
+   esercizi principali. `vuoto` e' la voce in cima che vuol dire "nessuno". */
+function edCercaPadre(k, attuale, scegli, vuoto) {
+  const inp = el('input', 'campo ed-cerca-padre');
+  inp.type = 'search'; inp.maxLength = 60;
+  inp.placeholder = attuale || vuoto || 'Search the exercise…';
+  inp.setAttribute('aria-label', 'Variant of');
+  return edTendina(inp, () => (vuoto ? [vuoto] : []).concat(edPrincipali(k)),
+                   v => scegli(v === vuoto ? '' : v), { subito: true, cls: 'ed-tend-padre' });
+}
+
 /* --- gli esercizi: la parte comune a FIRST 15' e ai workout -------------- */
 
 /* Le righe di una scheda da scrivere: nome, quantita', descrizione, frecce,
    croce. Il ▾ apre sotto la riga la descrizione e il video. */
 function edEsercizi(box, ctx, nomeScheda, sc) {
-  /* i nomi di tutti gli esercizi gia' scritti, suggeriti mentre si scrive */
-  const lista = el('datalist');
-  lista.id = 'edEsNomi';
-  for (const x of edLibreria()) { const o = el('option'); o.value = x.nome; lista.appendChild(o); }
-  box.appendChild(lista);
+  /* i nomi di tutti gli esercizi gia' scritti: la tendina sotto il campo */
+  let nomiLib = null;
+  const nomiTutti = () => nomiLib || (nomiLib = edLibreria().map(x => x.nome));
   const cont = el('div', 'ed-es-lista');
   box.appendChild(cont);
   sc.es.forEach((r, i) => {
@@ -497,7 +552,6 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
     nome.type = 'text'; nome.maxLength = 60; nome.placeholder = 'exercise';
     nome.value = r[0] || '';
     nome.dataset.focus = chiave + '|0';
-    nome.setAttribute('list', 'edEsNomi');
     nome.addEventListener('change', () => {
       const prima = r[0] || '';
       r[0] = nome.value.slice(0, 60).trim();
@@ -516,7 +570,8 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
     qta.type = 'text'; qta.maxLength = 60; qta.placeholder = 'how much';
     qta.value = r[1] || '';
     qta.addEventListener('change', () => { r[1] = qta.value.slice(0, 60).trim(); edCambio(false); });
-    riga.appendChild(nome);
+    riga.appendChild(edTendina(nome, nomiTutti, v => { nome.value = v; nome.blur(); nome.dispatchEvent(new Event('change')); },
+                               { cls: 'nome', nuova: 'New: not in the library yet' }));
     riga.appendChild(qta);
 
     const tasti = el('div', 'ed-es-tasti');
@@ -562,6 +617,20 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
       es.appendChild(az);
     }
     cont.appendChild(es);
+
+    /* l'ultimo esercizio di un gruppo: sotto, il tasto per aggiungerne uno
+       dentro lo stesso gruppo, subito qui */
+    const g = r[2] || [], dopo = sc.es[i + 1];
+    if (g.length && !(dopo && JSON.stringify(dopo[2] || []) === JSON.stringify(g))) {
+      const piu = edBottone(cont, '+ in ' + g[g.length - 1], 'ed-aggiungi ed-in-gruppo', () => {
+        sc.es.splice(i + 1, 0, ['', '', g.slice(), '', '']);
+        edAperti = new Set();
+        edPagina();
+        const campi = $('edPane').querySelectorAll('.ed-es-nome');
+        if (campi[i + 1]) campi[i + 1].focus();
+      });
+      piu.setAttribute('aria-label', 'Add an exercise in ' + g.join(' › '));
+    }
   });
 
   edBottone(box, '+ Exercise', 'ed-aggiungi', () => {
@@ -1697,13 +1766,10 @@ function edDomanda(k, nome, sc) {
   edBottone(t, 'Main exercise', '', () => { edMetaSet(k, 'p', ''); fatto(); });
   const proposti = edPadriPossibili(nome);
   for (const p of proposti) edBottone(t, 'Variant of ' + p, '', () => { edFaiVariante(k, p); fatto(); });
-  const altri = edPrincipali(k).filter(p => proposti.indexOf(p) < 0);
-  if (altri.length) {
-    const sel = el('select', 'campo ed-domanda-sel');
-    const o0 = el('option', '', 'Variant of another…'); o0.value = ''; sel.appendChild(o0);
-    for (const p of altri) { const o = el('option', '', p); o.value = p; sel.appendChild(o); }
-    sel.addEventListener('change', () => { if (sel.value) { edFaiVariante(k, sel.value); fatto(); } });
-    t.appendChild(sel);
+  if (edPrincipali(k).length) {
+    const cerca = edCercaPadre(k, '', p => { if (p) { edFaiVariante(k, p); fatto(); } });
+    cerca.querySelector('input').placeholder = 'Variant of another… search';
+    t.appendChild(cerca);
   }
   box.appendChild(t);
   return box;
@@ -1734,7 +1800,8 @@ function edPagLibreria(box) {
   const nuovo = el('div', 'ed-lib-nuovo');
   const nomeN = el('input', 'campo');
   nomeN.type = 'text'; nomeN.maxLength = 60; nomeN.placeholder = 'New exercise name';
-  nuovo.appendChild(nomeN);
+  nuovo.appendChild(edTendina(nomeN, () => tutti.map(x => x.nome), v => { nomeN.value = v; aggiungi(); },
+                               { cls: 'nome', nuova: 'New: not in the library yet' }));
   const errN = el('p', 'nota ed-lib-msg'); errN.hidden = !edLibMsg; errN.textContent = edLibMsg; edLibMsg = '';
   const aggiungi = () => {
     const nome = nomeN.value.slice(0, 60).trim();
@@ -1821,14 +1888,12 @@ function edPagLibreria(box) {
     });
     b.appendChild(cat);
     const az = el('div', 'ed-lib-nuovo');
-    const sel = el('select', 'campo');
-    const o0 = el('option', '', 'Make them variants of…'); o0.value = ''; sel.appendChild(o0);
-    for (const p of edPrincipali('')) { const o = el('option', '', p); o.value = p; sel.appendChild(o); }
-    sel.addEventListener('change', () => {
-      if (!sel.value) return;
-      for (const x of scelti) if (x.k !== edNorm(sel.value)) edFaiVariante(x.k, sel.value);
+    const sel = edCercaPadre('', '', p => {
+      if (!p) return;
+      for (const x of scelti) if (x.k !== edNorm(p)) edFaiVariante(x.k, p);
       edCambio(false); edPagina();
     });
+    sel.querySelector('input').placeholder = 'Make them variants of… search';
     az.appendChild(sel);
     edBottone(az, 'Make main', '', () => { for (const x of scelti) edMetaSet(x.k, 'p', ''); edCambio(false); edPagina(); });
     b.appendChild(az);
@@ -1885,13 +1950,9 @@ function edPagLibreria(box) {
         ci.addEventListener('change', () => { edMetaSet(k, 'c', ci.value.slice(0, 40).trim()); edCambio(false); });
         lc.appendChild(ci);
         meta.appendChild(lc);
-        const lp = el('label', 'ed-lib-postilla', 'Variant of ');
-        const ps = el('select', 'campo ed-lib-cat');
-        const o0 = el('option', '', '— main exercise'); o0.value = ''; ps.appendChild(o0);
+        const lp = el('div', 'ed-lib-postilla', 'Variant of ');
         const px = padreDi(x);
-        for (const p of edPrincipali(k)) { const o = el('option', '', p); o.value = p; if (px && px.nome === p) o.selected = true; ps.appendChild(o); }
-        ps.addEventListener('change', () => { edFaiVariante(k, ps.value); edCambio(false); edPagina(); });
-        lp.appendChild(ps);
+        lp.appendChild(edCercaPadre(k, px ? px.nome : '', p => { edFaiVariante(k, p); edCambio(false); edPagina(); }, '— main exercise'));
         meta.appendChild(lp);
         c.appendChild(meta);
         /* descrizione e video: una riga di lavoro con quelli mostrati; ogni
