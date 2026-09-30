@@ -1340,10 +1340,11 @@ async function preparaSorpresa() {
     tSorpresa = { id: x.id, buf: buf };
   } catch (e) { /* l'audio non si legge: restano i bip */ }
 }
+/* anche la sorpresa passa dal rinforzo dei bip: forte quanto il telefono permette */
 function suonaBuffer(a, buf) {
   const src = a.createBufferSource();
   src.buffer = buf;
-  src.connect(a.destination);
+  src.connect(a.uscita);
   src.start();
   return src;
 }
