@@ -569,7 +569,7 @@
     {
       "id": "ob9a36t01",
       "nome": "Full Roll",
-      "via": false,
+      "via": true,
       "quando": {
         "modo": "sempre"
       }
