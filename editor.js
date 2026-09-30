@@ -1354,7 +1354,8 @@ if (stretto.addEventListener) stretto.addEventListener('change', () => { if (!st
 /* ------------------------------------------------ easter egg ---- */
 
 /* Cose divertenti, solo nel giorno scelto: un'immagine a tutto schermo alla
-   prima apertura, e postille colorate che spariscono al primo tocco. */
+   prima apertura, postille colorate che spariscono al primo tocco, e un audio
+   che prende il posto del primo bip del timer. */
 
 const EGG_COLORI = ['Yellow', 'Pink', 'Blue', 'Green'];
 
@@ -1436,6 +1437,63 @@ function edPagEgg(box) {
   edBottone(az1, '+ Image', '', () => file.click());
   box.appendChild(az1);
   box.appendChild(errore);
+
+  /* --- il suono del timer --- */
+  box.appendChild(el('p', 'ed-sez-pag', 'TIMER SOUND'));
+  box.appendChild(el('p', 'ed-sotto', 'On that day, the first time the timer goes off it plays your audio instead of the beep. Only once: then the normal beeps come back.'));
+  let prova = null;
+  tutte.forEach((x, i) => {
+    if (x.tipo !== 'suono') return;
+    const r = el('div', 'egg-riga');
+    const dx = el('div', 'egg-dx');
+    dx.appendChild(el('p', 'ed-sotto', '♪ ' + x.audio));
+    edCampo(dx, 'Day', x.giorno, { type: 'date' }, val => { if (dataOk(val)) { x.giorno = val; edCambio(false); } });
+    const az = el('div', 'ed-azioni');
+    edBottone(az, 'Listen', '', async () => {
+      if (prova) { prova.pause(); prova = null; }
+      const b = (await vGet(x.audio)) || (await prendiVideo(x.audio));
+      if (!b) return;
+      const u = URL.createObjectURL(b); edUrl.push(u);
+      prova = new Audio(u);
+      prova.play().catch(() => {});
+    });
+    edConferma(az, 'Delete', () => { tutte.splice(i, 1); edCambio(false); edPagina(); });
+    dx.appendChild(az);
+    r.appendChild(dx);
+    box.appendChild(r);
+  });
+  const erroreA = el('p', 'nota err');
+  erroreA.hidden = true;
+  const fileA = el('input');
+  fileA.type = 'file'; fileA.accept = 'audio/*,.mp3,.m4a,.aac,.ogg,.wav'; fileA.hidden = true;
+  fileA.addEventListener('change', async () => {
+    const f = fileA.files && fileA.files[0];
+    fileA.value = '';
+    if (!f) return;
+    const daNome = (f.name.match(/\.(mp3|m4a|aac|ogg|wav)$/i) || [])[1];
+    const daTipo = { 'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/mp4': 'm4a', 'audio/x-m4a': 'm4a',
+                     'audio/aac': 'aac', 'audio/ogg': 'ogg', 'audio/wav': 'wav', 'audio/x-wav': 'wav' }[f.type];
+    const est = (daNome || daTipo || '').toLowerCase();
+    if (!est) { erroreA.textContent = 'Use an mp3, m4a, aac, ogg or wav file.'; erroreA.hidden = false; return; }
+    if (f.size > 5 * 1024 * 1024) { erroreA.textContent = 'This audio is too big: keep it under 5 MB.'; erroreA.hidden = false; return; }
+    try {
+      const nome = 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8) + '.' + est;
+      await vPut(nome, new Blob([f], { type: tipoVideo(nome) }));
+      tutte.push({ id: 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), tipo: 'suono', giorno: oggi, audio: nome });
+      if (tstore.daCaricare.indexOf(nome) < 0) tstore.daCaricare.push(nome);
+      edCambio(false);
+      edPagina();
+      codaVideo();
+    } catch (e) {
+      erroreA.textContent = 'This device has no room for the audio.';
+      erroreA.hidden = false;
+    }
+  });
+  box.appendChild(fileA);
+  const az3 = el('div', 'ed-azioni');
+  edBottone(az3, '+ Sound', '', () => fileA.click());
+  box.appendChild(az3);
+  box.appendChild(erroreA);
 
   /* --- le postille --- */
   box.appendChild(el('p', 'ed-sez-pag', 'NOTES'));

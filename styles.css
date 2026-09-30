@@ -463,7 +463,7 @@ body{overflow-x:clip}
 .desfrec{margin-left:8px;font-size:16px;font-weight:700;line-height:1;color:var(--accent)}
 .tabr.condesc .tabc:last-child{display:flex;align-items:center}
 .tabr.condesc .desfrec{margin-left:auto;padding-left:8px}
-.tabr.condesc{cursor:pointer}
+.tabr.condesc,.tabr.contabata{cursor:pointer}
 .tabr.condesc:active{background:var(--surface-2)}
 .schdesc,
 .schapri .schdesc{
@@ -659,7 +659,7 @@ body.vland .vslot{
 .wkbar.open .wkbar-frec{transform:none}
 .wkbar.open{border-color:var(--accent)}
 @media (hover:hover){ .wkbar:hover{border-color:var(--accent)} }
-@media (min-width:1000px){ .col .wkbar{width:100%;margin-left:0;margin-right:0} .col .prepbanda{margin-left:0;margin-right:0} }
+@media (min-width:1000px){ .col .wkbar{width:100%;margin-left:0;margin-right:0} .pagina > .prepbanda{grid-column:1/-1;margin:0} }
 
 /* ---------- l'editor ---------- */
 

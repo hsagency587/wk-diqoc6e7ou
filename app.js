@@ -199,7 +199,7 @@ function completo(r, ind) {
   const v = [...new Set(videiDi(r).concat(videiDi([0, 0, 0, 0, x.v])))].slice(0, 6).join(',');
   return [r[0], r[1], r[2], d, v];
 }
-const nomeVideoOk = v => typeof v === 'string' && /^[a-z0-9]{6,30}\.(mp4|webm|mov|m4v|jpg)$/.test(v);
+const nomeVideoOk = v => typeof v === 'string' && /^[a-z0-9]{6,30}\.(mp4|webm|mov|m4v|jpg|mp3|m4a|aac|ogg|wav)$/.test(v);
 
 /* Quanti workout ha ogni giorno: da zero a quattro, giorno per giorno. Zero
    e' un giorno senza allenamenti. I file di prima avevano un numero solo per
@@ -247,18 +247,22 @@ function validPrep(l) {
 
 /* Le sorprese (easter egg): cose divertenti che si vedono solo in un giorno
    scelto, la prima volta che l'app si apre quel giorno. Un'immagine a tutto
-   schermo, o una postilla colorata in un punto della pagina. */
+   schermo, o una postilla colorata in un punto della pagina. Oppure un suono:
+   quel giorno il primo scatto del timer suona l'audio scelto. */
 function validSorprese(l) {
   if (!Array.isArray(l)) return [];
   return l.slice(0, 200).map(x => {
     if (!x || typeof x !== 'object' || !dataOk(x.giorno)) return null;
-    const tipo = x.tipo === 'img' ? 'img' : x.tipo === 'nota' ? 'nota' : null;
+    const tipo = x.tipo === 'img' ? 'img' : x.tipo === 'nota' ? 'nota' : x.tipo === 'suono' ? 'suono' : null;
     if (!tipo) return null;
     const o = { id: typeof x.id === 'string' && /^[\w-]{3,30}$/.test(x.id) ? x.id : 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
                 tipo: tipo, giorno: x.giorno };
     if (tipo === 'img') {
       if (!nomeVideoOk(x.img)) return null;
       o.img = x.img;
+    } else if (tipo === 'suono') {
+      if (!nomeVideoOk(x.audio)) return null;
+      o.audio = x.audio;
     } else {
       o.testo = String(x.testo == null ? '' : x.testo).slice(0, 300).trim();
       if (!o.testo) return null;
@@ -607,6 +611,17 @@ function disegnaW() {
 
   const box = el('section', 'col col-sx');
   const dx = el('section', 'col col-dx');
+  /* la preparazione in corso: nome, date, quanto manca. Sta sopra tutto, fuori
+     dalla tendina: si vede appena si apre l'app */
+  if (oggi.prep) {
+    const p = oggi.prep;
+    const manca = giorniFra(kOggi, p.al);
+    const b = el('div', 'prepbanda');
+    b.appendChild(el('p', 'prepbanda-eti', 'PREPARAZIONE' + (p.nome ? ' · ' + p.nome : '')));
+    b.appendChild(el('p', 'prepbanda-date', dataIt(p.dal) + ' → ' + dataIt(p.al) +
+      (pAnt ? '' : ' · ' + (manca === 0 ? 'ultimo giorno' : manca === 1 ? 'manca 1 giorno' : 'mancano ' + manca + ' giorni'))));
+    pagina.appendChild(b);
+  }
   pagina.appendChild(box);
   pagina.appendChild(dx);
 
@@ -642,19 +657,9 @@ function disegnaW() {
     }
   }
 
-  /* la programmazione (preparazione in corso e settimana) sta in una tendina
-     sopra gli allenamenti: la pagina comincia da quello che si fa oggi */
+  /* la settimana sta in una tendina sopra gli allenamenti: la pagina
+     comincia da quello che si fa oggi */
   const cal = el('div', 'calcorpo');
-  /* la preparazione in corso: nome, date, quanto manca */
-  if (oggi.prep) {
-    const p = oggi.prep;
-    const manca = giorniFra(kOggi, p.al);
-    const b = el('div', 'prepbanda');
-    b.appendChild(el('p', 'prepbanda-eti', 'PREPARAZIONE' + (p.nome ? ' · ' + p.nome : '')));
-    b.appendChild(el('p', 'prepbanda-date', dataIt(p.dal) + ' → ' + dataIt(p.al) +
-      (pAnt ? '' : ' · ' + (manca === 0 ? 'ultimo giorno' : manca === 1 ? 'manca 1 giorno' : 'mancano ' + manca + ' giorni'))));
-    cal.appendChild(b);
-  }
 
   /* La settimana di adesso, da lunedi' a domenica, ogni giorno col piano che
      vale in quella data. Le colonne sono quante ne servono al giorno piu'
@@ -761,6 +766,16 @@ function righeScheda(tab, sc, src, nome) {
       riga.classList.add('condesc');
       riga.dataset.desces = JSON.stringify([src, nome, i]);
       riga.lastChild.appendChild(el('span', 'desfrec', '▾'));   /* uguale per tutti: con o senza video */
+    } else {
+      /* in un Tabata ogni esercizio si tocca: si apre la descrizione del primo
+         del gruppo, da dove parte la sequenza. Si vede come prima: la freccia
+         resta solo dove c'e' una descrizione */
+      const g = r[2] || [], kt = g.findIndex(x => /tabata/i.test(x));
+      const primo = kt < 0 ? -1 : sc.es.findIndex(x => x[0] && dentroVia(x[2] || [], g.slice(0, kt + 1)));
+      if (primo >= 0) {
+        riga.classList.add('contabata');
+        riga.dataset.desces = JSON.stringify([src, nome, primo]);
+      }
     }
     dove.appendChild(riga);
   });
@@ -1275,18 +1290,81 @@ function pianoTimer(righe, r) {
    fase un bip e una vibrazione; alla fine tre bip. Lo schermo resta acceso. */
 const tmr = { piano: null, i: 0, f: null, fine: 0, resto: 0, fermo: false, tic: 0, audio: null, lock: null };
 
-function bip(volte) {
-  if (navigator.vibrate) navigator.vibrate(volte > 1 ? [200, 120, 200, 120, 400] : 250);
+/* Il suono: onda quadra, due note che salgono, passate da un compressore
+   che le porta al massimo senza gracchiare. Si riconosce anche con la musica
+   in palestra. Su iPhone la pagina suona anche col telefono in silenzioso. */
+function audioTimer() {
+  if (tmr.audio) return tmr.audio;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* niente */ }
+  const a = new AC();
+  const comp = a.createDynamicsCompressor();
+  comp.threshold.value = -30; comp.knee.value = 0; comp.ratio.value = 20;
+  comp.attack.value = 0.001; comp.release.value = 0.1;
+  const su = a.createGain();
+  su.gain.value = 4;
+  su.connect(comp); comp.connect(a.destination);
+  a.uscita = su;
+  tmr.audio = a;
+  return a;
+}
+
+function nota(a, freq, t, dur) {
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = 'square';
+  o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(1, t + 0.005);
+  g.gain.setValueAtTime(1, t + dur - 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(a.uscita);
+  o.start(t); o.stop(t + dur + 0.01);
+}
+
+/* Il primo scatto del giorno puo' essere un audio scelto nell'editor
+   (easter egg): suona una volta sola, poi tornano i bip. */
+let tSorpresa = null;                 /* { id, buf } pronta per il primo scatto */
+let tSorpresaSuona = null;
+async function preparaSorpresa() {
+  tSorpresa = null;
   const a = tmr.audio;
   if (!a) return;
-  for (let k = 0; k < volte; k++) {
-    const o = a.createOscillator(), g = a.createGain(), t = a.currentTime + k * 0.3;
-    o.frequency.value = 880;
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.5, t + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
-    o.connect(g); g.connect(a.destination);
-    o.start(t); o.stop(t + 0.25);
+  const k = chiaveData(today()), visti = vistiLeggi();
+  const x = validSorprese(tstore.sorprese).find(y => y.tipo === 'suono' && y.giorno === k && visti.indexOf(y.id) < 0);
+  if (!x) return;
+  try {
+    const b = (await vGet(x.audio)) || (await prendiVideo(x.audio));
+    if (!b) return;
+    const buf = await a.decodeAudioData(await b.arrayBuffer());
+    tSorpresa = { id: x.id, buf: buf };
+  } catch (e) { /* l'audio non si legge: restano i bip */ }
+}
+function suonaBuffer(a, buf) {
+  const src = a.createBufferSource();
+  src.buffer = buf;
+  src.connect(a.destination);
+  src.start();
+  return src;
+}
+
+function bip(volte) {
+  if (navigator.vibrate) navigator.vibrate(volte > 1 ? [400, 150, 400, 150, 800] : [300, 100, 300]);
+  const a = tmr.audio;
+  if (!a) return;
+  if (tSorpresa) {
+    vistiSegna([tSorpresa.id]);
+    tSorpresaSuona = suonaBuffer(a, tSorpresa.buf);
+    tSorpresa = null;
+    return;
+  }
+  /* un cambio di fase: due note che salgono, due volte. La fine: tre volte, piu' lunghe */
+  const t0 = a.currentTime + 0.02;
+  const giri = volte > 1 ? 3 : 2, d = volte > 1 ? 0.22 : 0.14;
+  for (let k = 0; k < giri; k++) {
+    const t = t0 + k * (d * 2 + 0.12);
+    nota(a, 1318, t, d);
+    nota(a, 1760, t + d, d);
   }
 }
 
@@ -1340,10 +1418,8 @@ function tmrTic() {
 
 function tmrAvvia(piano) {
   tmrFerma();
-  try {
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (AC) { tmr.audio = tmr.audio || new AC(); tmr.audio.resume(); }
-  } catch (e) { tmr.audio = null; }
+  try { const a = audioTimer(); if (a) a.resume(); } catch (e) { tmr.audio = null; }
+  preparaSorpresa();
   const v = $('vVideo');
   if (!v.paused) v.pause();
   tmr.piano = piano;
@@ -1370,6 +1446,7 @@ function tmrFine() {
 
 function tmrFerma() {
   clearInterval(tmr.tic);
+  if (tSorpresaSuona) { try { tSorpresaSuona.stop(); } catch (e) { /* gia' finito */ } tSorpresaSuona = null; }
   tmr.piano = null; tmr.f = null;
   $('tmr').hidden = true;
   if (tmr.lock) tmr.lock.release().catch(() => {});
@@ -1397,7 +1474,9 @@ $('tmrPausa').addEventListener('click', () => {
 /* Oltre questa misura GitHub rischia di rifiutare il file. */
 const VIDEO_MAX = 60 * 1024 * 1024;
 const RAW_VIDEO = 'https://raw.githubusercontent.com/' + REPO + '/' + BRANCH + '/video/';
-const tipoVideo = n => /\.webm$/.test(n) ? 'video/webm' : /\.jpg$/.test(n) ? 'image/jpeg' : 'video/mp4';
+const TIPI_AUDIO = { mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', ogg: 'audio/ogg', wav: 'audio/wav' };
+const tipoVideo = n => /\.webm$/.test(n) ? 'video/webm' : /\.jpg$/.test(n) ? 'image/jpeg'
+                     : TIPI_AUDIO[n.split('.').pop()] || 'video/mp4';
 
 /* Il deposito dei video nel telefono: IndexedDB, un file per nome. */
 let dbVideo = null;
@@ -1584,7 +1663,7 @@ async function scaricaVideo() {
       }
     }
     /* le immagini delle sorprese: arrivano prima del loro giorno */
-    for (const x of validSorprese(tstore.sorprese)) if (x.img && nomi.indexOf(x.img) < 0) nomi.push(x.img);
+    for (const x of validSorprese(tstore.sorprese)) for (const f of [x.img, x.audio]) if (f && nomi.indexOf(f) < 0) nomi.push(f);
     for (const n of nomi) if (!(await vGet(n))) await prendiVideo(n);
   } finally {
     scaricando = false;
@@ -2400,7 +2479,7 @@ function nomiNelPiano() {
   for (const tutte of [tstore.schede].concat(tstore.prep.map(p => p.schede))) {
     for (const k of Object.keys(tutte)) for (const r of tutte[k].es) for (const v of videiDi(r)) nomi.add(v);
   }
-  for (const x of tstore.sorprese || []) if (x && x.img) nomi.add(x.img);
+  for (const x of tstore.sorprese || []) for (const f of x ? [x.img, x.audio] : []) if (f) nomi.add(f);
   for (const r of tstore.libreria || []) for (const v of videiDi(r)) nomi.add(v);
   return nomi;
 }
@@ -2558,7 +2637,7 @@ async function controllaSorprese(prova) {
   if (festeggiando) return;
   const k = chiaveData(today());
   const visti = vistiLeggi();
-  const nuove = prova ? [prova] : validSorprese(tstore.sorprese).filter(x => x.giorno === k && visti.indexOf(x.id) < 0);
+  const nuove = prova ? [prova] : validSorprese(tstore.sorprese).filter(x => x.tipo !== 'suono' && x.giorno === k && visti.indexOf(x.id) < 0);
   if (!nuove.length) return;
   festeggiando = true;
   try {
