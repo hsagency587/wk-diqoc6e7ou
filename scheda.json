@@ -585,7 +585,7 @@
         ],
         [
           "Roll glutei",
-          "",
+          "1' + 1'",
           [],
           "",
           ""
@@ -1906,6 +1906,9 @@
       "p": "Plank"
     },
     "roll quadricipiti": {
+      "p": "Full roll"
+    },
+    "roll glutei": {
       "p": "Full roll"
     }
   }
