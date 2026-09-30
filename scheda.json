@@ -575,9 +575,8 @@
   },
   "mattina": "Morning Routine",
   "mattinaQuando": {
-    "modo": "ogni",
-    "n": 2,
-    "dal": "2026-09-30"
+    "modo": "giorni",
+    "giorni": []
   },
   "altre": [
     {
