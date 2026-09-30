@@ -586,9 +586,15 @@
     {
       "id": "ob9a36t01",
       "nome": "Full Roll",
-      "via": true,
+      "via": false,
       "quando": {
-        "modo": "sempre"
+        "modo": "giorni",
+        "giorni": [
+          0,
+          2,
+          4,
+          6
+        ]
       }
     }
   ],
