@@ -616,7 +616,14 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
       edCambio(false);
       edPagina();
     };
-    const x = edBottone(tasti, '×', 'ed-tasto ed-x', togli);
+    /* due tocchi: il primo chiede conferma, il secondo toglie */
+    const x = edBottone(tasti, '×', 'ed-tasto ed-x', () => {
+      if (x.dataset.sicuro) { togli(); return; }
+      x.dataset.sicuro = '1';
+      x.textContent = 'Remove?';
+      x.classList.add('sicuro');
+      setTimeout(() => { if (x.isConnected) { delete x.dataset.sicuro; x.textContent = '×'; x.classList.remove('sicuro'); } }, 4000);
+    });
     x.setAttribute('aria-label', 'Remove from this workout'); x.title = 'Remove from this workout';
     riga.appendChild(tasti);
     es.appendChild(riga);
@@ -632,7 +639,7 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
       es.appendChild(edNotaRiga(r, L));
       /* sul telefono la riga e' corta: togliere sta qui dentro */
       const az = el('div', 'ed-video-tasti ed-nota-az solo-tel');
-      edBottone(az, 'Remove from this workout', 'btn-del', togli);
+      edConferma(az, 'Remove from this workout', togli);
       es.appendChild(az);
     }
     cont.appendChild(es);

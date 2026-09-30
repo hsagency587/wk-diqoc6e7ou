@@ -763,7 +763,8 @@ body.ed-aperto{overflow:hidden}
 .ed-tasto{margin-left:0;min-width:40px;min-height:44px;padding:0 6px;font-size:18px;color:var(--text-2)}
 .ed-tasto:disabled{opacity:.25}
 .ed-desc.piena{color:var(--accent);border-color:var(--accent)}
-.ed-x:hover{color:var(--danger)}
+.ed-x{color:var(--danger);border-color:rgba(255,69,58,.45)}
+.ed-x.sicuro{background:var(--danger);border-color:var(--danger);color:#fff;font-size:14px;font-weight:700;padding:0 10px}
 .ed-es-grp{margin:0 var(--s3) var(--s2);font-size:13px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--accent)}
 .ed-desc-box{padding:0 var(--s2) var(--s2)}
 .ed-video{margin-bottom:var(--s2)}
