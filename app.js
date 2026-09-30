@@ -761,21 +761,14 @@ function righeScheda(tab, sc, src, nome) {
                  { t: r[1], cls: 'val' }])
       : tabRiga([{ t: r[0], cls: 'eti' }], 'solo');
     /* con una descrizione dentro, la riga si tocca e si apre. La freccia dice
-       che sotto c'e' qualcosa da leggere o da guardare. */
-    if (r[3] || r[4]) {
+       che sotto c'e' qualcosa da leggere o da guardare. In un Tabata si apre
+       ogni esercizio, anche senza descrizione: da li' parte la sequenza, che
+       comincia sempre dal primo del gruppo. */
+    const tabata = (r[2] || []).some(x => /tabata/i.test(x));
+    if (r[3] || r[4] || tabata) {
       riga.classList.add('condesc');
       riga.dataset.desces = JSON.stringify([src, nome, i]);
       riga.lastChild.appendChild(el('span', 'desfrec', '▾'));   /* uguale per tutti: con o senza video */
-    } else {
-      /* in un Tabata ogni esercizio si tocca: si apre la descrizione del primo
-         del gruppo, da dove parte la sequenza. Si vede come prima: la freccia
-         resta solo dove c'e' una descrizione */
-      const g = r[2] || [], kt = g.findIndex(x => /tabata/i.test(x));
-      const primo = kt < 0 ? -1 : sc.es.findIndex(x => x[0] && dentroVia(x[2] || [], g.slice(0, kt + 1)));
-      if (primo >= 0) {
-        riga.classList.add('contabata');
-        riga.dataset.desces = JSON.stringify([src, nome, primo]);
-      }
     }
     dove.appendChild(riga);
   });
