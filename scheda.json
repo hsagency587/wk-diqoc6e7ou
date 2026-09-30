@@ -1853,5 +1853,10 @@
       "",
       ""
     ]
-  ]
+  ],
+  "esercizi": {
+    "roll piedi": {
+      "p": "Full roll"
+    }
+  }
 }
