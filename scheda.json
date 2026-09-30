@@ -1860,6 +1860,9 @@
     },
     "roll polpacci": {
       "p": "Full roll"
+    },
+    "gait cycle x corsa": {
+      "p": "Gait cycle"
     }
   }
 }
