@@ -439,8 +439,12 @@ function edPagSettimana(box, ctx, si) {
       inp.addEventListener('change', () => {
         const r = (w.workout[g] || []).slice();
         while (r.length <= i) r.push('');
-        const scritto = inp.value.slice(0, 60).trim();
+        let scritto = inp.value.slice(0, 60).trim();
         const basso = scritto.toLowerCase();
+        /* un workout che c'e' gia', scritto con maiuscole diverse, e' quello:
+           niente workout fantasma */
+        const esiste = edWorkout(f).find(n => n.toLowerCase() === basso);
+        if (esiste) { scritto = esiste; inp.value = esiste; }
         r[i] = scritto && (basso === EVERY.toLowerCase() || basso === 'everyday' || basso === nomeEvery.toLowerCase()) ? MORNING : scritto;
         if (r[i] === MORNING) inp.value = EVERY;
         while (r.length && !r[r.length - 1]) r.pop();
@@ -500,12 +504,15 @@ function edTendina(inp, voci, scegli, opt) {
     for (const v of trovate) {
       const b = el('button', 'ed-tend-voce' + (edNorm(v) === q ? ' uguale' : ''), v);
       b.type = 'button';
-      /* pointerdown e non click: il campo non perde il fuoco prima della scelta */
-      b.addEventListener('pointerdown', ev => { ev.preventDefault(); chiudi(); scegli(v); });
+      /* pointerdown tiene il fuoco nel campo; la scelta arriva col click, cosi'
+         il tocco finisce qui e non cade sul tasto che c'e' sotto */
+      b.addEventListener('pointerdown', ev => ev.preventDefault());
+      b.addEventListener('click', ev => { ev.preventDefault(); ev.stopPropagation(); chiudi(); scegli(v); });
       box.appendChild(b);
     }
-    if (!trovate.length) box.appendChild(el('p', 'ed-tend-vuota', opt.vuota || 'Nothing found'));
-    else if (opt.nuova && q && !trovate.some(v => edNorm(v) === q)) box.appendChild(el('p', 'ed-tend-vuota', opt.nuova));
+    const nuova = opt.nuova && q && !trovate.some(v => edNorm(v) === q);
+    if (nuova) box.appendChild(el('p', 'ed-tend-vuota', opt.nuova + ': "' + inp.value.trim() + '"'));
+    else if (!trovate.length) box.appendChild(el('p', 'ed-tend-vuota', opt.vuota || 'Nothing found'));
     box.hidden = false;
   };
   inp.setAttribute('autocomplete', 'off');
@@ -550,6 +557,7 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
       edPagina();
     });
     box.appendChild(bar);
+    setTimeout(() => bar.remove(), 10000 - (Date.now() - t.t));
   }
   const cont = el('div', 'ed-es-lista');
   box.appendChild(cont);
@@ -587,7 +595,7 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
     qta.value = r[1] || '';
     qta.addEventListener('change', () => { r[1] = qta.value.slice(0, 60).trim(); edCambio(false); });
     riga.appendChild(edTendina(nome, nomiTutti, v => { nome.value = v; nome.blur(); nome.dispatchEvent(new Event('change')); },
-                               { cls: 'nome', nuova: 'New: not in the library yet' }));
+                               { cls: 'nome', nuova: 'New exercise, not in the library yet' }));
     riga.appendChild(qta);
 
     const tasti = el('div', 'ed-es-tasti');
@@ -618,8 +626,9 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
     };
     /* due tocchi: il primo chiede conferma, il secondo toglie */
     const x = edBottone(tasti, '×', 'ed-tasto ed-x', () => {
-      if (x.dataset.sicuro) { togli(); return; }
-      x.dataset.sicuro = '1';
+      /* un doppio tocco per sbaglio (piu' veloce di mezzo secondo) non conta */
+      if (x.dataset.sicuro) { if (Date.now() - +x.dataset.sicuro > 450) togli(); return; }
+      x.dataset.sicuro = String(Date.now());
       x.textContent = 'Remove?';
       x.classList.add('sicuro');
       setTimeout(() => { if (x.isConnected) { delete x.dataset.sicuro; x.textContent = '×'; x.classList.remove('sicuro'); } }, 4000);
@@ -674,7 +683,7 @@ function edTrascina(man, es, cont, sc, i) {
     ev.preventDefault();
     man.setPointerCapture(ev.pointerId);
     const pane = $('edPane');
-    const carte = [...cont.children];
+    const carte = [...cont.querySelectorAll(':scope > .ed-es')];
     const rects = carte.map(c => c.getBoundingClientRect());
     const alto = rects[i].height + 6;
     const y0 = ev.clientY, s0 = pane.scrollTop;
@@ -1704,6 +1713,7 @@ function edLibRinomina(n, nuovo) {
      che gli manca */
   if (mioL && suoL && mioL !== suoL) {
     if (!suoL[3]) suoL[3] = mioL[3];
+    else if (mioL[3] && mioL[3] !== suoL[3]) suoL[3] = suoL[3] + '\n\n' + mioL[3];
     suoL[4] = [...new Set(videiDi(suoL).concat(videiDi(mioL)))].slice(0, 6).join(',');
     tstore.libreria = tstore.libreria.filter(r => r !== mioL);
   }
@@ -1808,7 +1818,7 @@ function edPagLibreria(box) {
   const nomeN = el('input', 'campo');
   nomeN.type = 'text'; nomeN.maxLength = 60; nomeN.placeholder = 'New exercise name';
   nuovo.appendChild(edTendina(nomeN, () => tutti.map(x => x.nome), v => { nomeN.value = v; aggiungi(); },
-                               { cls: 'nome', nuova: 'New: not in the library yet' }));
+                               { cls: 'nome', nuova: 'New exercise, not in the library yet' }));
   const errN = el('p', 'nota ed-lib-msg'); errN.hidden = !edLibMsg; errN.textContent = edLibMsg; edLibMsg = '';
   const aggiungi = () => {
     const nome = nomeN.value.slice(0, 60).trim();
@@ -1910,7 +1920,9 @@ function edPagLibreria(box) {
       const t = el('button', 'ed-lib-testa');
       t.type = 'button';
       if (edLibSel) t.appendChild(el('span', 'ed-lib-spunta', edLibSel.has(k) ? '☑' : '☐'));
-      t.appendChild(el('span', 'ed-lib-nome', (variante ? '↳ ' : '') + x.nome));
+      const nm = el('span', 'ed-lib-nome', x.nome);
+      if (variante) nm.prepend(el('span', 'ed-lib-freccia', '↳ '));
+      t.appendChild(nm);
       const segni = (x.video ? '▶ ' : '') + (x.desc ? '¶' : '');
       if (segni) t.appendChild(el('span', 'ed-lib-segni', segni));
       if (!edLibSel) t.appendChild(el('span', 'ed-freccia' + (aperto ? ' open' : ''), '▾'));
@@ -1931,6 +1943,12 @@ function edPagLibreria(box) {
         nomeC.addEventListener('change', () => {
           const nuovo = nomeC.value.slice(0, 60).trim();
           if (!nuovo) { nomeC.value = x.nome; return; }
+          /* un nome che c'e' gia': i due diventerebbero uno solo. Si chiede prima */
+          const kn = edNorm(nuovo);
+          if (kn !== k && edRigheDi(kn).length &&
+              !confirm('"' + nuovo + '" already exists.\n\nMerge "' + x.nome + '" into it? They become one exercise everywhere; videos and descriptions are kept together.')) {
+            nomeC.value = x.nome; return;
+          }
           const unito = edLibRinomina(k, nuovo);
           edLibAperti.delete(k); edLibAperti.add(edNorm(unito || nuovo));
           edLibMsg = unito ? '"' + x.nome + '" is now one exercise with "' + unito + '".' : '';

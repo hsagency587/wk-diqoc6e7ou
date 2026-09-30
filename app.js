@@ -733,7 +733,7 @@ function disegnaW() {
   const tab = el('div', 'tab tab-w');
   tab.style.setProperty('--wcol', n);
   /* in cima alla tabella, sempre la stessa scritta, su tutta la riga */
-  const capo = tabRiga([{ t: 'SCHEDULING', cls: 'tuttariga' }], 'capo');
+  const capo = tabRiga([{ t: 'SETTIMANA', cls: 'tuttariga' }], 'capo');
   tab.appendChild(capo);
   for (const x of giorni) {
     const celle = [{ t: GIORNI2_IT[x.g] + ' ' + x.d.getDate(), cls: 'eti' }];
@@ -1263,8 +1263,13 @@ function chiudiDesc() {
 
 $('descChiudi').addEventListener('click', chiudiDesc);
 dlgDesc.addEventListener('cancel', ev => {
-  /* col timer aperto, il tasto indietro chiude il timer e non la descrizione */
-  if (!$('tmr').hidden) { ev.preventDefault(); tmrFerma(); return; }
+  /* col timer aperto, il tasto indietro non butta via niente: il timer va in
+     pausa e resta li'. Lo chiude solo Stop; a timer finito, anche indietro */
+  if (!$('tmr').hidden) {
+    ev.preventDefault();
+    if (!tmr.f || tmr.f.fine) tmrFerma(); else if (!tmr.fermo) tmrPausa();
+    return;
+  }
   pulisciVideo(); $('descTesto').textContent = '';
 });
 
@@ -1330,7 +1335,8 @@ function pianoTimer(sc, r) {
     if (!turno.length) return null;
     return { sequenza: es.length > 1, fase: i => {
       if (min && i >= min) return null;
-      return { sec: 60, nome: turno[i % turno.length], info: 'Minuto ' + (i + 1) + (min ? ' di ' + min : '') };
+      const poi = es.length > 1 && !(min && i + 1 >= min) ? '  ·  poi: ' + turno[(i + 1) % turno.length] : '';
+      return { sec: 60, nome: turno[i % turno.length], info: 'Minuto ' + (i + 1) + (min ? ' di ' + min : '') + poi };
     } };
   }
 
@@ -1467,7 +1473,7 @@ function tmrDisegna() {
   const ms = tmr.fermo ? tmr.resto : tmr.fine - Date.now();
   box.classList.toggle('pausa', !!f.pausa);
   box.classList.toggle('fermo', tmr.fermo);
-  $('tmrFase').textContent = f.fine ? 'Fatto' : f.pausa ? 'Pausa' : 'Via';
+  $('tmrFase').textContent = f.fine ? 'Fatto' : tmr.fermo ? 'In pausa' : f.pausa ? 'Recupero' : 'Via';
   $('tmrNome').textContent = f.nome || '';
   $('tmrTempo').textContent = mmss(Math.max(0, Math.ceil(ms / 1000)));
   $('tmrInfo').textContent = f.info || '';
@@ -1509,7 +1515,7 @@ function tmrAvvia(piano) {
   tmr.fermo = false;
   $('tmrPausa').textContent = 'Pausa';
   $('tmrPausa').hidden = false;
-  $('tmrStop').textContent = 'Stop';
+  tmrStopBtn('Stop', true);
   $('tmr').hidden = false;
   tmrEntra(0, Date.now());
   tmr.tic = setInterval(tmrTic, 200);
@@ -1521,7 +1527,7 @@ function tmrFine() {
   tmr.f = { fine: true, sec: 0, nome: tmr.f ? tmr.f.nome : '', info: '' };
   tmr.fermo = true; tmr.resto = 0;
   $('tmrPausa').hidden = true;
-  $('tmrStop').textContent = 'Chiudi';
+  tmrStopBtn('Chiudi', false);
   tmrDisegna();
   $('tmr').classList.remove('fermo');
   if (tmr.lock) tmr.lock.release().catch(() => {});
@@ -1536,13 +1542,32 @@ function tmrFerma() {
 }
 
 $('tAvvia').addEventListener('click', () => { if (tPiano) tmrAvvia(tPiano); });
-$('tmrStop').addEventListener('click', tmrFerma);
-$('tmrPausa').addEventListener('click', () => {
-  if (!tmr.f) return;
+/* Stop si tocca due volte: il primo tocco chiede conferma. Chiudi, a timer
+   finito, basta una volta. */
+function tmrStopBtn(testo, rosso) {
+  const b = $('tmrStop');
+  b.textContent = testo;
+  delete b.dataset.sicuro;
+  b.classList.toggle('btn-del', rosso);
+  b.classList.remove('sicuro');
+}
+$('tmrStop').addEventListener('click', () => {
+  const b = $('tmrStop');
+  if (!tmr.f || tmr.f.fine || b.dataset.sicuro) { tmrFerma(); return; }
+  b.dataset.sicuro = '1';
+  b.textContent = 'Fermo davvero?';
+  b.classList.add('sicuro');
+  setTimeout(() => { if (b.dataset.sicuro && !$('tmr').hidden) tmrStopBtn('Stop', true); }, 4000);
+});
+function tmrPausa() {
+  if (!tmr.f || tmr.f.fine) return;
   if (tmr.fermo) { tmr.fine = Date.now() + tmr.resto; tmr.fermo = false; }
   else { tmr.resto = Math.max(0, tmr.fine - Date.now()); tmr.fermo = true; }
   $('tmrPausa').textContent = tmr.fermo ? 'Riprendi' : 'Pausa';
   tmrDisegna();
+}
+$('tmrPausa').addEventListener('click', () => {
+  tmrPausa();
 });
 
 /* ------------------------------------------------------ i video ---- */
@@ -2046,6 +2071,16 @@ $('gElenco').addEventListener('click', ev => {
   }
 });
 
+/* Invio nei campi del pannello non chiude il pannello: nel nome conferma il
+   nome, negli esercizi aggiunge. */
+for (const id of ['gNome', 'gNuovoEs', 'gNuovoQ', 'gLav', 'gRec', 'gGiri', 'gMin']) {
+  $(id).addEventListener('keydown', ev => {
+    if (ev.key !== 'Enter') return;
+    ev.preventDefault();
+    if (id === 'gNuovoEs' || id === 'gNuovoQ') $('gNuovoOk').click(); else $(id).blur();
+  });
+}
+
 $('gNome').addEventListener('change', () => {
   if (!grp || !grp.via) return;
   const sc = schedeDi(grp.src)[grp.scheda];
@@ -2053,6 +2088,12 @@ $('gNome').addEventListener('change', () => {
   const via = grp.via, d = via.length - 1;
   if (v === via[d]) return;
   if (!v) { $('gNome').value = via[d]; return; }
+  /* un nome gia' usato da un altro gruppo li unirebbe: si chiede prima */
+  const altra = via.slice(0, d).concat([v]);
+  if (via[d] && sc.es.some(r => dentroVia(r[2] || [], altra)) &&
+      !confirm('A group "' + v + '" already exists here.\n\nMerge the two groups into one?')) {
+    $('gNome').value = via[d]; return;
+  }
   for (const r of sc.es) {
     const g = r[2] || [];
     if (dentroVia(g, via)) g[d] = v;
@@ -2115,7 +2156,11 @@ $('gNuovoOk').addEventListener('click', () => {
   const b = $('gNuovoQ').value.slice(0, 60).trim();
   if (!a && !b) { $('gNuovoEs').focus(); return; }
   if (!via[via.length - 1]) { $('gNome').focus(); return; }
-  sc.es = sc.es.concat([[a, b, via.slice(), '']]);
+  /* come nelle righe del workout: il nome si scrive come in libreria, e un
+     nome nuovo entra in libreria */
+  let nomeEs = a;
+  if (a && typeof edLib === 'function') { const L = edLib(normEs(a), a); if (L) nomeEs = L[0]; }
+  sc.es = sc.es.concat([[nomeEs, b, via.slice(), '', '']]);
   accoda(sc, sc.es.length - 1, via);
   touch();
   disegnaGruppi();

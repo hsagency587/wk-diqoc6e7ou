@@ -418,7 +418,10 @@ body{overflow-x:clip}
 .tmr-tempo{font-size:min(34vw,180px);font-weight:700;line-height:1;font-variant-numeric:tabular-nums;color:var(--accent)}
 .tmr-info{font-size:20px;color:var(--muted)}
 .tmr.pausa .tmr-fase,.tmr.pausa .tmr-tempo{color:var(--text-2)}
-.tmr.fermo .tmr-tempo{opacity:.45}
+.tmr.fermo .tmr-tempo{opacity:.45;animation:tmrLampeggia 1s steps(2,start) infinite}
+.tmr.fermo .tmr-fase{color:var(--danger)}
+@keyframes tmrLampeggia{to{visibility:hidden}}
+.tmr-btn .btn.sicuro{background:var(--danger);border-color:var(--danger);color:#fff}
 .tmr-btn{width:100%;max-width:480px}
 .tmr-btn .btn{flex:1}
 
@@ -756,8 +759,11 @@ body.ed-aperto{overflow:hidden}
 .ed-tend-padre{flex:1 1 200px;max-width:320px}
 .ed-in-gruppo{margin:4px 0 var(--s2);min-height:40px;font-size:15px}
 /* la riga appena tolta: si puo' rimettere */
-.ed-tolto{display:flex;align-items:center;gap:var(--s2);margin:0 0 var(--s2);padding:var(--s2) var(--s3);
-  border:1px solid var(--accent);border-radius:var(--radius);background:var(--surface-2)}
+/* la barra per rimettere: sempre in basso sullo schermo, dove si vede */
+.ed-tolto{position:fixed;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:60;
+  display:flex;align-items:center;gap:var(--s2);padding:var(--s2) var(--s3);
+  border:1px solid var(--accent);border-radius:var(--radius);background:var(--surface-2);
+  box-shadow:0 8px 28px rgba(0,0,0,.45)}
 .ed-tolto-t{flex:1;min-width:0;font-size:15px;color:var(--text)}
 .ed-es-tasti{display:flex;gap:2px;flex:0 0 auto}
 .ed-tasto{margin-left:0;min-width:40px;min-height:44px;padding:0 6px;font-size:18px;color:var(--text-2)}
@@ -916,8 +922,11 @@ body.ed-aperto{overflow:hidden}
 .ed-lib-nota{margin:0 0 var(--s2);font-size:13px;color:var(--muted);font-style:italic}
 .ed-lib-msg{color:var(--accent)}
 /* varianti: sotto il padre, meno in evidenza */
-.ed-lib-var .ed-lib-testa{padding-left:22px;padding-top:7px;padding-bottom:7px}
-.ed-lib-var .ed-lib-nome{font-weight:400;font-size:14px;color:var(--muted)}
+/* le varianti: rientrate sotto il loro esercizio, un pelo piu' piccole ma
+   ben leggibili, con la freccia verde che le lega al padre */
+.ed-lib-var .ed-lib-testa{padding-left:22px;padding-top:9px;padding-bottom:9px}
+.ed-lib-var .ed-lib-nome{font-weight:500;font-size:17px;color:var(--text-2)}
+.ed-lib-freccia{color:var(--accent);font-weight:700}
 .ed-lib-var .ed-lib-corpo{padding-left:22px}
 .ed-lib-spunta{flex:0 0 auto;font-size:18px;color:var(--accent)}
 .ed-lib-sel{margin:0 0 var(--s2);padding:var(--s2);border:1px solid var(--line);border-radius:var(--radius)}
@@ -960,7 +969,7 @@ body.ed-aperto{overflow:hidden}
 .ed-desc-testo{padding:var(--s1) var(--s2);font-size:16px}
 .ed-aggiungi{min-height:40px;margin-top:6px;font-size:16px}
 .ed-lib-testa{padding:7px 4px}
-.ed-lib-var .ed-lib-testa{padding-top:5px;padding-bottom:5px}
+.ed-lib-var .ed-lib-testa{padding-top:8px;padding-bottom:8px}
 .ed-lib-corpo{padding:0 4px var(--s2)}
 .ed-lib-usi,.ed-lib-nota{margin-bottom:6px}
 .ed-lib-nomecampo{margin-bottom:4px}
