@@ -1290,9 +1290,9 @@ function pianoTimer(righe, r) {
    fase un bip e una vibrazione; alla fine tre bip. Lo schermo resta acceso. */
 const tmr = { piano: null, i: 0, f: null, fine: 0, resto: 0, fermo: false, tic: 0, audio: null, lock: null };
 
-/* Il suono: onda quadra, due note che salgono, passate da un compressore
-   che le porta al massimo senza gracchiare. Si riconosce anche con la musica
-   in palestra. Su iPhone la pagina suona anche col telefono in silenzioso. */
+/* Il suono: la campanella del ring, passata da un compressore che la porta
+   al massimo senza gracchiare. Si riconosce anche con la musica in palestra.
+   Su iPhone la pagina suona anche col telefono in silenzioso. */
 function audioTimer() {
   if (tmr.audio) return tmr.audio;
   const AC = window.AudioContext || window.webkitAudioContext;
@@ -1302,24 +1302,39 @@ function audioTimer() {
   const comp = a.createDynamicsCompressor();
   comp.threshold.value = -30; comp.knee.value = 0; comp.ratio.value = 20;
   comp.attack.value = 0.001; comp.release.value = 0.1;
-  const su = a.createGain();
+  const su = a.createGain(), fuori = a.createGain();
   su.gain.value = 4;
-  su.connect(comp); comp.connect(a.destination);
+  fuori.gain.value = 2;                 /* il compressore abbassa: qui si torna al massimo */
+  su.connect(comp); comp.connect(fuori); fuori.connect(a.destination);
   a.uscita = su;
   tmr.audio = a;
   return a;
 }
 
-function nota(a, freq, t, dur) {
-  const o = a.createOscillator(), g = a.createGain();
-  o.type = 'square';
-  o.frequency.value = freq;
-  g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(1, t + 0.005);
-  g.gain.setValueAtTime(1, t + dur - 0.02);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g); g.connect(a.uscita);
-  o.start(t); o.stop(t + dur + 0.01);
+/* Un colpo di campanella: il colpo del martelletto, poi le note della campana
+   (non armoniche, per questo suona di metallo) che si spengono piano, le piu'
+   alte prima. */
+const CAMPANA = [[1, 1, 1.6], [2.0, 0.55, 1.1], [2.42, 0.5, 0.9], [2.98, 0.3, 0.7],
+                 [4.16, 0.28, 0.45], [5.43, 0.18, 0.3], [6.79, 0.12, 0.2]];
+function colpo(a, t) {
+  const f0 = 880;
+  for (const [r, amp, dur] of CAMPANA) {
+    const o = a.createOscillator(), g = a.createGain();
+    o.frequency.value = f0 * r;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(amp * 0.5, t + 0.003);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(a.uscita);
+    o.start(t); o.stop(t + dur + 0.02);
+  }
+  /* il martelletto: un soffio di rumore brevissimo */
+  const n = a.createBuffer(1, Math.floor(a.sampleRate * 0.03), a.sampleRate), d = n.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+  const src = a.createBufferSource(), g = a.createGain(), hp = a.createBiquadFilter();
+  hp.type = 'highpass'; hp.frequency.value = 2500;
+  g.gain.value = 0.4;
+  src.buffer = n; src.connect(hp); hp.connect(g); g.connect(a.uscita);
+  src.start(t);
 }
 
 /* Il primo scatto del giorno puo' essere un audio scelto nell'editor
@@ -1359,14 +1374,9 @@ function bip(volte) {
     tSorpresa = null;
     return;
   }
-  /* un cambio di fase: due note che salgono, due volte. La fine: tre volte, piu' lunghe */
+  /* la campanella del ring, tre colpi di fila: uguale a ogni cambio e alla fine */
   const t0 = a.currentTime + 0.02;
-  const giri = volte > 1 ? 3 : 2, d = volte > 1 ? 0.22 : 0.14;
-  for (let k = 0; k < giri; k++) {
-    const t = t0 + k * (d * 2 + 0.12);
-    nota(a, 1318, t, d);
-    nota(a, 1760, t + d, d);
-  }
+  for (let k = 0; k < 3; k++) colpo(a, t0 + k * 0.28);
 }
 
 async function tieniAcceso() {
