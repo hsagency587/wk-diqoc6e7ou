@@ -38,6 +38,15 @@ Stato: deciso, da costruire.
 
 6. **Cambia chiave.** Un tasto per ogni persona. Crea una chiave nuova, ricifra il file e i video con la nuova chiave, e toglie quelli vecchi. Il vecchio collegamento smette di funzionare e mando quello nuovo.
 
+## Primo test: la zia
+
+Quando si costruisce, si crea anche lo spazio per mia zia, con un repository suo se serve. Si fa subito un test con la sua scheda:
+
+- creo la sua persona e la sua chiave;
+- le preparo la scheda dall'editor, prendendo dalla mia libreria;
+- le mando il collegamento e lei apre la sua scheda dal suo telefono;
+- si controlla che lei veda solo la sua roba e io veda sia la mia sia la sua.
+
 ## Le chiavi
 
 - Le chiavi dei parenti le crea l'app: a caso, così due persone non possono averne una uguale.
