@@ -1943,6 +1943,9 @@
     },
     "roll basso schiena": {
       "p": "Full roll"
+    },
+    "roll upper - dorso, trapezzi, petto, spalle": {
+      "p": "Full roll"
     }
   }
 }
