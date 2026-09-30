@@ -372,7 +372,7 @@ function applicaPiano(d) {
 /* Unisce questo telefono con la versione online `remoto`. Torna quante cose
    erano cambiate da tutte e due le parti (dove ha vinto questo telefono), o
    -1 se non si puo' (manca la base: allora vince questo telefono, come prima). */
-function uniscoConOnline(remoto) {
+function uniscoConOnline(remoto, sha) {
   if (!tstore.base) return -1;
   const conti = { n: 0 };
   const R = istantanea(remoto);
@@ -381,7 +381,7 @@ function uniscoConOnline(remoto) {
   const a = document.activeElement;
   if (!$('ed').hidden && a && $('ed').contains(a) && a.blur) a.blur();
   applicaPiano(u);
-  tstore.base = R;
+  allinea(sha, R);
   if (typeof edRidisegna === 'function') edRidisegna();
   paintW();
   return conti.n;
@@ -2215,6 +2215,21 @@ function rememberSha(sha) {
   tstore.known = [sha].concat(tstore.known.filter(x => x !== sha)).slice(0, 4);
 }
 
+/* Il telefono ha davvero in mano la versione online `sha`: la sua `base` e'
+   quella. Si chiama solo dopo che il contenuto e' entrato, mai prima: cosi'
+   il telefono non puo' credersi aggiornato con in mano un piano vecchio. */
+function allinea(sha, base) {
+  tstore.base = base;
+  tstore.shaBase = sha || null;
+  if (sha) rememberSha(sha);
+}
+
+/* Il telefono si fida della sua copia solo se e' proprio quella della
+   versione online, o se ha modifiche sue ancora da salvare sopra quella.
+   Altrimenti la copia si e' staccata: si riprende il piano online. */
+const copiaFidata = sha => !!sha && tstore.shaBase === sha && !!tstore.base &&
+  (tstore.dirty || contenuto(tstore) === JSON.stringify(tstore.base));
+
 function paintSalva() {
   /* due bottoni, uno stato: in testata e nell'editor */
   /* il bottone serve anche per spingere i video rimasti in coda */
@@ -2271,7 +2286,12 @@ async function pullTasks() {
   let j;
   try { j = await r.json(); } catch (e) { return; }
   if (!j || !j.sha) return;
-  if (tstore.known.indexOf(j.sha) >= 0) { fine(tstore.dirty ? '' : 'in sync'); scaricaVideo(); return; }
+  if (copiaFidata(j.sha)) {
+    fine(tstore.dirty ? '' : 'in sync');
+    if (tstore.dirty) autoSalva();       /* modifiche rimaste in sospeso: ripartono */
+    scaricaVideo();
+    return;
+  }
 
   let data;
   try {
@@ -2295,13 +2315,12 @@ async function pullTasks() {
 
   if (tstore.dirty) {
     if (contenuto(remoto) === contenuto(tstore)) {
-      rememberSha(j.sha); tstore.dirty = false; tstore.base = istantanea(remoto); saveLocal(); paintSalva();
+      allinea(j.sha, istantanea(remoto)); tstore.dirty = false; saveLocal(); paintSalva();
       fine('sincronizzato');
       return;
     }
-    const n = uniscoConOnline(remoto);
+    const n = uniscoConOnline(remoto, j.sha);
     if (n < 0) { fine('online c\'è un\'altra versione: salvando la sostituisci'); return; }
-    rememberSha(j.sha);
     touch();                      /* il piano unito parte da solo */
     fine(dettoUnione(n));
     return;
@@ -2318,9 +2337,8 @@ async function pullTasks() {
   tstore.sorprese = remoto.sorprese;
   tstore.libreria = remoto.libreria;
   tstore.esercizi = remoto.esercizi;
-  tstore.base = istantanea(remoto);
+  allinea(j.sha, istantanea(remoto));
   if (typeof edRidisegna === 'function') edRidisegna();
-  rememberSha(j.sha);
   tstore.dirty = false;
   saveLocal();
   paintW(); paintSalva();
@@ -2384,8 +2402,8 @@ async function pushTasks(opts) {
   if (tstore.sha) payload.sha = tstore.sha;
   const body = JSON.stringify(payload);
 
-  const salvato = () => {
-    tstore.base = JSON.parse(sent);
+  const salvato = sha => {
+    allinea(sha, JSON.parse(sent));
     if (contenuto(tstore) === sent) tstore.dirty = false;
     saveLocal(); paintSalva();
     paintSync('salvato alle ' + fmtTime.format(new Date()) + (notaUnione ? ' · ' + notaUnione : ''));
@@ -2402,7 +2420,7 @@ async function pushTasks(opts) {
       keepalive: !!opts.keepalive && body.length < 60000
     });
   } catch (e) {
-    salvando = false; salvaErr = 'niente rete'; salvaRetry = true; paintSalva(); return;
+    salvando = false; salvaErr = 'niente rete'; salvaRetry = true; paintSalva(); paintSync(); return;
   }
   salvando = false;
 
@@ -2426,14 +2444,15 @@ async function pushTasks(opts) {
       const cur = await leggi();
       if (cur.ok) {
         const j = await cur.json();
-        rememberSha(j.sha);
         let data = null;
         try { data = JSON.parse(await decifra(b64dec(j.content))); } catch (e) { /* si riprova comunque */ }
-        if (data && contenuto(data) === sent) { salvato(); return; }
+        if (data && contenuto(data) === sent) { salvato(j.sha); return; }
         /* online c'e' la versione di un altro telefono: si unisce, poi si
-           salva il piano unito */
+           salva il piano unito. La sha nuova serve per scrivere; il
+           telefono la conta come sua solo dopo l'unione o il salvataggio. */
+        tstore.sha = j.sha;
         if (data) {
-          const n = uniscoConOnline(data);
+          const n = uniscoConOnline(data, j.sha);
           if (n >= 0) { saveLocal(); notaUnione = dettoUnione(n); }
         }
         return pushTasks(Object.assign({}, opts, { retry: true }));
@@ -2459,8 +2478,7 @@ async function pushTasks(opts) {
 
   let j = null;
   try { j = await r.json(); } catch (e) { /* salvato comunque */ }
-  if (j && j.content && j.content.sha) rememberSha(j.content.sha);
-  salvato();
+  salvato(j && j.content && j.content.sha);
   /* il piano e' salvato: adesso i video nuovi, uno alla volta. Chiudendo
      l'app non si prova nemmeno: un video non parte in un colpo solo. */
   if (!opts.keepalive) codaVideo();
