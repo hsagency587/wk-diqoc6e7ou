@@ -1418,6 +1418,16 @@ function edPagPrep(box, id) {
   const dal = edCampo(box, 'Dal', p.dal, { type: 'date' }, () => cambiaDate());
   const al = edCampo(box, 'Al', p.al, { type: 'date' }, () => cambiaDate());
   box.appendChild(errore);
+  /* l'ultimo giorno puo' essere il giorno dell'evento: si vede col suo nome */
+  const lf = el('label', 'ed-spunta');
+  const cf = el('input', 'schsel');
+  cf.type = 'checkbox';
+  cf.checked = !!p.nomeFine;
+  cf.addEventListener('change', () => { p.nomeFine = cf.checked; edCambio(false); });
+  lf.appendChild(cf);
+  lf.appendChild(el('span', null, 'L\'ultimo giorno (' + dataCorta(p.al) + ') mostra il nome "' + nomePrep(p) + '"'));
+  box.appendChild(lf);
+  box.appendChild(el('p', 'ed-sotto', 'Nella settimana quel giorno si legge il nome; quel giorno, in cima alla pagina, si legge OGGI e il nome. Gli allenamenti del giorno restano.'));
   function cambiaDate() {
     const msg = edDateOk(dal.value, al.value, p.id);
     if (msg) { errore.textContent = msg; errore.hidden = false; dal.value = p.dal; al.value = p.al; return; }

@@ -297,7 +297,9 @@ function validPrep(l) {
       mattina: validMattina(x.mattina),
       mattinaVia: !!x.mattinaVia,
       mattinaQuando: validQuando(x.mattinaQuando),
-      altre: validAltre(x.altre)
+      altre: validAltre(x.altre),
+      /* l'ultimo giorno mostra il nome della preparazione (il giorno dell'evento) */
+      nomeFine: !!x.nomeFine
     };
   }).filter(Boolean).sort((a, b) => a.dal < b.dal ? -1 : 1);
 }
@@ -675,9 +677,16 @@ function disegnaW() {
     const p = oggi.prep;
     const manca = giorniFra(kOggi, p.al);
     const b = el('div', 'prepbanda');
-    b.appendChild(el('p', 'prepbanda-eti', 'PREPARAZIONE' + (p.nome ? ' · ' + p.nome : '')));
-    b.appendChild(el('p', 'prepbanda-date', dataIt(p.dal) + ' → ' + dataIt(p.al) +
-      (pAnt ? '' : ' · ' + (manca === 0 ? 'ultimo giorno' : manca === 1 ? 'manca 1 giorno' : 'mancano ' + manca + ' giorni'))));
+    if (p.nomeFine && p.nome && kOggi === p.al && !pAnt) {
+      /* il giorno dell'evento: OGGI e il nome, in grande */
+      b.classList.add('evento');
+      b.appendChild(el('p', 'prepbanda-eti', 'OGGI'));
+      b.appendChild(el('p', 'prepbanda-evento', p.nome));
+    } else {
+      b.appendChild(el('p', 'prepbanda-eti', 'PREPARAZIONE' + (p.nome ? ' · ' + p.nome : '')));
+      b.appendChild(el('p', 'prepbanda-date', dataIt(p.dal) + ' → ' + dataIt(p.al) +
+        (pAnt ? '' : ' · ' + (manca === 0 ? 'ultimo giorno' : manca === 1 ? 'manca 1 giorno' : 'mancano ' + manca + ' giorni'))));
+    }
     pagina.appendChild(b);
   }
   pagina.appendChild(box);
@@ -739,7 +748,9 @@ function disegnaW() {
   for (const x of giorni) {
     const celle = [{ t: GIORNI2_IT[x.g] + ' ' + x.d.getDate(), cls: 'eti' }];
     const quanti = x.pi.conti[x.g] || 0;
-    for (let i = 0; i < n; i++) {
+    const ev = x.pi.prep && x.pi.prep.nomeFine && x.pi.prep.nome && x.k === x.pi.prep.al;
+    if (ev) celle.push({ t: x.pi.prep.nome, cls: 'evento' });
+    else for (let i = 0; i < n; i++) {
       if (i >= quanti) celle.push({ t: '', cls: 'fuori' });
       else if (x.w[i] === MORNING) celle.push({ t: nomeMattinaDi(x.pi), cls: 'every' });
       else celle.push({ t: x.w[i] || '—', cls: x.w[i] ? '' : 'vuota' });
