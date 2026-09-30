@@ -553,6 +553,16 @@
     }
   },
   "mattina": "Morning Routine",
+  "altre": [
+    {
+      "id": "ob9a36t01",
+      "nome": "List 2",
+      "via": false,
+      "quando": {
+        "modo": "sempre"
+      }
+    }
+  ],
   "prep": [
     {
       "id": "pmuk3lceqrutor",
