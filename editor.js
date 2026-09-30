@@ -849,25 +849,28 @@ function edApriInLibreria(n) {
 function edNotaRiga(r, L) {
   const box = el('div', 'ed-desc-box ed-nota-box');
   const n = edNorm(r[0]);
-  if (L) {
-    const vv = videiDi(L).length;
-    const cosa = [L[3] ? 'description' : '', vv ? vv + (vv === 1 ? ' video' : ' video') : ''].filter(Boolean).join(' · ');
-    const t = el('div', 'ed-nota-lib');
-    t.appendChild(el('span', 'ed-nota-cosa', cosa ? 'In libreria: ' + cosa : "In libreria non c'è ancora niente."));
-    const b = edBottone(t, '✎ Modifica in libreria', '', () => edApriInLibreria(n));
-    b.classList.add('ed-nota-vai');
-    box.appendChild(t);
-    if (L[3]) box.appendChild(el('p', 'ed-nota-anteprima', L[3]));
+  /* descrizione e video si scrivono anche da qui, ma vanno nella libreria:
+     valgono per questo esercizio in tutti i workout */
+  if (n) {
+    box.appendChild(el('p', 'ed-eti', 'Descrizione e video: vanno in libreria, valgono in tutti i workout'));
+    const fin = [r[0], '', [], (L && L[3]) || '', (L && L[4]) || ''];
+    box.appendChild(edDescrizione(fin, () => {
+      const X = edLib(n, r[0]);
+      X[3] = fin[3] || ''; X[4] = fin[4] || '';
+    }));
   }
-  const lab = el('p', 'ed-eti', 'Nota solo per questo workout');
-  box.appendChild(lab);
-  const t = el('textarea', 'commento ed-desc-testo');
-  t.value = r[3] || '';
-  const alto = () => { t.rows = Math.max(2, Math.min(16, t.value.split('\n').length + 1)); };
-  alto();
-  t.addEventListener('input', alto);
-  t.addEventListener('change', () => { r[3] = t.value.slice(0, 4000).trim(); edCambio(false); });
-  box.appendChild(t);
+  /* una nota scritta solo per questa riga, alla vecchia: resta, si legge e
+     si cambia qui */
+  if (r[3]) {
+    box.appendChild(el('p', 'ed-eti', 'Nota solo per questo workout'));
+    const t = el('textarea', 'commento ed-desc-testo');
+    t.value = r[3] || '';
+    const alto = () => { t.rows = Math.max(2, Math.min(16, t.value.split('\n').length + 1)); };
+    alto();
+    t.addEventListener('input', alto);
+    t.addEventListener('change', () => { r[3] = t.value.slice(0, 4000).trim(); edCambio(false); });
+    box.appendChild(t);
+  }
   return box;
 }
 
