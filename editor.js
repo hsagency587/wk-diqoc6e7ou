@@ -529,12 +529,28 @@ function edCercaPadre(k, attuale, scegli, vuoto) {
 
 /* --- gli esercizi: la parte comune a FIRST 15' e ai workout -------------- */
 
+/* L'ultima riga tolta da un workout, per poterla rimettere. */
+let edTolto = null;
+
 /* Le righe di una scheda da scrivere: nome, quantita', descrizione, frecce,
    croce. Il ▾ apre sotto la riga la descrizione e il video. */
 function edEsercizi(box, ctx, nomeScheda, sc) {
   /* i nomi di tutti gli esercizi gia' scritti: la tendina sotto il campo */
   let nomiLib = null;
   const nomiTutti = () => nomiLib || (nomiLib = edLibreria().map(x => x.nome));
+  /* appena tolta una riga: la si rimette com'era, al suo posto */
+  if (edTolto && edTolto.sc === sc && Date.now() - edTolto.t < 10000) {
+    const t = edTolto;
+    const bar = el('div', 'ed-tolto');
+    bar.appendChild(el('span', 'ed-tolto-t', '"' + (t.r[0] || 'Exercise') + '" removed from this workout'));
+    edBottone(bar, 'Undo', 'ed-ok', () => {
+      sc.es.splice(Math.min(t.i, sc.es.length), 0, t.r);
+      edTolto = null;
+      edCambio(false);
+      edPagina();
+    });
+    box.appendChild(bar);
+  }
   const cont = el('div', 'ed-es-lista');
   box.appendChild(cont);
   sc.es.forEach((r, i) => {
@@ -591,14 +607,17 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
     su.disabled = i === 0; su.setAttribute('aria-label', 'Move up');
     const giu = edBottone(tasti, '↓', 'ed-tasto solo-pc', () => edSposta(sc, i, 1));
     giu.disabled = i === sc.es.length - 1; giu.setAttribute('aria-label', 'Move down');
+    /* toglie la riga da questo workout e basta: in libreria l'esercizio resta,
+       e resta negli altri workout. Per qualche secondo si puo' annullare. */
     const togli = () => {
       sc.es.splice(i, 1);
+      edTolto = { sc: sc, i: i, r: r, t: Date.now() };
       edAperti = new Set();
       edCambio(false);
       edPagina();
     };
-    const x = edBottone(tasti, '×', 'ed-tasto ed-x solo-pc', togli);
-    x.setAttribute('aria-label', 'Remove this exercise');
+    const x = edBottone(tasti, '×', 'ed-tasto ed-x', togli);
+    x.setAttribute('aria-label', 'Remove from this workout'); x.title = 'Remove from this workout';
     riga.appendChild(tasti);
     es.appendChild(riga);
 

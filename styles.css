@@ -755,6 +755,10 @@ body.ed-aperto{overflow:hidden}
 .ed-tend-vuota{margin:0;padding:10px 14px;font-size:14px;color:var(--muted)}
 .ed-tend-padre{flex:1 1 200px;max-width:320px}
 .ed-in-gruppo{margin:4px 0 var(--s2);min-height:40px;font-size:15px}
+/* la riga appena tolta: si puo' rimettere */
+.ed-tolto{display:flex;align-items:center;gap:var(--s2);margin:0 0 var(--s2);padding:var(--s2) var(--s3);
+  border:1px solid var(--accent);border-radius:var(--radius);background:var(--surface-2)}
+.ed-tolto-t{flex:1;min-width:0;font-size:15px;color:var(--text)}
 .ed-es-tasti{display:flex;gap:2px;flex:0 0 auto}
 .ed-tasto{margin-left:0;min-width:40px;min-height:44px;padding:0 6px;font-size:18px;color:var(--text-2)}
 .ed-tasto:disabled{opacity:.25}
