@@ -22,7 +22,7 @@ let edAperti = new Set();
 /* Gli indirizzi dei video in anteprima: si liberano a ogni ridisegno */
 let edUrl = [];
 
-const GIORNI_ED = { 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday', 0: 'Sunday' };
+const GIORNI_ED = { 1: 'Lunedì', 2: 'Martedì', 3: 'Mercoledì', 4: 'Giovedì', 5: 'Venerdì', 6: 'Sabato', 0: 'Domenica' };
 const stretto = matchMedia('(max-width: 899px)');
 const copia = x => JSON.parse(JSON.stringify(x));
 
@@ -47,7 +47,7 @@ function edWorkout(f) {
   return out;
 }
 
-const nomePrep = p => p.nome || 'Preparation';
+const nomePrep = p => p.nome || 'Preparazione';
 const datePrep = p => dataCorta(p.dal) + ' – ' + dataCorta(p.al);
 
 /* Ogni cambio passa di qui: resta nel telefono, compare Salva, e la pagina
@@ -141,7 +141,7 @@ function edVoceAnteprima(box, testo, vista, attiva, cls, chiave, riempi) {
   const aperta = edAnteprime.has(chiave);
   const f = el('button', 'ed-freccia' + (aperta ? ' open' : ''), '▾');
   f.type = 'button';
-  f.setAttribute('aria-label', aperta ? 'Hide preview' : 'Show preview');
+  f.setAttribute('aria-label', aperta ? 'Nascondi anteprima' : 'Mostra anteprima');
   f.setAttribute('aria-expanded', aperta ? 'true' : 'false');
   f.addEventListener('click', ev => {
     ev.stopPropagation();
@@ -153,7 +153,7 @@ function edVoceAnteprima(box, testo, vista, attiva, cls, chiave, riempi) {
   if (aperta) {
     const pv = el('div', 'ed-anteprima');
     riempi(pv);
-    if (!pv.children.length) pv.appendChild(el('p', 'ed-ant-vuota', 'Nothing written yet.'));
+    if (!pv.children.length) pv.appendChild(el('p', 'ed-ant-vuota', 'Ancora niente di scritto.'));
     box.appendChild(pv);
   }
 }
@@ -170,7 +170,7 @@ function edAnteprimaScheda(pv, sc) {
     if (r[1]) l.appendChild(el('span', 'ed-ant-qta', r[1]));
     pv.appendChild(l);
   }
-  if (sc.rec) pv.appendChild(el('div', 'ed-ant-riga ed-ant-rec', 'Recovery ' + sc.rec));
+  if (sc.rec) pv.appendChild(el('div', 'ed-ant-riga ed-ant-rec', 'Recupero ' + sc.rec));
 }
 
 /* I giorni di una settimana, da leggere: in una preparazione solo quelli del
@@ -184,7 +184,7 @@ function edAnteprimaSett(pv, f, si) {
     const nomi = (w.workout[g] || []).slice(0, w.conti[g] || 0).map(x => x === MORNING ? nomeMattinaDi(f.obj) : x).filter(Boolean);
     const l = el('div', 'ed-ant-riga');
     l.appendChild(el('span', 'ed-ant-giorno', GIORNI2[g] + (k ? ' ' + daChiave(k).getDate() : '')));
-    l.appendChild(el('span', 'ed-ant-nome', nomi.length ? nomi.join(' + ') : 'Rest'));
+    l.appendChild(el('span', 'ed-ant-nome', nomi.length ? nomi.join(' + ') : 'Riposo'));
     pv.appendChild(l);
   });
 }
@@ -209,31 +209,31 @@ function edVociFonte(box, ctx) {
   const f = edFonte(ctx);
   const v = edVista;
   if (f.base) {
-    edVoceAnteprima(box, 'Week', { pag: 'week', ctx: ctx, sett: 0 }, v.pag === 'week' && v.ctx === ctx, '',
+    edVoceAnteprima(box, 'Settimana', { pag: 'week', ctx: ctx, sett: 0 }, v.pag === 'week' && v.ctx === ctx, '',
       ctx + ':week:0', pv => edAnteprimaSett(pv, f, 0));
   } else {
     f.settimane.forEach((w, i) => {
-      edVoceAnteprima(box, 'Week ' + (i + 1), { pag: 'week', ctx: ctx, sett: i },
+      edVoceAnteprima(box, 'Settimana ' + (i + 1), { pag: 'week', ctx: ctx, sett: i },
         v.pag === 'week' && v.ctx === ctx && v.sett === i, '', ctx + ':week:' + i, pv => edAnteprimaSett(pv, f, i));
     });
   }
   /* la lista di tutti i giorni sta nella sua categoria: Every day */
-  box.appendChild(el('p', 'ed-sub', 'Every day'));
-  edVoceAnteprima(box, nomeMattinaDi(f.obj) + (f.obj.mattinaVia ? ' (hidden)' : ''), { pag: 'morning', ctx: ctx },
+  box.appendChild(el('p', 'ed-sub', 'Ogni giorno'));
+  edVoceAnteprima(box, nomeMattinaDi(f.obj) + (f.obj.mattinaVia ? ' (nascosta)' : ''), { pag: 'morning', ctx: ctx },
     v.pag === 'morning' && v.ctx === ctx && !v.lista, f.obj.mattinaVia ? 'spenta' : '',
     ctx + ':morning', pv => edAnteprimaScheda(pv, f.schede[MORNING]));
   for (const a of f.obj.altre) {
-    edVoceAnteprima(box, (a.nome || 'Every day') + (a.via ? ' (hidden)' : ''), { pag: 'morning', ctx: ctx, lista: a.id },
+    edVoceAnteprima(box, (a.nome || 'Ogni giorno') + (a.via ? ' (nascosta)' : ''), { pag: 'morning', ctx: ctx, lista: a.id },
       v.pag === 'morning' && v.ctx === ctx && v.lista === a.id, a.via ? 'spenta' : '',
       ctx + ':ev:' + a.id, pv => edAnteprimaScheda(pv, f.schede[EV(a.id)]));
   }
   /* una lista nuova: nasce vuota, con il suo nome da scrivere */
   if (f.obj.altre.length < 10) {
-    const nuova = el('button', 'ed-voce piu', '+ New list');
+    const nuova = el('button', 'ed-voce piu', '+ Nuova lista');
     nuova.type = 'button';
     nuova.addEventListener('click', () => {
       const id = Date.now().toString(36).slice(-6) + Math.random().toString(36).slice(2, 5);
-      f.obj.altre.push({ id: id, nome: 'List ' + (f.obj.altre.length + 2), via: false, quando: { modo: 'sempre' } });
+      f.obj.altre.push({ id: id, nome: 'Lista ' + (f.obj.altre.length + 2), via: false, quando: { modo: 'sempre' } });
       f.schede[EV(id)] = { es: [], rec: '' };
       edCambio(true);
       edVai({ pag: 'morning', ctx: ctx, lista: id });
@@ -241,7 +241,7 @@ function edVociFonte(box, ctx) {
     box.appendChild(nuova);
   }
   /* i workout nuovi non hanno un bottone: nascono scrivendoli in un giorno della settimana */
-  box.appendChild(el('p', 'ed-sub', 'Workouts'));
+  box.appendChild(el('p', 'ed-sub', 'Workout'));
   for (const n of edWorkoutElenco(f)) {
     edVoceAnteprima(box, n, { pag: 'workout', ctx: ctx, nome: n },
       v.pag === 'workout' && v.ctx === ctx && v.nome === n, 'wk', ctx + ':wk:' + n, pv => edAnteprimaScheda(pv, f.schede[n]));
@@ -259,13 +259,13 @@ function edElenco() {
   nav.textContent = '';
 
   /* sopra tutto: la libreria degli esercizi, da consultare */
-  nav.appendChild(edVoce('Exercise library', { pag: 'lib', ctx: 'base' }, edVista.pag === 'lib', 'ed-lib-link'));
-  nav.appendChild(el('p', 'ed-sez', 'PLAN'));
+  nav.appendChild(edVoce('Libreria esercizi', { pag: 'lib', ctx: 'base' }, edVista.pag === 'lib', 'ed-lib-link'));
+  nav.appendChild(el('p', 'ed-sez', 'PIANO'));
   const base = el('div', 'ed-gruppo');
   edVociFonte(base, 'base');
   nav.appendChild(base);
 
-  nav.appendChild(el('p', 'ed-sez', 'PREPARATIONS'));
+  nav.appendChild(el('p', 'ed-sez', 'PREPARAZIONI'));
   const kOggi = chiaveData(today());
   /* una preparazione appena raggiunta (anche appena creata) si apre da sola */
   if (edVista.ctx !== edPrepUltima) { edPrepUltima = edVista.ctx; if (edVista.ctx !== 'base') edPrepAperte.add(edVista.ctx); }
@@ -279,7 +279,7 @@ function edElenco() {
     testa.type = 'button';
     testa.appendChild(el('span', 'ed-prep-nome', nomePrep(p)));
     testa.appendChild(el('span', 'ed-prep-date', datePrep(p) +
-      (stato === ' incorso' ? ' · now' : stato === ' fatta' ? ' · ended' : '')));
+      (stato === ' incorso' ? ' · in corso' : stato === ' fatta' ? ' · finita' : '')));
     testa.setAttribute('aria-expanded', aperta ? 'true' : 'false');
     testa.addEventListener('click', () => {
       if (aperta) edPrepAperte.delete(p.id); else edPrepAperte.add(p.id);
@@ -288,7 +288,7 @@ function edElenco() {
     riga.appendChild(testa);
     const pen = el('button', 'ed-pennino', '✎');
     pen.type = 'button';
-    pen.setAttribute('aria-label', 'Edit ' + nomePrep(p));
+    pen.setAttribute('aria-label', 'Modifica ' + nomePrep(p));
     pen.addEventListener('click', ev => { ev.stopPropagation(); edPrepAperte.add(p.id); edVai({ pag: 'prep', ctx: p.id }); });
     riga.appendChild(pen);
     nav.appendChild(riga);
@@ -299,7 +299,7 @@ function edElenco() {
       nav.appendChild(g);
     }
   }
-  nav.appendChild(edVoce('+ Add preparation', { pag: 'newprep', ctx: 'base' }, edVista.pag === 'newprep', 'piu'));
+  nav.appendChild(edVoce('+ Aggiungi preparazione', { pag: 'newprep', ctx: 'base' }, edVista.pag === 'newprep', 'piu'));
   /* in fondo, le sorprese: una voce come le altre */
   nav.appendChild(el('p', 'ed-sez', 'EXTRA'));
   nav.appendChild(edVoce('Easter egg', { pag: 'egg', ctx: 'base' }, edVista.pag === 'egg', ''));
@@ -317,7 +317,7 @@ function edTitolo(box, testo, sotto) {
 function edDove(box, ctx) {
   const f = edFonte(ctx);
   box.appendChild(el('p', 'ed-dove' + (f.base ? '' : ' prep'),
-    f.base ? 'PLAN' : 'PREPARATION · ' + nomePrep(f.prep) + ' · ' + datePrep(f.prep)));
+    f.base ? 'PIANO' : 'PREPARAZIONE · ' + nomePrep(f.prep) + ' · ' + datePrep(f.prep)));
 }
 
 function edPagina() {
@@ -334,7 +334,28 @@ function edPagina() {
   else if (v.pag === 'newprep') edPagNuovaPrep(pane);
   else if (v.pag === 'egg') edPagEgg(pane);
   else if (v.pag === 'lib') edPagLibreria(pane);
+  edBarraUndo(pane);
   pane.scrollTop = y;
+}
+
+/* Le cancellazioni grosse (via da tutto) si possono annullare per qualche
+   secondo: prima si fotografa quello che tocca, poi si rimette com'era. */
+let edUndo = null;
+const edFoto = () => JSON.stringify({ libreria: tstore.libreria, schede: tstore.schede, prep: tstore.prep, esercizi: tstore.esercizi });
+function edAnnullabile(testo, foto) { edUndo = { testo: testo, foto: foto, t: Date.now() }; }
+function edBarraUndo(pane) {
+  if (!edUndo || Date.now() - edUndo.t > 10000) { edUndo = null; return; }
+  const u = edUndo;
+  const bar = el('div', 'ed-tolto');
+  bar.appendChild(el('span', 'ed-tolto-t', u.testo));
+  edBottone(bar, 'Annulla', 'ed-ok', () => {
+    Object.assign(tstore, JSON.parse(u.foto));
+    edUndo = null;
+    edCambio(true);
+    edPagina();
+  });
+  pane.appendChild(bar);
+  setTimeout(() => bar.remove(), 10000 - (Date.now() - u.t));
 }
 
 /* Un campo di testo con la sua etichetta. `cambia` riceve il valore quando si
@@ -367,7 +388,7 @@ function edConferma(box, testo, fa) {
   const b = edBottone(box, testo, 'btn-del', () => {
     if (b.dataset.sicuro) { fa(); return; }
     b.dataset.sicuro = '1';
-    b.textContent = 'Sure? Tap again';
+    b.textContent = 'Sicuro? Tocca ancora';
     setTimeout(() => { if (b.isConnected) { delete b.dataset.sicuro; b.textContent = testo; } }, 4000);
   });
   return b;
@@ -380,13 +401,13 @@ function edPagSettimana(box, ctx, si) {
   const w = f.settimane[Math.min(si, f.settimane.length - 1)];
   edDove(box, ctx);
   if (f.base) {
-    edTitolo(box, 'Week', 'The plan that repeats every week. Tap − and + to choose how many workouts each day has; 0 is a rest day.');
+    edTitolo(box, 'Settimana', 'Il piano che si ripete ogni settimana. Con − e + scegli quanti workout ha ogni giorno; 0 è un giorno di riposo.');
   } else {
     const inizio = piuGiorni(lunedi(daChiave(f.prep.dal)), 7 * si);
     const fine = piuGiorni(inizio, 6);
     const ultima = si === f.settimane.length - 1;
-    edTitolo(box, 'Week ' + (si + 1), dataCorta(chiaveData(inizio)) + ' – ' + dataCorta(chiaveData(fine)) +
-      (ultima && f.settimane.length < settimaneDel(f.prep) ? ' · repeats until the end of the preparation' : ''));
+    edTitolo(box, 'Settimana ' + (si + 1), dataCorta(chiaveData(inizio)) + ' – ' + dataCorta(chiaveData(fine)) +
+      (ultima && f.settimane.length < settimaneDel(f.prep) ? ' · si ripete fino alla fine della preparazione' : ''));
   }
 
   /* i nomi gia' usati, da scegliere mentre si scrive */
@@ -395,10 +416,10 @@ function edPagSettimana(box, ctx, si) {
   /* in cima la lista di tutti i giorni: scelta in un giorno, quel giorno
      porta il suo nome */
   const nomeEvery = nomeMattinaDi(f.obj);
-  const EVERY = 'Every day';
+  const EVERY = 'Ogni giorno';
   for (const n of [EVERY].concat(edWorkout(f))) { const o = el('option'); o.value = n; lista.appendChild(o); }
   box.appendChild(lista);
-  box.appendChild(el('p', 'ed-sotto', 'Choose "' + EVERY + '" in a day: in the app that day shows "' + nomeEvery + '".'));
+  box.appendChild(el('p', 'ed-sotto', 'Scegli "' + EVERY + "\" in un giorno: nell'app quel giorno si vede \"" + nomeEvery + '".'));
 
   /* In una preparazione la prima e l'ultima settimana possono essere a meta':
      i giorni prima dell'inizio e dopo la fine restano al piano di sempre, e
@@ -417,16 +438,16 @@ function edPagSettimana(box, ctx, si) {
     const conta = el('div', 'ed-conta');
     const meno = edBottone(conta, '−', 'ed-piumeno', () => { w.conti[g] = Math.max(0, n - 1); edCambio(true); edPagina(); });
     meno.disabled = n <= 0;
-    meno.setAttribute('aria-label', 'One workout less on ' + GIORNI_ED[g]);
+    meno.setAttribute('aria-label', 'Un workout in meno di ' + GIORNI_ED[g]);
     conta.appendChild(el('span', 'ed-conta-num', String(n)));
     const piu = edBottone(conta, '+', 'ed-piumeno', () => { w.conti[g] = Math.min(MAX_SLOT, n + 1); edCambio(true); edPagina(); });
     piu.disabled = n >= MAX_SLOT;
-    piu.setAttribute('aria-label', 'One workout more on ' + GIORNI_ED[g]);
+    piu.setAttribute('aria-label', 'Un workout in più di ' + GIORNI_ED[g]);
     testa.appendChild(conta);
     riga.appendChild(testa);
 
     const campi = el('div', 'ed-giorno-campi');
-    if (!n) campi.appendChild(el('span', 'ed-riposo', 'Rest day'));
+    if (!n) campi.appendChild(el('span', 'ed-riposo', 'Riposo'));
     for (let i = 0; i < n; i++) {
       const inp = el('input', 'campo');
       inp.type = 'text';
@@ -445,7 +466,7 @@ function edPagSettimana(box, ctx, si) {
            niente workout fantasma */
         const esiste = edWorkout(f).find(n => n.toLowerCase() === basso);
         if (esiste) { scritto = esiste; inp.value = esiste; }
-        r[i] = scritto && (basso === EVERY.toLowerCase() || basso === 'everyday' || basso === nomeEvery.toLowerCase()) ? MORNING : scritto;
+        r[i] = scritto && (basso === EVERY.toLowerCase() || basso === 'every day' || basso === 'everyday' || basso === nomeEvery.toLowerCase()) ? MORNING : scritto;
         if (r[i] === MORNING) inp.value = EVERY;
         while (r.length && !r[r.length - 1]) r.pop();
         if (r.length) w.workout[g] = r; else delete w.workout[g];
@@ -460,7 +481,7 @@ function edPagSettimana(box, ctx, si) {
 
   if (!f.base && f.settimane.length > 1) {
     const b = el('div', 'ed-azioni');
-    edConferma(b, 'Delete week ' + (si + 1), () => {
+    edConferma(b, 'Cancella settimana ' + (si + 1), () => {
       f.settimane.splice(si, 1);
       edVista = { pag: 'week', ctx: ctx, sett: Math.max(0, si - 1) };
       edCambio(true);
@@ -512,7 +533,7 @@ function edTendina(inp, voci, scegli, opt) {
     }
     const nuova = opt.nuova && q && !trovate.some(v => edNorm(v) === q);
     if (nuova) box.appendChild(el('p', 'ed-tend-vuota', opt.nuova + ': "' + inp.value.trim() + '"'));
-    else if (!trovate.length) box.appendChild(el('p', 'ed-tend-vuota', opt.vuota || 'Nothing found'));
+    else if (!trovate.length) box.appendChild(el('p', 'ed-tend-vuota', opt.vuota || 'Non trovato'));
     box.hidden = false;
   };
   inp.setAttribute('autocomplete', 'off');
@@ -528,8 +549,8 @@ function edTendina(inp, voci, scegli, opt) {
 function edCercaPadre(k, attuale, scegli, vuoto) {
   const inp = el('input', 'campo ed-cerca-padre');
   inp.type = 'search'; inp.maxLength = 60;
-  inp.placeholder = attuale || vuoto || 'Search the exercise…';
-  inp.setAttribute('aria-label', 'Variant of');
+  inp.placeholder = attuale || vuoto || "Cerca l'esercizio…";
+  inp.setAttribute('aria-label', 'Variante di');
   return edTendina(inp, () => (vuoto ? [vuoto] : []).concat(edPrincipali(k)),
                    v => scegli(v === vuoto ? '' : v), { subito: true, cls: 'ed-tend-padre' });
 }
@@ -549,8 +570,8 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
   if (edTolto && edTolto.sc === sc && Date.now() - edTolto.t < 10000) {
     const t = edTolto;
     const bar = el('div', 'ed-tolto');
-    bar.appendChild(el('span', 'ed-tolto-t', '"' + (t.r[0] || 'Exercise') + '" removed from this workout'));
-    edBottone(bar, 'Undo', 'ed-ok', () => {
+    bar.appendChild(el('span', 'ed-tolto-t', '"' + (t.r[0] || 'Esercizio') + '" tolto da questo workout'));
+    edBottone(bar, 'Annulla', 'ed-ok', () => {
       sc.es.splice(Math.min(t.i, sc.es.length), 0, t.r);
       edTolto = null;
       edCambio(false);
@@ -573,7 +594,7 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
     edTrascina(man, es, cont, sc, i);
     riga.appendChild(man);
     const nome = el('input', 'campo ed-es-nome');
-    nome.type = 'text'; nome.maxLength = 60; nome.placeholder = 'exercise';
+    nome.type = 'text'; nome.maxLength = 60; nome.placeholder = 'esercizio';
     nome.value = r[0] || '';
     nome.dataset.focus = chiave + '|0';
     nome.addEventListener('change', () => {
@@ -584,18 +605,20 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
       const chiedi = k && k !== edNorm(prima) && !edRigheDi(k).some(x => x !== r) && !edMeta(k).p;
       if (chiedi) edChiedi.add(k);
       /* ogni esercizio ha la sua scheda in libreria: descrizione e video
-         stanno li'; se esiste gia', il nome si scrive come la' */
-      const L = k ? edLib(k, r[0]) : null;
+         stanno li'; se esiste gia', il nome si scrive come la'. Un nome nuovo
+         entra in libreria solo quando si risponde alla domanda: cosi' un nome
+         scritto a meta' non finisce in libreria */
+      const L = k ? edLib(k, chiedi ? null : r[0]) : null;
       if (L) r[0] = L[0];
       edCambio(false);
       edPagina();
     });
     const qta = el('input', 'campo ed-es-qta');
-    qta.type = 'text'; qta.maxLength = 60; qta.placeholder = 'how much';
+    qta.type = 'text'; qta.maxLength = 60; qta.placeholder = 'quanto';
     qta.value = r[1] || '';
     qta.addEventListener('change', () => { r[1] = qta.value.slice(0, 60).trim(); edCambio(false); });
     riga.appendChild(edTendina(nome, nomiTutti, v => { nome.value = v; nome.blur(); nome.dispatchEvent(new Event('change')); },
-                               { cls: 'nome', nuova: 'New exercise, not in the library yet' }));
+                               { cls: 'nome', nuova: 'Esercizio nuovo, non ancora in libreria' }));
     riga.appendChild(qta);
 
     const tasti = el('div', 'ed-es-tasti');
@@ -605,16 +628,16 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
       if (edAperti.has(chiave)) edAperti.delete(chiave); else edAperti.add(chiave);
       edPagina();
     });
-    d.setAttribute('aria-label', 'Description, videos and note');
-    d.title = 'Description, videos and note';
+    d.setAttribute('aria-label', 'Descrizione, video e nota');
+    d.title = 'Descrizione, video e nota';
     if (L) {
       const pen = edBottone(tasti, '✎', 'ed-tasto solo-pc', () => edApriInLibreria(edNorm(r[0])));
-      pen.setAttribute('aria-label', 'Edit in the library'); pen.title = 'Edit in the library';
+      pen.setAttribute('aria-label', 'Modifica in libreria'); pen.title = 'Modifica in libreria';
     }
     const su = edBottone(tasti, '↑', 'ed-tasto solo-pc', () => edSposta(sc, i, -1));
-    su.disabled = i === 0; su.setAttribute('aria-label', 'Move up');
+    su.disabled = i === 0; su.setAttribute('aria-label', 'Sposta su');
     const giu = edBottone(tasti, '↓', 'ed-tasto solo-pc', () => edSposta(sc, i, 1));
-    giu.disabled = i === sc.es.length - 1; giu.setAttribute('aria-label', 'Move down');
+    giu.disabled = i === sc.es.length - 1; giu.setAttribute('aria-label', 'Sposta giù');
     /* toglie la riga da questo workout e basta: in libreria l'esercizio resta,
        e resta negli altri workout. Per qualche secondo si puo' annullare. */
     const togli = () => {
@@ -629,11 +652,11 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
       /* un doppio tocco per sbaglio (piu' veloce di mezzo secondo) non conta */
       if (x.dataset.sicuro) { if (Date.now() - +x.dataset.sicuro > 450) togli(); return; }
       x.dataset.sicuro = String(Date.now());
-      x.textContent = 'Remove?';
+      x.textContent = 'Togliere?';
       x.classList.add('sicuro');
       setTimeout(() => { if (x.isConnected) { delete x.dataset.sicuro; x.textContent = '×'; x.classList.remove('sicuro'); } }, 4000);
     });
-    x.setAttribute('aria-label', 'Remove from this workout'); x.title = 'Remove from this workout';
+    x.setAttribute('aria-label', 'Togli da questo workout'); x.title = 'Togli da questo workout';
     riga.appendChild(tasti);
     es.appendChild(riga);
 
@@ -648,7 +671,7 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
       es.appendChild(edNotaRiga(r, L));
       /* sul telefono la riga e' corta: togliere sta qui dentro */
       const az = el('div', 'ed-video-tasti ed-nota-az solo-tel');
-      edConferma(az, 'Remove from this workout', togli);
+      edConferma(az, 'Togli da questo workout', togli);
       es.appendChild(az);
     }
     cont.appendChild(es);
@@ -664,11 +687,11 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
         const campi = $('edPane').querySelectorAll('.ed-es-nome');
         if (campi[i + 1]) campi[i + 1].focus();
       });
-      piu.setAttribute('aria-label', 'Add an exercise in ' + g.join(' › '));
+      piu.setAttribute('aria-label', 'Aggiungi un esercizio in ' + g.join(' › '));
     }
   });
 
-  edBottone(box, '+ Exercise', 'ed-aggiungi', () => {
+  edBottone(box, '+ Esercizio', 'ed-aggiungi', () => {
     sc.es.push(['', '', [], '', '']);
     edPagina();
     const campi = $('edPane').querySelectorAll('.ed-es-nome');
@@ -746,7 +769,7 @@ function edTuttiVideo(salta) {
     vv.forEach((n, i) => {
       if (salta.indexOf(n) >= 0) return;
       if (!m.has(n)) m.set(n, []);
-      const t = (x[0] || '') + (vv.length > 1 ? ' · video ' + (i + 1) + ' of ' + vv.length : '');
+      const t = (x[0] || '') + (vv.length > 1 ? ' · video ' + (i + 1) + ' di ' + vv.length : '');
       const a = m.get(n);
       if (x[0] && a.indexOf(t) < 0) a.push(t);
     });
@@ -761,10 +784,10 @@ function edTuttiVideo(salta) {
    L'anteprima c'e' se il video e' nel telefono; se no, si scarica al tocco. */
 function edPannelloVideo(box, tutti, aggiungi, posto) {
   const scelti = new Set();
-  const ok = el('button', 'schbtn ed-ok', 'Add');
+  const ok = el('button', 'schbtn ed-ok', 'Aggiungi');
   ok.type = 'button'; ok.disabled = true;
-  const conta = () => { ok.textContent = scelti.size ? 'Add ' + scelti.size + (scelti.size === 1 ? ' video' : ' videos') : 'Add'; ok.disabled = !scelti.size; };
-  box.appendChild(el('p', 'ed-sotto', 'Tick the videos to add' + (posto < 6 ? ' (room for ' + posto + ' more)' : '') + '.'));
+  const conta = () => { ok.textContent = scelti.size ? 'Aggiungi ' + scelti.size + (scelti.size === 1 ? ' video' : ' video') : 'Aggiungi'; ok.disabled = !scelti.size; };
+  box.appendChild(el('p', 'ed-sotto', 'Spunta i video da aggiungere' + (posto < 6 ? " (c'è posto per " + posto + ' ancora)' : '') + '.'));
   const az = el('div', 'ed-video-tasti');
   ok.addEventListener('click', () => aggiungi([...scelti]));
   az.appendChild(ok);
@@ -789,8 +812,8 @@ function edPannelloVideo(box, tutti, aggiungi, posto) {
     };
     vGet(x.nome).then(blob => {
       if (blob) { mostra(blob); return; }
-      const b = el('button', 'schbtn', 'Show preview'); b.type = 'button';
-      b.addEventListener('click', async () => { b.disabled = true; b.textContent = 'Loading…'; const bl = await prendiVideo(x.nome); if (bl) mostra(bl); else b.textContent = 'Not available yet'; });
+      const b = el('button', 'schbtn', 'Mostra anteprima'); b.type = 'button';
+      b.addEventListener('click', async () => { b.disabled = true; b.textContent = 'Carico…'; const bl = await prendiVideo(x.nome); if (bl) mostra(bl); else b.textContent = 'Non ancora disponibile'; });
       ant.appendChild(b);
     });
     r.appendChild(ant);
@@ -828,15 +851,15 @@ function edNotaRiga(r, L) {
   const n = edNorm(r[0]);
   if (L) {
     const vv = videiDi(L).length;
-    const cosa = [L[3] ? 'description' : '', vv ? vv + (vv === 1 ? ' video' : ' videos') : ''].filter(Boolean).join(' · ');
+    const cosa = [L[3] ? 'description' : '', vv ? vv + (vv === 1 ? ' video' : ' video') : ''].filter(Boolean).join(' · ');
     const t = el('div', 'ed-nota-lib');
-    t.appendChild(el('span', 'ed-nota-cosa', cosa ? 'In the library: ' + cosa : 'Nothing in the library yet.'));
-    const b = edBottone(t, '✎ Edit in library', '', () => edApriInLibreria(n));
+    t.appendChild(el('span', 'ed-nota-cosa', cosa ? 'In libreria: ' + cosa : "In libreria non c'è ancora niente."));
+    const b = edBottone(t, '✎ Modifica in libreria', '', () => edApriInLibreria(n));
     b.classList.add('ed-nota-vai');
     box.appendChild(t);
     if (L[3]) box.appendChild(el('p', 'ed-nota-anteprima', L[3]));
   }
-  const lab = el('p', 'ed-eti', 'Note for this workout only');
+  const lab = el('p', 'ed-eti', 'Nota solo per questo workout');
   box.appendChild(lab);
   const t = el('textarea', 'commento ed-desc-testo');
   t.value = r[3] || '';
@@ -914,13 +937,13 @@ function edDescrizione(r, sync) {
   const lista = videiDi(r);
   lista.forEach((nomeV, iv) => {
     const riga = el('div', 'ed-video-uno');
-    if (lista.length > 1) riga.appendChild(el('p', 'ed-video-num', 'Video ' + (iv + 1) + ' of ' + lista.length));
-    const st = el('p', 'ed-video-stato', 'Loading video…');
+    if (lista.length > 1) riga.appendChild(el('p', 'ed-video-num', 'Video ' + (iv + 1) + ' di ' + lista.length));
+    const st = el('p', 'ed-video-stato', 'Carico il video…');
     riga.appendChild(st);
     (async () => {
       let blob = await vGet(nomeV);
       if (!blob) blob = await prendiVideo(nomeV);
-      if (!blob) { st.textContent = 'Video not on this device yet.'; return; }
+      if (!blob) { st.textContent = 'Il video non è ancora su questo telefono.'; return; }
       const u = URL.createObjectURL(blob);
       edUrl.push(u);
       const vid = el('video');
@@ -928,7 +951,7 @@ function edDescrizione(r, sync) {
       st.replaceWith(vid);
     })();
     const az = el('div', 'ed-video-tasti');
-    edBottone(az, 'Remove video', 'btn-del', () => {
+    edConferma(az, 'Togli video', () => {
       cambia(() => { r[4] = videiDi(r).filter(x => x !== nomeV).join(','); });
       edCambio(false); edPagina();
     });
@@ -951,16 +974,16 @@ function edDescrizione(r, sync) {
     for (const b of tasti.querySelectorAll('button')) b.disabled = true;
     const nuovi = [], sbagli = [];
     for (let i = 0; i < scelti.length; i++) {
-      const di = scelti.length > 1 ? ' ' + (i + 1) + ' of ' + scelti.length : '';
-      errore.textContent = 'Compressing video' + di + '…';
-      const esito = await tieniVideo(scelti[i], x => { errore.textContent = 'Compressing video' + di + '… ' + Math.min(99, Math.round(x * 100)) + '%'; });
+      const di = scelti.length > 1 ? ' ' + (i + 1) + ' di ' + scelti.length : '';
+      errore.textContent = 'Comprimo il video' + di + '…';
+      const esito = await tieniVideo(scelti[i], x => { errore.textContent = 'Comprimo il video' + di + '… ' + Math.min(99, Math.round(x * 100)) + '%'; });
       if (esito.errore) { sbagli.push(esito.errore); continue; }
       nuovi.push(esito.nome);
       if (tstore.daCaricare.indexOf(esito.nome) < 0) tstore.daCaricare.push(esito.nome);
     }
     for (const b of tasti.querySelectorAll('button')) b.disabled = false;
     errore.classList.add('err');
-    const note = sbagli.concat(troppi > 0 ? [troppi + (troppi === 1 ? ' video left out' : ' videos left out') + ': at most 6 per exercise.'] : []);
+    const note = sbagli.concat(troppi > 0 ? [troppi + (troppi === 1 ? ' video lasciato fuori' : ' video lasciati fuori') + ': al massimo 6 per esercizio.'] : []);
     errore.textContent = note.join(' ');
     errore.hidden = !note.length;
     if (nuovi.length) {
@@ -972,12 +995,12 @@ function edDescrizione(r, sync) {
     if (nuovi.length) codaVideo();  /* i video partono subito, mentre si continua a scrivere */
   });
   tasti.appendChild(file);
-  const piu = edBottone(tasti, lista.length ? '+ More videos' : '+ Videos', '', () => file.click());
+  const piu = edBottone(tasti, lista.length ? '+ Altri video' : '+ Video', '', () => file.click());
   piu.disabled = lista.length >= 6;
   /* oppure fra quelli gia' caricati per altri esercizi */
   const gia = edTuttiVideo(videiDi(r));
   if (gia.length) {
-    const sc = edBottone(tasti, 'From uploaded (' + gia.length + ')', '', () => {
+    const sc = edBottone(tasti, 'Da quelli caricati (' + gia.length + ')', '', () => {
       pannello.hidden = !pannello.hidden;
       if (!pannello.hidden && !pannello.children.length) edPannelloVideo(pannello, gia, nomi => {
         cambia(() => { r[4] = videiDi(r).concat(nomi).slice(0, 6).join(','); });
@@ -1016,24 +1039,24 @@ function edPagMattina(box, ctx, listaId) {
   const a = listaId ? o.altre.find(x => x.id === listaId) : null;
   if (listaId && !a) { edVista = { pag: 'morning', ctx: ctx }; edPagina(); return; }
   const L = a ? {
-    nome: () => a.nome || 'Every day', scrivi: v => { a.nome = v; }, ph: 'List name', valore: a.nome,
+    nome: () => a.nome || 'Ogni giorno', scrivi: v => { a.nome = v; }, ph: 'Nome della lista', valore: a.nome,
     via: () => a.via, spegni: v => { a.via = v; }, quando: a.quando, chiave: EV(a.id)
   } : {
     nome: () => nomeMattinaDi(o), scrivi: v => { o.mattina = v && v !== MATTINA_BASE ? v : ''; }, ph: MATTINA_BASE, valore: o.mattina,
     via: () => o.mattinaVia, spegni: v => { o.mattinaVia = v; }, quando: o.mattinaQuando, chiave: MORNING
   };
   edDove(box, ctx);
-  box.appendChild(el('p', 'ed-sez-pag ed-cat', 'EVERY DAY'));
-  edTitolo(box, L.nome(), 'A fixed list shown above the workouts, on the days you choose below. Untick "Show it in the app" to hide it: what is written stays.');
+  box.appendChild(el('p', 'ed-sez-pag ed-cat', 'OGNI GIORNO'));
+  edTitolo(box, L.nome(), "Una lista fissa, sopra i workout, nei giorni che scegli qui sotto. Togli la spunta a \"Mostrala nell'app\" per nasconderla: quello che è scritto resta.");
   const l = el('label', 'ed-spunta');
   const c = el('input', 'schsel');
   c.type = 'checkbox';
   c.checked = !L.via();
   c.addEventListener('change', () => { L.spegni(!c.checked); edCambio(true); });
   l.appendChild(c);
-  l.appendChild(el('span', null, 'Show it in the app'));
+  l.appendChild(el('span', null, "Mostrala nell'app"));
   box.appendChild(l);
-  edCampo(box, 'Name', L.valore, { max: 40, ph: L.ph }, (val) => {
+  edCampo(box, 'Nome', L.valore, { max: 40, ph: L.ph }, (val) => {
     L.scrivi(validMattina(val));
     edCambio(true);
     edPagina();
@@ -1042,13 +1065,13 @@ function edPagMattina(box, ctx, listaId) {
   edQuando(box, L.quando);
 
   if (!f.schede[L.chiave]) f.schede[L.chiave] = { es: [], rec: '' };
-  box.appendChild(el('p', 'ed-sez-pag', 'EXERCISES'));
+  box.appendChild(el('p', 'ed-sez-pag', 'ESERCIZI'));
   edEsercizi(box, ctx, L.chiave, f.schede[L.chiave]);
   edGruppiBottone(box, ctx, L.chiave);
 
   if (a) {
     const az = el('div', 'ed-azioni');
-    edConferma(az, 'Delete this list', () => {
+    edConferma(az, 'Cancella questa lista', () => {
       o.altre = o.altre.filter(x => x !== a);
       delete f.schede[L.chiave];
       edVista = { pag: 'morning', ctx: ctx };
@@ -1065,8 +1088,8 @@ function edPagMattina(box, ctx, listaId) {
    sul posto. */
 let edCalMese = null;           /* il primo del mese mostrato dal calendario */
 function edQuando(box, q) {
-  box.appendChild(el('p', 'ed-sez-pag', 'WHEN'));
-  const modi = [['sempre', 'Every day'], ['giorni', 'Days of the week'], ['ogni', 'Every N days'], ['ciclo', 'Custom rhythm'], ['date', 'Specific dates']];
+  box.appendChild(el('p', 'ed-sez-pag', 'QUANDO'));
+  const modi = [['sempre', 'Ogni giorno'], ['giorni', 'Giorni della settimana'], ['ogni', 'Ogni N giorni'], ['ciclo', 'Ritmo personalizzato'], ['date', 'Date precise']];
   const chips = el('div', 'chips');
   for (const [m, n] of modi) {
     const b = el('button', 'chip' + (q.modo === m ? ' sel' : ''), n);
@@ -1103,19 +1126,19 @@ function edQuando(box, q) {
   }
   if (q.modo === 'ogni') {
     const r = el('div', 'ed-ogni');
-    const n = edCampo(r, 'Every how many days', String(q.n), { type: 'number' }, val => {
+    const n = edCampo(r, 'Ogni quanti giorni', String(q.n), { type: 'number' }, val => {
       const x = Math.round(+val);
       q.n = x >= 2 && x <= 14 ? x : q.n;
       edCambio(false);
       edPagina();
     });
     n.min = 2; n.max = 14; n.inputMode = 'numeric';
-    edCampo(r, 'Starting from', q.dal, { type: 'date' }, val => {
+    edCampo(r, 'A partire da', q.dal, { type: 'date' }, val => {
       if (dataOk(val)) { q.dal = val; edCambio(false); }
       edPagina();
     });
     box.appendChild(r);
-    box.appendChild(el('p', 'ed-sotto', q.n === 2 ? 'One day yes, one day no.' : 'One day yes, then ' + (q.n - 1) + ' days no.'));
+    box.appendChild(el('p', 'ed-sotto', q.n === 2 ? 'Un giorno sì, un giorno no.' : 'Un giorno sì, poi ' + (q.n - 1) + ' giorni no.'));
   }
   if (q.modo === 'ciclo') edCiclo(box, q);
   if (q.modo === 'date') {
@@ -1124,11 +1147,11 @@ function edQuando(box, q) {
     for (const d of q.date) {
       const b = el('button', 'ed-pross si', GIORNI2[daChiave(d).getDay()] + ' ' + dataCorta(d) + (daChiave(d).getFullYear() !== today().getFullYear() ? ' ' + daChiave(d).getFullYear() : '') + ' ×');
       b.type = 'button';
-      b.setAttribute('aria-label', 'Remove ' + d);
+      b.setAttribute('aria-label', 'Togli ' + d);
       b.addEventListener('click', () => { q.date = q.date.filter(x => x !== d); edCambio(false); edPagina(); });
       lista.appendChild(b);
     }
-    if (!q.date.length) box.appendChild(el('p', 'ed-sotto', 'No dates yet: the list is not shown. Tap the days in the calendar.'));
+    if (!q.date.length) box.appendChild(el('p', 'ed-sotto', 'Ancora nessuna data: la lista non si vede. Tocca i giorni nel calendario.'));
     else box.appendChild(lista);
     edCalendario(box, q);
   }
@@ -1142,9 +1165,9 @@ function edCalendario(box, q) {
   const cal = el('div', 'ed-cal');
   const testa = el('div', 'ed-cal-testa');
   const vai = n => { edCalMese = new Date(m0.getFullYear(), m0.getMonth() + n, 1); edPagina(); };
-  const pr = edBottone(testa, '‹', 'ed-tasto', () => vai(-1)); pr.setAttribute('aria-label', 'Previous month');
+  const pr = edBottone(testa, '‹', 'ed-tasto', () => vai(-1)); pr.setAttribute('aria-label', 'Mese prima');
   testa.appendChild(el('span', 'ed-cal-mese', MESI3[m0.getMonth()] + ' ' + m0.getFullYear()));
-  const nx = edBottone(testa, '›', 'ed-tasto', () => vai(1)); nx.setAttribute('aria-label', 'Next month');
+  const nx = edBottone(testa, '›', 'ed-tasto', () => vai(1)); nx.setAttribute('aria-label', 'Mese dopo');
   cal.appendChild(testa);
   const griglia = el('div', 'ed-cal-griglia');
   for (const g of SETTIMANA) griglia.appendChild(el('span', 'ed-cal-gs', GIORNI2[g]));
@@ -1178,7 +1201,7 @@ function edCiclo(box, q) {
     const r = el('div', 'ed-ciclo-passo');
     const n = el('input', 'campo ed-ciclo-n');
     n.type = 'number'; n.min = 1; n.max = 60; n.inputMode = 'numeric'; n.value = String(Math.abs(x));
-    n.setAttribute('aria-label', 'How many days');
+    n.setAttribute('aria-label', 'Quanti giorni');
     n.addEventListener('change', () => {
       const v = Math.round(+n.value);
       if (v >= 1 && v <= 60) q.passi[i] = x > 0 ? v : -v;
@@ -1194,23 +1217,23 @@ function edCiclo(box, q) {
     no.addEventListener('click', () => { q.passi[i] = -Math.abs(x); edCambio(false); edPagina(); });
     r.appendChild(si); r.appendChild(no);
     const via = edBottone(r, '×', 'ed-tasto ed-x', () => { q.passi.splice(i, 1); if (!q.passi.length) q.passi.push(1); edCambio(false); edPagina(); });
-    via.setAttribute('aria-label', 'Remove this step');
+    via.setAttribute('aria-label', 'Togli questo passo');
     lista.appendChild(r);
   });
   box.appendChild(lista);
-  const piu = edBottone(box, '+ Step', 'ed-aggiungi', () => {
+  const piu = edBottone(box, '+ Passo', 'ed-aggiungi', () => {
     const ult = q.passi[q.passi.length - 1];
     q.passi.push(ult > 0 ? -1 : 1);
     edCambio(false); edPagina();
   });
   piu.disabled = q.passi.length >= 20;
   const r = el('div', 'ed-ogni');
-  edCampo(r, 'Starting from', q.dal, { type: 'date' }, val => {
+  edCampo(r, 'A partire da', q.dal, { type: 'date' }, val => {
     if (dataOk(val)) { q.dal = val; edCambio(false); }
     edPagina();
   });
   box.appendChild(r);
-  box.appendChild(el('p', 'ed-sotto', q.passi.map(x => Math.abs(x) + ' ' + (x > 0 ? 'yes' : 'no')).join(', ') + ', then again from the start.'));
+  box.appendChild(el('p', 'ed-sotto', q.passi.map(x => Math.abs(x) + ' ' + (x > 0 ? 'yes' : 'no')).join(', ') + ", poi di nuovo dall'inizio."));
 }
 
 /* --- un workout --------------------------------------------------------- */
@@ -1224,11 +1247,11 @@ function edPagWorkout(box, ctx, nome) {
 
   const errore = el('p', 'nota err');
   errore.hidden = true;
-  edCampo(box, 'Name', nome, { max: 60 }, (val, inp) => {
+  edCampo(box, 'Nome', nome, { max: 60 }, (val, inp) => {
     const nuovo = val.slice(0, 60).trim();
     if (nuovo === nome) return;
-    const msg = !nuovo ? 'A workout needs a name.'
-      : nuovo === MORNING || f.schede[nuovo] || edWorkout(f).indexOf(nuovo) >= 0 ? 'There is already a workout called "' + nuovo + '".'
+    const msg = !nuovo ? 'Un workout ha bisogno di un nome.'
+      : nuovo === MORNING || f.schede[nuovo] || edWorkout(f).indexOf(nuovo) >= 0 ? "C'è già un workout che si chiama \"" + nuovo + '".'
       : '';
     if (msg) { errore.textContent = msg; errore.hidden = false; inp.value = nome; return; }
     edRinomina(f, nome, nuovo);
@@ -1237,17 +1260,17 @@ function edPagWorkout(box, ctx, nome) {
     edPagina();
   });
   box.appendChild(errore);
-  edCampo(box, 'Recovery', sc.rec, { max: 60, ph: 'e.g. 1’' }, (val) => {
+  edCampo(box, 'Recupero', sc.rec, { max: 60, ph: 'e.g. 1’' }, (val) => {
     sc.rec = val.slice(0, 60).trim();
     edCambio(false);
   });
 
-  box.appendChild(el('p', 'ed-sez-pag', 'EXERCISES'));
+  box.appendChild(el('p', 'ed-sez-pag', 'ESERCIZI'));
   edEsercizi(box, ctx, nome, sc);
   edGruppiBottone(box, ctx, nome);
 
   const az = el('div', 'ed-azioni');
-  edConferma(az, 'Delete workout', () => {
+  edConferma(az, 'Cancella workout', () => {
     delete f.schede[nome];
     /* tolto anche dai giorni in cui era scritto */
     for (const w of f.settimane) {
@@ -1276,7 +1299,7 @@ function edUsato(f, nome) {
       }
     }
   });
-  return giorni.length ? 'On: ' + giorni.join(', ') : 'Not in the week yet: write its name on a day in Week.';
+  return giorni.length ? 'Nei giorni: ' + giorni.join(', ') : 'Non è ancora nella settimana: scrivi il suo nome in un giorno, in Settimana.';
 }
 
 /* Cambiare nome a un workout: la scheda passa sotto il nome nuovo, e i giorni
@@ -1295,7 +1318,7 @@ function edRinomina(f, vecchio, nuovo) {
 
 function edGruppiBottone(box, ctx, nome) {
   const b = el('div', 'ed-azioni');
-  edBottone(b, 'Groups', '', () => apriGruppi(ctx, nome, null));
+  edBottone(b, 'Gruppi', '', () => apriGruppi(ctx, nome, null));
   box.appendChild(b);
 }
 
@@ -1304,18 +1327,18 @@ function edGruppiBottone(box, ctx, nome) {
 function edPagNuovo(box, ctx) {
   const f = edFonte(ctx);
   edDove(box, ctx);
-  edTitolo(box, 'New workout', 'Give it a name, then write it on the days in Week.');
+  edTitolo(box, 'Nuovo workout', 'Dagli un nome, poi scrivilo nei giorni, in Settimana.');
   const errore = el('p', 'nota err');
   errore.hidden = true;
-  const inp = edCampo(box, 'Name', '', { max: 60, ph: 'e.g. CALI' }, () => {});
+  const inp = edCampo(box, 'Nome', '', { max: 60, ph: 'es. CALI' }, () => {});
   box.appendChild(errore);
   const az = el('div', 'ed-azioni');
   /* Invio nel campo vale come Create */
   inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); crea.click(); } });
-  const crea = edBottone(az, 'Create', 'ed-ok', () => {
+  const crea = edBottone(az, 'Crea', 'ed-ok', () => {
     const nome = inp.value.slice(0, 60).trim();
-    const msg = !nome ? 'Write a name first.'
-      : f.schede[nome] || edWorkout(f).indexOf(nome) >= 0 ? 'There is already a workout called "' + nome + '".' : '';
+    const msg = !nome ? 'Prima scrivi un nome.'
+      : f.schede[nome] || edWorkout(f).indexOf(nome) >= 0 ? "C'è già un workout che si chiama \"" + nome + '".' : '';
     if (msg) { errore.textContent = msg; errore.hidden = false; inp.focus(); return; }
     f.schede[nome] = { es: [['', '', [], '', '']], rec: '' };
     edVista = { pag: 'workout', ctx: ctx, nome: nome };
@@ -1330,10 +1353,10 @@ function edPagNuovo(box, ctx) {
 
 /* Le date di una preparazione vanno bene? Torna il problema, o ''. */
 function edDateOk(dal, al, id) {
-  if (!dataOk(dal) || !dataOk(al)) return 'Choose both dates.';
-  if (al < dal) return 'The end is before the start.';
+  if (!dataOk(dal) || !dataOk(al)) return 'Scegli le due date.';
+  if (al < dal) return "La fine è prima dell'inizio.";
   const altra = tstore.prep.find(p => p.id !== id && p.dal <= al && dal <= p.al);
-  if (altra) return 'These dates overlap "' + nomePrep(altra) + '" (' + datePrep(altra) + ').';
+  if (altra) return 'Queste date si sovrappongono a "' + nomePrep(altra) + '" (' + datePrep(altra) + ').';
   return '';
 }
 
@@ -1354,16 +1377,16 @@ function edNuovaPrep(nome, dal, al) {
 }
 
 function edPagNuovaPrep(box) {
-  edTitolo(box, 'Add preparation', 'Choose the dates: the preparation starts as a copy of the plan, then you change what changes. In those days the app shows the preparation; the day after the end, the plan comes back by itself.');
+  edTitolo(box, 'Aggiungi preparazione', "Scegli le date: la preparazione parte come copia del piano, poi cambi quello che cambia. In quei giorni l'app mostra la preparazione; il giorno dopo la fine torna da solo il piano.");
   const k0 = chiaveData(today());
-  const nome = edCampo(box, 'Name (optional)', '', { max: 50, ph: 'e.g. Exam November' }, () => {});
-  const dal = edCampo(box, 'From', k0, { type: 'date' }, () => {});
-  const al = edCampo(box, 'To', chiaveData(piuGiorni(today(), 27)), { type: 'date' }, () => {});
+  const nome = edCampo(box, 'Nome (facoltativo)', '', { max: 50, ph: 'es. Esame di novembre' }, () => {});
+  const dal = edCampo(box, 'Dal', k0, { type: 'date' }, () => {});
+  const al = edCampo(box, 'Al', chiaveData(piuGiorni(today(), 27)), { type: 'date' }, () => {});
   const errore = el('p', 'nota err');
   errore.hidden = true;
   box.appendChild(errore);
   const az = el('div', 'ed-azioni');
-  edBottone(az, 'Create preparation', 'ed-ok', () => {
+  edBottone(az, 'Crea preparazione', 'ed-ok', () => {
     const msg = edDateOk(dal.value, al.value, null);
     if (msg) { errore.textContent = msg; errore.hidden = false; return; }
     const p = edNuovaPrep(nome.value.slice(0, 50).trim(), dal.value, al.value);
@@ -1379,18 +1402,18 @@ function edPagPrep(box, id) {
   const p = f.prep;
   const k0 = chiaveData(today());
   edDove(box, id);
-  const stato = p.al < k0 ? 'Ended.' : p.dal <= k0 ? 'In progress: the app shows it now.' : 'Starts in ' + giorniFra(k0, p.dal) + ' days.';
+  const stato = p.al < k0 ? 'Finita.' : p.dal <= k0 ? "In corso: l'app la mostra adesso." : 'Inizia fra ' + giorniFra(k0, p.dal) + ' giorni.';
   edTitolo(box, nomePrep(p), stato);
 
   const errore = el('p', 'nota err');
   errore.hidden = true;
-  edCampo(box, 'Name', p.nome, { max: 50, ph: 'Preparation' }, (val) => {
+  edCampo(box, 'Nome', p.nome, { max: 50, ph: 'Preparazione' }, (val) => {
     p.nome = val.slice(0, 50).trim();
     edCambio(true);
     edPagina();
   });
-  const dal = edCampo(box, 'From', p.dal, { type: 'date' }, () => cambiaDate());
-  const al = edCampo(box, 'To', p.al, { type: 'date' }, () => cambiaDate());
+  const dal = edCampo(box, 'Dal', p.dal, { type: 'date' }, () => cambiaDate());
+  const al = edCampo(box, 'Al', p.al, { type: 'date' }, () => cambiaDate());
   box.appendChild(errore);
   function cambiaDate() {
     const msg = edDateOk(dal.value, al.value, p.id);
@@ -1403,21 +1426,21 @@ function edPagPrep(box, id) {
 
   /* le settimane: quante ne tocca il periodo, e quante sono scritte */
   const tot = settimaneDel(p);
-  box.appendChild(el('p', 'ed-sez-pag', 'WEEKS'));
-  box.appendChild(el('p', 'ed-sotto', 'The period touches ' + tot + (tot === 1 ? ' week' : ' weeks') +
-    ' (Monday to Sunday). Written: ' + p.settimane.length + '.' +
-    (p.settimane.length < tot ? ' The last one repeats until the end.' : '')));
+  box.appendChild(el('p', 'ed-sez-pag', 'SETTIMANE'));
+  box.appendChild(el('p', 'ed-sotto', 'Il periodo tocca ' + tot + (tot === 1 ? ' settimana' : ' settimane') +
+    ' (da lunedì a domenica). Scritte: ' + p.settimane.length + '.' +
+    (p.settimane.length < tot ? " L'ultima si ripete fino alla fine." : '')));
   const lista = el('div', 'ed-lista-sett');
   p.settimane.forEach((w, i) => {
     const inizio = piuGiorni(lunedi(daChiave(p.dal)), 7 * i);
-    const b = el('button', 'ed-voce', 'Week ' + (i + 1) + ' · ' + dataCorta(chiaveData(inizio)) + ' – ' + dataCorta(chiaveData(piuGiorni(inizio, 6))));
+    const b = el('button', 'ed-voce', 'Settimana ' + (i + 1) + ' · ' + dataCorta(chiaveData(inizio)) + ' – ' + dataCorta(chiaveData(piuGiorni(inizio, 6))));
     b.type = 'button';
     b.addEventListener('click', () => edVai({ pag: 'week', ctx: id, sett: i }));
     lista.appendChild(b);
   });
   box.appendChild(lista);
   const az1 = el('div', 'ed-azioni');
-  edBottone(az1, '+ Add week (copy of week ' + p.settimane.length + ')', '', () => {
+  edBottone(az1, '+ Aggiungi settimana (copia della settimana ' + p.settimane.length + ')', '', () => {
     p.settimane.push(copia(p.settimane[p.settimane.length - 1]));
     edVista = { pag: 'week', ctx: id, sett: p.settimane.length - 1 };
     edCambio(true);
@@ -1426,16 +1449,16 @@ function edPagPrep(box, id) {
   box.appendChild(az1);
 
   const az2 = el('div', 'ed-azioni');
-  edBottone(az2, 'Duplicate', '', () => {
+  edBottone(az2, 'Duplica', '', () => {
     /* la copia parte il giorno dopo la fine, e dura uguale */
     const durata = giorniFra(p.dal, p.al);
     const dal2 = chiaveData(piuGiorni(daChiave(p.al), 1));
     const al2 = chiaveData(piuGiorni(daChiave(dal2), durata));
     const msg = edDateOk(dal2, al2, null);
-    if (msg) { errore.textContent = 'The copy would start on ' + dataCorta(dal2) + ': ' + msg; errore.hidden = false; return; }
+    if (msg) { errore.textContent = 'La copia comincerebbe il ' + dataCorta(dal2) + ': ' + msg; errore.hidden = false; return; }
     const q = copia(p);
     q.id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    q.nome = (p.nome || 'Preparation') + ' (copy)';
+    q.nome = (p.nome || 'Preparazione') + ' (copia)';
     q.dal = dal2; q.al = al2;
     tstore.prep.push(q);
     tstore.prep.sort((a, b) => a.dal < b.dal ? -1 : 1);
@@ -1443,7 +1466,7 @@ function edPagPrep(box, id) {
     edCambio(true);
     edRidisegna();
   });
-  edConferma(az2, 'Delete preparation', () => {
+  edConferma(az2, 'Cancella preparazione', () => {
     tstore.prep = tstore.prep.filter(x => x.id !== p.id);
     edVista = { pag: 'week', ctx: 'base', sett: 0 };
     edCambio(true);
@@ -1461,18 +1484,18 @@ if (stretto.addEventListener) stretto.addEventListener('change', () => { if (!st
    prima apertura, postille colorate che spariscono al primo tocco, e un audio
    che prende il posto del primo bip del timer. */
 
-const EGG_COLORI = ['Yellow', 'Pink', 'Blue', 'Green'];
+const EGG_COLORI = ['Giallo', 'Rosa', 'Blu', 'Verde'];
 
 /* I posti della pagina dove puo' stare una postilla. */
 function eggPosti() {
-  const posti = [['top', 'Top of the page'], ['week', 'Above the Scheduling table'],
-                 ['every', 'Above the Every day list'], ['oggi', 'Above today\'s workouts'],
-                 ['wk', 'Above the WORKOUTS bar']];
+  const posti = [['top', 'In cima alla pagina'], ['week', 'Sopra la tabella della settimana'],
+                 ['every', 'Sopra la lista Ogni giorno'], ['oggi', 'Sopra gli allenamenti di oggi'],
+                 ['wk', 'Sopra la barra ALLENAMENTI']];
   const nomi = [];
   for (const f of [edFonte('base')].concat(tstore.prep.map(p => edFonte(p.id)))) {
     for (const n of edWorkout(f)) if (nomi.indexOf(n) < 0) nomi.push(n);
   }
-  for (const n of nomi) posti.push(['w:' + n, 'Above workout "' + n + '"']);
+  for (const n of nomi) posti.push(['w:' + n, 'Sopra il workout "' + n + '"']);
   return posti;
 }
 
@@ -1487,13 +1510,13 @@ async function eggRiduci(f) {
 }
 
 function edPagEgg(box) {
-  edTitolo(box, 'Easter eggs', 'Fun things, only on the day you choose. Every phone sees each one once: the first time the app opens that day.');
+  edTitolo(box, 'Easter egg', "Cose divertenti, solo nel giorno che scegli. Ogni telefono vede ognuna una volta sola: la prima volta che apre l'app quel giorno.");
   const oggi = chiaveData(today());
   const tutte = tstore.sorprese;
 
   /* --- le immagini --- */
-  box.appendChild(el('p', 'ed-sez-pag', 'IMAGE OF THE DAY'));
-  box.appendChild(el('p', 'ed-sotto', 'Full screen, before anything else. Tap to close.'));
+  box.appendChild(el('p', 'ed-sez-pag', 'IMMAGINE DEL GIORNO'));
+  box.appendChild(el('p', 'ed-sotto', 'A tutto schermo, prima di tutto il resto. Si chiude toccandola.'));
   tutte.forEach((x, i) => {
     if (x.tipo !== 'img') return;
     const r = el('div', 'egg-riga');
@@ -1506,10 +1529,10 @@ function edPagEgg(box) {
     })();
     r.appendChild(mini);
     const dx = el('div', 'egg-dx');
-    edCampo(dx, 'Day', x.giorno, { type: 'date' }, val => { if (dataOk(val)) { x.giorno = val; edCambio(false); } });
+    edCampo(dx, 'Giorno', x.giorno, { type: 'date' }, val => { if (dataOk(val)) { x.giorno = val; edCambio(false); } });
     const az = el('div', 'ed-azioni');
-    edBottone(az, 'Preview', '', () => controllaSorprese(x));
-    edConferma(az, 'Delete', () => { tutte.splice(i, 1); edCambio(false); edPagina(); });
+    edBottone(az, 'Prova', '', () => controllaSorprese(x));
+    edConferma(az, 'Cancella', () => { tutte.splice(i, 1); edCambio(false); edPagina(); });
     dx.appendChild(az);
     r.appendChild(dx);
     box.appendChild(r);
@@ -1532,28 +1555,28 @@ function edPagEgg(box) {
       edPagina();
       codaVideo();
     } catch (e) {
-      errore.textContent = 'This image could not be read.';
+      errore.textContent = 'Questa immagine non si riesce a leggere.';
       errore.hidden = false;
     }
   });
   box.appendChild(file);
   const az1 = el('div', 'ed-azioni');
-  edBottone(az1, '+ Image', '', () => file.click());
+  edBottone(az1, '+ Immagine', '', () => file.click());
   box.appendChild(az1);
   box.appendChild(errore);
 
   /* --- il suono del timer --- */
-  box.appendChild(el('p', 'ed-sez-pag', 'TIMER SOUND'));
-  box.appendChild(el('p', 'ed-sotto', 'On that day, the first time the timer goes off it plays your audio instead of the beep. Only once: then the normal beeps come back.'));
+  box.appendChild(el('p', 'ed-sez-pag', 'SUONO DEL TIMER'));
+  box.appendChild(el('p', 'ed-sotto', 'In quel giorno, il primo scatto del timer suona il tuo audio al posto della campanella. Una volta sola: poi torna la campanella.'));
   let prova = null;
   tutte.forEach((x, i) => {
     if (x.tipo !== 'suono') return;
     const r = el('div', 'egg-riga');
     const dx = el('div', 'egg-dx');
     dx.appendChild(el('p', 'ed-sotto', '♪ ' + x.audio));
-    edCampo(dx, 'Day', x.giorno, { type: 'date' }, val => { if (dataOk(val)) { x.giorno = val; edCambio(false); } });
+    edCampo(dx, 'Giorno', x.giorno, { type: 'date' }, val => { if (dataOk(val)) { x.giorno = val; edCambio(false); } });
     const az = el('div', 'ed-azioni');
-    edBottone(az, 'Listen', '', async () => {
+    edBottone(az, 'Ascolta', '', async () => {
       if (prova) { prova.pause(); prova = null; }
       const b = (await vGet(x.audio)) || (await prendiVideo(x.audio));
       if (!b) return;
@@ -1561,7 +1584,7 @@ function edPagEgg(box) {
       prova = new Audio(u);
       prova.play().catch(() => {});
     });
-    edConferma(az, 'Delete', () => { tutte.splice(i, 1); edCambio(false); edPagina(); });
+    edConferma(az, 'Cancella', () => { tutte.splice(i, 1); edCambio(false); edPagina(); });
     dx.appendChild(az);
     r.appendChild(dx);
     box.appendChild(r);
@@ -1578,8 +1601,8 @@ function edPagEgg(box) {
     const daTipo = { 'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/mp4': 'm4a', 'audio/x-m4a': 'm4a',
                      'audio/aac': 'aac', 'audio/ogg': 'ogg', 'audio/wav': 'wav', 'audio/x-wav': 'wav' }[f.type];
     const est = (daNome || daTipo || '').toLowerCase();
-    if (!est) { erroreA.textContent = 'Use an mp3, m4a, aac, ogg or wav file.'; erroreA.hidden = false; return; }
-    if (f.size > 5 * 1024 * 1024) { erroreA.textContent = 'This audio is too big: keep it under 5 MB.'; erroreA.hidden = false; return; }
+    if (!est) { erroreA.textContent = 'Usa un file mp3, m4a, aac, ogg o wav.'; erroreA.hidden = false; return; }
+    if (f.size > 5 * 1024 * 1024) { erroreA.textContent = 'Questo audio è troppo grande: resta sotto i 5 MB.'; erroreA.hidden = false; return; }
     try {
       const nome = 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8) + '.' + est;
       await vPut(nome, new Blob([f], { type: tipoVideo(nome) }));
@@ -1589,19 +1612,19 @@ function edPagEgg(box) {
       edPagina();
       codaVideo();
     } catch (e) {
-      erroreA.textContent = 'This device has no room for the audio.';
+      erroreA.textContent = "Su questo telefono non c'è spazio per l'audio.";
       erroreA.hidden = false;
     }
   });
   box.appendChild(fileA);
   const az3 = el('div', 'ed-azioni');
-  edBottone(az3, '+ Sound', '', () => fileA.click());
+  edBottone(az3, '+ Suono', '', () => fileA.click());
   box.appendChild(az3);
   box.appendChild(erroreA);
 
   /* --- le postille --- */
-  box.appendChild(el('p', 'ed-sez-pag', 'NOTES'));
-  box.appendChild(el('p', 'ed-sotto', 'A bright sticky note where you want. It goes away at the first tap, scroll, or when the app is closed.'));
+  box.appendChild(el('p', 'ed-sez-pag', 'NOTE'));
+  box.appendChild(el('p', 'ed-sotto', "Una nota colorata dove vuoi. Sparisce al primo tocco, scorrendo, o chiudendo l'app."));
   const posti = eggPosti();
   tutte.forEach((x, i) => {
     if (x.tipo !== 'nota') return;
@@ -1609,14 +1632,14 @@ function edPagEgg(box) {
     const anteprima = el('div', 'postilla c' + (x.colore || 0), x.testo || '…');
     r.appendChild(anteprima);
     const t = el('textarea', 'commento ed-desc-testo');
-    t.rows = 2; t.maxLength = 300; t.placeholder = 'What the note says';
+    t.rows = 2; t.maxLength = 300; t.placeholder = 'Cosa dice la nota';
     t.value = x.testo || '';
     t.addEventListener('input', () => { anteprima.textContent = t.value || '…'; });
     t.addEventListener('change', () => { x.testo = t.value.slice(0, 300).trim(); edCambio(false); });
     r.appendChild(t);
-    edCampo(r, 'Day', x.giorno, { type: 'date' }, val => { if (dataOk(val)) { x.giorno = val; edCambio(false); } });
+    edCampo(r, 'Giorno', x.giorno, { type: 'date' }, val => { if (dataOk(val)) { x.giorno = val; edCambio(false); } });
     const l = el('label', 'ed-campo');
-    l.appendChild(el('span', 'ed-eti', 'Where'));
+    l.appendChild(el('span', 'ed-eti', 'Dove'));
     const sel = el('select', 'campo');
     for (const [v, n] of posti) { const o = el('option', null, n); o.value = v; sel.appendChild(o); }
     if (!posti.some(p => p[0] === x.dove)) { const o = el('option', null, x.dove); o.value = x.dove; sel.appendChild(o); }
@@ -1633,12 +1656,12 @@ function edPagEgg(box) {
     });
     r.appendChild(col);
     const az = el('div', 'ed-azioni');
-    edConferma(az, 'Delete', () => { tutte.splice(i, 1); edCambio(false); edPagina(); });
+    edConferma(az, 'Cancella', () => { tutte.splice(i, 1); edCambio(false); edPagina(); });
     r.appendChild(az);
     box.appendChild(r);
   });
   const az2 = el('div', 'ed-azioni');
-  edBottone(az2, '+ Note', '', () => {
+  edBottone(az2, '+ Nota', '', () => {
     tutte.push({ id: 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), tipo: 'nota', giorno: oggi, testo: '', dove: 'top', colore: 0 });
     edCambio(false);
     edPagina();
@@ -1654,12 +1677,12 @@ function edPagEgg(box) {
 const edNorm = t => String(t || '').toLowerCase().replace(/\s+/g, ' ').trim();
 function edNomeScheda(o, k) {
   if (k === MORNING) return nomeMattinaDi(o);
-  if (k.indexOf('__ev_') === 0) { const a = (o.altre || []).find(x => EV(x.id) === k); return a ? (a.nome || 'Every day') : 'Every day'; }
+  if (k.indexOf('__ev_') === 0) { const a = (o.altre || []).find(x => EV(x.id) === k); return a ? (a.nome || 'Ogni giorno') : 'Ogni giorno'; }
   return k;
 }
 function edLibreria() {
   const m = new Map();
-  const fonti = [{ nome: 'Plan', o: tstore }].concat(tstore.prep.map(p => ({ nome: nomePrep(p), o: p })));
+  const fonti = [{ nome: 'Piano', o: tstore }].concat(tstore.prep.map(p => ({ nome: nomePrep(p), o: p })));
   for (const r of tstore.libreria) {
     const n = edNorm(r[0]);
     if (!n) continue;
@@ -1773,19 +1796,20 @@ function edPadriPossibili(nome) {
 let edChiedi = new Set();
 function edDomanda(k, nome, sc) {
   const box = el('div', 'ed-domanda');
-  box.appendChild(el('p', 'ed-domanda-t', '"' + nome + '" is new: a main exercise, or a variant of another?'));
+  box.appendChild(el('p', 'ed-domanda-t', '"' + nome + '" è nuovo: esercizio principale o variante di un altro?'));
   const t = el('div', 'ed-domanda-tasti');
   const fatto = () => {
     edChiedi.delete(k);
+    edLib(k, nome);
     edCambio(false);
     edPagina();
   };
-  edBottone(t, 'Main exercise', '', () => { edMetaSet(k, 'p', ''); fatto(); });
+  edBottone(t, 'Esercizio principale', '', () => { edMetaSet(k, 'p', ''); fatto(); });
   const proposti = edPadriPossibili(nome);
-  for (const p of proposti) edBottone(t, 'Variant of ' + p, '', () => { edFaiVariante(k, p); fatto(); });
+  for (const p of proposti) edBottone(t, 'Variante di ' + p, '', () => { edFaiVariante(k, p); fatto(); });
   if (edPrincipali(k).length) {
     const cerca = edCercaPadre(k, '', p => { if (p) { edFaiVariante(k, p); fatto(); } });
-    cerca.querySelector('input').placeholder = 'Variant of another… search';
+    cerca.querySelector('input').placeholder = 'Variante di un altro… cerca';
     t.appendChild(cerca);
   }
   box.appendChild(t);
@@ -1812,20 +1836,20 @@ let edLibCerca = '';
 let edLibMsg = '';
 function edPagLibreria(box) {
   const tutti = edLibreria();
-  edTitolo(box, 'Exercise library', 'Every exercise written in the plan and in the preparations, once, plus the ones you add here. When you write one of these names in a workout, its description and videos come along by themselves.');
+  edTitolo(box, 'Libreria esercizi', 'Ogni esercizio scritto nel piano e nelle preparazioni, una volta sola, più quelli che aggiungi qui. Quando scrivi uno di questi nomi in un workout, descrizione e video arrivano da soli.');
   /* un esercizio nuovo, solo in libreria: il nome, poi video e descrizione */
   const nuovo = el('div', 'ed-lib-nuovo');
   const nomeN = el('input', 'campo');
-  nomeN.type = 'text'; nomeN.maxLength = 60; nomeN.placeholder = 'New exercise name';
+  nomeN.type = 'text'; nomeN.maxLength = 60; nomeN.placeholder = 'Nome del nuovo esercizio';
   nuovo.appendChild(edTendina(nomeN, () => tutti.map(x => x.nome), v => { nomeN.value = v; aggiungi(); },
-                               { cls: 'nome', nuova: 'New exercise, not in the library yet' }));
+                               { cls: 'nome', nuova: 'Esercizio nuovo, non ancora in libreria' }));
   const errN = el('p', 'nota ed-lib-msg'); errN.hidden = !edLibMsg; errN.textContent = edLibMsg; edLibMsg = '';
   const aggiungi = () => {
     const nome = nomeN.value.slice(0, 60).trim();
     if (!nome) return;
     const k = edNorm(nome);
     if (edLibreria().some(x => edNorm(x.nome) === k)) {
-      edLibMsg = '"' + nome + '" is already in the library: it is open below.';
+      edLibMsg = '"' + nome + '" è già in libreria: è aperto qui sotto.';
       edLibAperti.add(k); edLibCerca = nome; edPagina();
       return;
     }
@@ -1835,21 +1859,21 @@ function edPagLibreria(box) {
     edCambio(false);
     edPagina();
   };
-  edBottone(nuovo, '+ Add to library', 'ed-ok', aggiungi);
+  edBottone(nuovo, '+ Aggiungi alla libreria', 'ed-ok', aggiungi);
   nomeN.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); aggiungi(); } });
   box.appendChild(nuovo);
   box.appendChild(errN);
   const cerca = el('input', 'campo ed-lib-cerca');
-  cerca.type = 'search'; cerca.placeholder = 'Search an exercise…';
+  cerca.type = 'search'; cerca.placeholder = 'Cerca un esercizio…';
   cerca.value = edLibCerca;
   box.appendChild(cerca);
   const senza = tutti.filter(x => !x.video).length;
-  const filtro = el('button', 'ed-lib-filtro' + (edLibSenzaVideo ? ' on' : ''), 'Without video · ' + senza);
+  const filtro = el('button', 'ed-lib-filtro' + (edLibSenzaVideo ? ' on' : ''), 'Senza video · ' + senza);
   filtro.type = 'button';
   filtro.setAttribute('aria-pressed', edLibSenzaVideo ? 'true' : 'false');
   filtro.addEventListener('click', () => { edLibSenzaVideo = !edLibSenzaVideo; edPagina(); });
   box.appendChild(filtro);
-  const selez = el('button', 'ed-lib-filtro' + (edLibSel ? ' on' : ''), edLibSel ? 'Done' : 'Select');
+  const selez = el('button', 'ed-lib-filtro' + (edLibSel ? ' on' : ''), edLibSel ? 'Fatto' : 'Seleziona');
   selez.type = 'button';
   selez.addEventListener('click', () => { edLibSel = edLibSel ? null : new Set(); edPagina(); });
   box.appendChild(selez);
@@ -1876,7 +1900,7 @@ function edPagLibreria(box) {
       const vv = (figli.get(x.k) || []).filter(va);
       if (va(x) || vv.length) { righe.push({ x: x, v: false }); for (const y of vv) righe.push({ x: y, v: true }); }
     }
-    lista.appendChild(el('p', 'ed-sotto', righe.length + (righe.length === 1 ? ' exercise' : ' exercises')));
+    lista.appendChild(el('p', 'ed-sotto', righe.length + (righe.length === 1 ? ' esercizio' : ' esercizi')));
     if (edLibSel) lista.appendChild(barraSel());
     for (const { x, v: variante } of righe) voce(x, variante);
     /* arrivati dal ✎ di un workout: la scheda aperta si porta in vista */
@@ -1891,7 +1915,7 @@ function edPagLibreria(box) {
   function barraSel() {
     const b = el('div', 'ed-lib-sel');
     const n = edLibSel.size;
-    b.appendChild(el('p', 'ed-sotto', n ? n + ' selected' : 'Tap the exercises to select them.'));
+    b.appendChild(el('p', 'ed-sotto', n ? n + ' selezionati' : 'Tocca gli esercizi per selezionarli.'));
     if (!n) return b;
     const scelti = tutti.filter(x => edLibSel.has(x.k));
     const az = el('div', 'ed-lib-nuovo');
@@ -1900,12 +1924,13 @@ function edPagLibreria(box) {
       for (const x of scelti) if (x.k !== edNorm(p)) edFaiVariante(x.k, p);
       edCambio(false); edPagina();
     });
-    sel.querySelector('input').placeholder = 'Make them variants of… search';
+    sel.querySelector('input').placeholder = 'Rendili varianti di… cerca';
     az.appendChild(sel);
-    edBottone(az, 'Make main', '', () => { for (const x of scelti) edMetaSet(x.k, 'p', ''); edCambio(false); edPagina(); });
+    edBottone(az, 'Rendi principali', '', () => { for (const x of scelti) edMetaSet(x.k, 'p', ''); edCambio(false); edPagina(); });
     b.appendChild(az);
     const via = el('div', 'ed-azioni');
-    edConferma(via, 'Delete ' + n + ' everywhere', () => {
+    edConferma(via, 'Cancella ' + n + ' ovunque', () => {
+      edAnnullabile(n + ' esercizi cancellati ovunque', edFoto());
       for (const x of scelti) edCancellaOvunque(x.k);
       edLibSel = new Set();
       edCambio(false); edPagina();
@@ -1935,33 +1960,33 @@ function edPagLibreria(box) {
       if (aperto) {
         const c = el('div', 'ed-lib-corpo');
         if (edChiedi.has(k)) c.appendChild(edDomanda(k, x.nome, null));
-        c.appendChild(el('p', 'ed-lib-usi', x.usi.length ? 'Used in: ' + x.usi.join(', ') : 'Only in the library, not in a workout yet.'));
+        c.appendChild(el('p', 'ed-lib-usi', x.usi.length ? 'Usato in: ' + x.usi.join(', ') : 'Solo in libreria, non ancora in un workout.'));
         /* il nome: cambiarlo qui lo cambia ovunque */
         const nomeC = el('input', 'campo ed-lib-nomecampo');
         nomeC.type = 'text'; nomeC.maxLength = 60; nomeC.value = x.nome;
-        nomeC.setAttribute('aria-label', 'Exercise name');
+        nomeC.setAttribute('aria-label', "Nome dell'esercizio");
         nomeC.addEventListener('change', () => {
           const nuovo = nomeC.value.slice(0, 60).trim();
           if (!nuovo) { nomeC.value = x.nome; return; }
           /* un nome che c'e' gia': i due diventerebbero uno solo. Si chiede prima */
           const kn = edNorm(nuovo);
           if (kn !== k && edRigheDi(kn).length &&
-              !confirm('"' + nuovo + '" already exists.\n\nMerge "' + x.nome + '" into it? They become one exercise everywhere; videos and descriptions are kept together.')) {
+              !confirm('"' + nuovo + '" esiste già.\n\nUnire "' + x.nome + '" a questo? Diventano un esercizio solo ovunque; video e descrizioni restano tutti.')) {
             nomeC.value = x.nome; return;
           }
           const unito = edLibRinomina(k, nuovo);
           edLibAperti.delete(k); edLibAperti.add(edNorm(unito || nuovo));
-          edLibMsg = unito ? '"' + x.nome + '" is now one exercise with "' + unito + '".' : '';
+          edLibMsg = unito ? '"' + x.nome + '" ora è un esercizio solo con "' + unito + '".' : '';
           if (edLibCerca) edLibCerca = unito || nuovo;
           edCambio(false); edPagina();
         });
         c.appendChild(nomeC);
-        if (x.posti > 1) c.appendChild(el('p', 'ed-lib-nota', 'Shown in all ' + x.posti + ' places where it is written.'));
+        if (x.posti > 1) c.appendChild(el('p', 'ed-lib-nota', 'Si vede in tutti i ' + x.posti + ' posti dove è scritto.'));
         /* la postilla: il padre, da correggere qui */
         const meta = el('div', 'ed-lib-meta');
-        const lp = el('div', 'ed-lib-postilla', 'Variant of ');
+        const lp = el('div', 'ed-lib-postilla', 'Variante di ');
         const px = padreDi(x);
-        lp.appendChild(edCercaPadre(k, px ? px.nome : '', p => { edFaiVariante(k, p); edCambio(false); edPagina(); }, '— main exercise'));
+        lp.appendChild(edCercaPadre(k, px ? px.nome : '', p => { edFaiVariante(k, p); edCambio(false); edPagina(); }, '— esercizio principale'));
         meta.appendChild(lp);
         c.appendChild(meta);
         /* descrizione e video: una riga di lavoro con quelli mostrati; ogni
@@ -1969,8 +1994,11 @@ function edPagLibreria(box) {
         const r = [x.nome, '', [], x.desc, x.video];
         c.appendChild(edDescrizione(r, () => { const L = edLib(k, x.nome); L[3] = r[3] || ''; L[4] = r[4] || ''; }));
         const az = el('div', 'ed-azioni');
-        c.appendChild(el('p', 'ed-lib-nota', 'Delete everywhere removes it from the library' + (x.usi.length ? ' and from: ' + x.usi.join(', ') : '') + '.'));
-        edConferma(az, 'Delete everywhere', () => { edCancellaOvunque(k); edLibAperti.delete(k); edCambio(false); edPagina(); });
+        c.appendChild(el('p', 'ed-lib-nota', 'Cancella ovunque lo toglie dalla libreria' + (x.usi.length ? ' e da: ' + x.usi.join(', ') : '') + '.'));
+        edConferma(az, 'Cancella ovunque', () => {
+          edAnnullabile('"' + x.nome + '" cancellato ovunque', edFoto());
+          edCancellaOvunque(k); edLibAperti.delete(k); edCambio(false); edPagina();
+        });
         c.appendChild(az);
         v.appendChild(c);
       }

@@ -58,7 +58,7 @@ function writeStore(key, val) {
    telefono le colonne della tabella diventano troppo strette per leggerle. */
 const MAX_SLOT = 4;
 const SLOT_BASE = 2;
-const ORDINALI = ['1st', '2nd', '3rd', '4th'];
+const ORDINALI = ['1°', '2°', '3°', '4°'];
 
 /* Il piano: fino a quattro caselle per giorno della settimana (0 domenica ...
    6 sabato), testo corto. Le caselle vuote in fondo non si scrivono. Anche le
@@ -477,14 +477,15 @@ try { chiave = localStorage.getItem(CHIAVE_KEY) || ''; } catch (e) { /* niente c
 
 /* mw: i campi del piano aperti; sch: la tendina WORKOUTS aperta;
    cal: la tendina della programmazione aperta;
-   solo: la sola scheda scelta con la sua pastiglia; vuoto = tutte */
+   solo: la sola scheda scelta con la sua pastiglia; vuoto = tutte.
+   Le due tendine partono sempre chiuse: aprendo l'app si vede oggi. */
 let mostra = (() => {
   try {
     const v = JSON.parse(localStorage.getItem(VISTA_KEY) || 'null');
     if (v && typeof v === 'object')
-      return { mw: !!v.mw, sch: v.sch !== false, cal: !!v.cal, solo: typeof v.solo === 'string' ? v.solo : '' };
+      return { mw: !!v.mw, sch: false, cal: false, solo: typeof v.solo === 'string' ? v.solo : '' };
   } catch (e) { /* si parte col piano da leggere */ }
-  return { mw: false, sch: true, cal: false, solo: '' };
+  return { mw: false, sch: false, cal: false, solo: '' };
 })();
 function salvaMostra() {
   try { localStorage.setItem(VISTA_KEY, JSON.stringify(mostra)); } catch (e) {}
@@ -557,8 +558,8 @@ function autoSalva() {
 /* ------------------------------------------------ il piano ---- */
 
 const GIORNI  = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const GIORNI2 = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-const MESI3   = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const GIORNI2 = ['Do', 'Lu', 'Ma', 'Me', 'Gi', 'Ve', 'Sa'];
+const MESI3   = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
 const SETTIMANA = [1, 2, 3, 4, 5, 6, 0];
 /* La pagina di chi si allena parla italiano; l'editor resta in inglese. */
 const GIORNI_IT  = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
@@ -834,6 +835,12 @@ function righeScheda(tab, sc, src, nome) {
     const c = el('div', 'tabc');
     c.appendChild(el('span', 'receti', 'Recupero'));
     c.appendChild(el('span', 'recval', sc.rec));
+    /* un recupero scritto come tempo si tocca: apre il suo timer */
+    if (tempiRiga(sc.rec)) {
+      r.classList.add('condesc');
+      r.dataset.recup = JSON.stringify([src, nome]);
+      c.appendChild(el('span', 'desfrec', '▾'));
+    }
     r.appendChild(c);
     tab.appendChild(r);
   } else if (!sc.es.length) {
@@ -1036,6 +1043,12 @@ $('wlist').addEventListener('click', ev => {
   if (dl) {
     const q = JSON.parse(dl.dataset.desces);
     apriDesc(q[0], q[1], q[2]);
+    return;
+  }
+  const rc = ev.target.closest('.tabr[data-recup]');
+  if (rc) {
+    const q = JSON.parse(rc.dataset.recup);
+    apriRecupero(q[0], q[1]);
   }
 });
 
@@ -1193,6 +1206,28 @@ function apriDesc(src, nome, i) {
   mostraElemento(vLista[0] || null);
 }
 
+/* Il recupero di una scheda: la stessa finestra, col suo timer e basta. */
+function apriRecupero(src, nome) {
+  const sc = schedeDi(src)[nome];
+  if (!sc || !sc.rec) return;
+  $('descTit').textContent = 'Recupero';
+  $('descQta').textContent = sc.rec + '  ·  ' + nome;
+  $('descQta').hidden = false;
+  /* e' tutto recupero: il timer lo dice e lo colora cosi' */
+  const pr = pianoTempi('Recupero', sc.rec);
+  tPiano = pr && { sequenza: false, fase: i => { const f = pr.fase(i); return f && Object.assign({}, f, { pausa: true }); } };
+  $('tAvvia').hidden = !tPiano;
+  $('tAvviaTxt').textContent = 'Inizia';
+  $('descQtaRiga').hidden = false;
+  testoDesc($('descTesto'), '', true);
+  dlgDesc.showModal();
+  dlgDesc.focus();
+  vLista = [];
+  paintVNav();
+  $('vAvviso').hidden = true;
+  mostraElemento(null);
+}
+
 /* Un elemento dello slot: un video caricato, un lettore incorporato
    (YouTube, Wistia, Loom...), un file video da un link, o un bottone per le
    piattaforme che non si lasciano incorporare (Patreon, Instagram...). */
@@ -1203,13 +1238,11 @@ function mostraElemento(x) {
   const slot = $('vSlot');
   slot.hidden = false;
   $('vVideo').hidden = true;
-  $('vFull').hidden = true;
-  $('vAudio').hidden = true;
   $('vStato').textContent = '';
   if (x.tipo === 'file') {
     const v = $('vVideo');
-    v.muted = true; paintAudio();
-    v.src = x.src; v.hidden = false; $('vFull').hidden = false; $('vAudio').hidden = false;
+    v.muted = true;
+    v.src = x.src; v.hidden = false;
     return;
   }
   if (x.tipo === 'frame') {
@@ -1352,13 +1385,53 @@ function pianoTimer(sc, r) {
     } };
   }
 
-  if (!T_SOLI.test(r[1] || '')) return null;
-  const t = tempiIn(r[1]);
-  if (!t.length) return null;
-  const fasi = [];
-  t.forEach((sec, j) => {
-    if (j) fasi.push({ pausa: true, sec: T_PAUSA_PIU, nome: r[0], info: 'Poi: ' + (j + 1) + ' di ' + t.length });
-    fasi.push({ sec: sec, nome: r[0], info: t.length > 1 ? (j + 1) + ' di ' + t.length : '' });
+  return pianoTempi(r[0], r[1]);
+}
+
+/* I tempi scritti in una quantita', o null se non sono tempi:
+   - "2’", "1'30\"", "2’ + 2’": i tempi, uno dopo l'altro;
+   - "1’/1’30”": un tempo o l'altro, si parte dal primo;
+   - "3’ + 2’ cycle + 2’ walk", "1 + 1’ cycle + 1’ walk": ogni pezzo e' un
+     tempo con un nome dopo; un numero senza unita' prende quella dei vicini.
+   Serie e ripetizioni ("30” x 3", "2 volte gamba 1’") non sono tempi. */
+const T_PEZZO = new RegExp('^' + T_UNO + '\\s*(.*)$', 'i');
+const T_BARRA = new RegExp('^\\s*' + T_UNO + '(?:\\s*/\\s*' + T_UNO + ')+\\s*$', 'i');
+function tempiRiga(q) {
+  q = String(q || '').trim();
+  if (!q) return null;
+  if (T_SOLI.test(q)) return tempiIn(q).map(sec => ({ sec: sec, eti: '' }));
+  if (T_BARRA.test(q)) return [{ sec: tempiIn(q)[0], eti: '' }];
+  const pezzi = q.split('+').map(x => x.trim());
+  const out = [];
+  for (const p of pezzi) {
+    const m = p.match(T_PEZZO);
+    if (m && tempiIn(m[0].slice(0, m[0].length - m[4].length)).length) {
+      const eti = m[4].trim();
+      if (/[\dx×\/]/i.test(eti.charAt(0)) || /\d/.test(eti)) return null;
+      out.push({ sec: secondiDi(m), eti: eti, sec_: m[1] ? 's' : 'm' });
+      continue;
+    }
+    const b = pezzi.length > 1 && p.match(/^(\d{1,3})(?:\s+([^\d]*))?$/);
+    if (!b) return null;
+    out.push({ n: +b[1], eti: (b[2] || '').trim() });
+  }
+  if (!out.some(x => x.sec)) return null;
+  /* i numeri senza unita': l'unita' del pezzo dopo, o di quello prima */
+  out.forEach((x, i) => {
+    if (x.sec) return;
+    const vic = out.slice(i + 1).concat(out.slice(0, i).reverse()).find(y => y.sec);
+    x.sec = vic.sec_ === 's' ? x.n : x.n * 60;
+  });
+  return out.map(x => ({ sec: x.sec, eti: x.eti }));
+}
+
+function pianoTempi(nome, q) {
+  const t = tempiRiga(q);
+  if (!t || !t.length) return null;
+  const fasi = [], n = t.length;
+  t.forEach((x, j) => {
+    if (j) fasi.push({ pausa: true, sec: T_PAUSA_PIU, nome: nome, info: 'Poi: ' + (x.eti || (j + 1) + ' di ' + n) });
+    fasi.push({ sec: x.sec, nome: nome + (x.eti ? ' · ' + x.eti : ''), info: n > 1 ? (j + 1) + ' di ' + n : '' });
   });
   return { sequenza: false, fase: i => fasi[i] || null };
 }
@@ -1804,8 +1877,6 @@ async function mostraVideo(nome, scrivibile) {
   /* senza video lo slot non si vede */
   slot.hidden = !nome;
   v.hidden = true;
-  $('vFull').hidden = true;
-  $('vAudio').hidden = true;
   if (!nome) { st.textContent = 'Nessun video'; return; }
   st.textContent = 'Carico il video…';
   let blob = await vGet(nome);
@@ -1820,11 +1891,9 @@ async function mostraVideo(nome, scrivibile) {
     return;
   }
   vURL = URL.createObjectURL(blob);
-  v.muted = true; paintAudio();                            /* ogni video parte muto */
+  v.muted = true;                            /* ogni video parte muto */
   v.src = vURL;
   v.hidden = false;
-  $('vFull').hidden = false;
-  $('vAudio').hidden = false;
   st.textContent = '';
 }
 
@@ -1835,35 +1904,8 @@ $('vVideo').addEventListener('loadedmetadata', () => {
   ruota();
 });
 
-/* L'audio: i video partono muti, il bottone lo accende e lo spegne. Anche
-   dai comandi del video: il bottone segue. */
-function paintAudio() {
-  const muto = $('vVideo').muted || !$('vVideo').volume;
-  $('vAudio').textContent = muto ? '🔇' : '🔊';
-  $('vAudio').setAttribute('aria-label', muto ? "Attiva l'audio" : "Togli l'audio");
-}
-$('vAudio').addEventListener('click', () => {
-  const v = $('vVideo');
-  v.muted = !v.muted;
-  if (!v.muted && !v.volume) v.volume = 1;
-  paintAudio();
-});
-$('vVideo').addEventListener('volumechange', paintAudio);
-
-/* Il bottone a schermo intero. Un video orizzontale gira anche il telefono,
-   dove il browser lo permette; uno verticale resta dritto e riempie lo schermo. */
-$('vFull').addEventListener('click', async () => {
-  const slot = $('vSlot'), v = $('vVideo');
-  try {
-    if (slot.requestFullscreen) await slot.requestFullscreen();
-    else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
-  } catch (e) {
-    try { if (v.webkitEnterFullscreen) v.webkitEnterFullscreen(); } catch (e2) { /* niente */ }
-  }
-  if (!slot.classList.contains('verticale') && screen.orientation && screen.orientation.lock) {
-    screen.orientation.lock('landscape').catch(() => {});
-  }
-});
+/* I video partono muti: l'audio e lo schermo intero si comandano dai
+   comandi del video stesso, quelli del telefono. */
 
 /* Uscendo dallo schermo intero il telefono torna libero di girare. */
 document.addEventListener('fullscreenchange', () => {
@@ -1934,14 +1976,14 @@ async function tieniVideo(f, avanza) {
   const piccolo = await comprimiVideo(f, avanza);
   if (piccolo && piccolo.size < f.size) f = new File([piccolo], 'video.mp4', { type: 'video/mp4' });
   if (f.size > VIDEO_MAX) {
-    return { errore: 'Video too big: ' + Math.round(f.size / 1048576) + ' MB, the limit is 60 MB. Record a shorter clip, or at 720p.' };
+    return { errore: 'Video troppo grande: ' + Math.round(f.size / 1048576) + ' MB, il limite è 60 MB. Registra un pezzo più corto, o a 720p.' };
   }
   const est = (f.name.match(/\.(mp4|webm|mov|m4v)$/i) || [0, 'mp4'])[1].toLowerCase();
   const nome = 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8) + '.' + est;
   try {
     await vPut(nome, new Blob([f], { type: tipoVideo(nome) }));
   } catch (e) {
-    return { errore: 'This device has no room for the video.' };
+    return { errore: 'Su questo telefono non c\'è spazio per il video.' };
   }
   return { nome: nome };
 }
@@ -2001,12 +2043,12 @@ function disegnaGruppi() {
   chips.textContent = '';
   for (const v of vie) {
     const c = el('button', 'chip chipw' + (grp.via && stessaVia(v, grp.via) ? ' sel' : ''),
-                 v.join(' › ') || '(no name)');
+                 v.join(' › ') || '(senza nome)');
     c.type = 'button';
     c.dataset.gapri = JSON.stringify(v);
     chips.appendChild(c);
   }
-  const piu = el('button', 'chip chipw chipnuovo', '+ new');
+  const piu = el('button', 'chip chipw chipnuovo', '+ nuovo');
   piu.type = 'button';
   piu.dataset.gnuovo = '1';
   chips.appendChild(piu);
@@ -2020,13 +2062,13 @@ function disegnaGruppi() {
 
   const sel = $('gDentro');
   sel.textContent = '';
-  const nessuno = el('option', null, 'top level');
+  const nessuno = el('option', null, 'non dentro un altro gruppo');
   nessuno.value = '';
   sel.appendChild(nessuno);
   for (const v of vie) {
     if (dentroVia(v, via)) continue;
     if (v.length >= 4) continue;
-    const o = el('option', null, 'in ' + v.join(' › '));
+    const o = el('option', null, 'dentro ' + v.join(' › '));
     o.value = JSON.stringify(v);
     sel.appendChild(o);
   }
@@ -2054,10 +2096,10 @@ function disegnaGruppi() {
     if (r[1]) l.appendChild(el('span', 'grival', r[1]));
     lista.appendChild(l);
   });
-  if (!lista.children.length) lista.appendChild(el('p', 'vuoto', 'Nothing written yet'));
+  if (!lista.children.length) lista.appendChild(el('p', 'vuoto', 'Ancora niente di scritto'));
   $('gNuovoEs').value = '';
   $('gNuovoQ').value = '';
-  $('gElimina').textContent = 'Delete this group';
+  $('gElimina').textContent = 'Sciogli questo gruppo';
 }
 
 $('gElenco').addEventListener('click', ev => {
@@ -2091,7 +2133,7 @@ $('gNome').addEventListener('change', () => {
   /* un nome gia' usato da un altro gruppo li unirebbe: si chiede prima */
   const altra = via.slice(0, d).concat([v]);
   if (via[d] && sc.es.some(r => dentroVia(r[2] || [], altra)) &&
-      !confirm('A group "' + v + '" already exists here.\n\nMerge the two groups into one?')) {
+      !confirm('Qui c\'è già un gruppo "' + v + '".\n\nUnire i due gruppi in uno solo?')) {
     $('gNome').value = via[d]; return;
   }
   for (const r of sc.es) {
@@ -2190,13 +2232,13 @@ const esDelGruppo = (sc, via) => sc.es.filter(r => r[0] && dentroVia(r[2] || [],
 function riassuntoTipo(t, n) {
   if (t.t === 'tabata') {
     const tot = t.g ? t.g * n * (t.l + t.r) - t.r : 0;
-    return 'Timer: ' + n + (n === 1 ? ' exercise' : ' exercises') + ' in a row, ' + t.l + '" work and ' + t.r + '" rest each, ' +
-      (t.g ? t.g + (t.g === 1 ? ' round' : ' rounds') + ' · ' + mmss(tot) + ' in total.' : 'round after round until Stop.');
+    return 'Timer: ' + n + (n === 1 ? ' esercizio' : ' esercizi') + ' di fila, ' + t.l + '" di lavoro e ' + t.r + '" di recupero ciascuno, ' +
+      (t.g ? t.g + (t.g === 1 ? ' giro' : ' giri') + ' · ' + mmss(tot) + ' in tutto.' : 'un giro dopo l\'altro fino a Stop.');
   }
   const a = t.a.length ? t.a : [1];
-  const turno = a.slice(0, Math.max(1, n)).map(x => x + (x === 1 ? ' min' : ' min')).join(' + ');
-  return 'Timer: a new minute every 60", ' + (n > 1 ? 'exercises in turn (' + turno + '), ' : '') +
-    (t.m ? t.m + ' minutes in total.' : 'until Stop.');
+  const turno = a.slice(0, Math.max(1, n)).map(x => x + ' min').join(' + ');
+  return 'Timer: un minuto nuovo ogni 60", ' + (n > 1 ? 'esercizi a turno (' + turno + '), ' : '') +
+    (t.m ? t.m + ' minuti in tutto.' : 'fino a Stop.');
 }
 
 function disegnaTipo(sc, via) {
@@ -2209,7 +2251,7 @@ function disegnaTipo(sc, via) {
     b.classList.toggle('consigliato', !!consiglio && consiglio.t === b.dataset.gtipo);
   }
   $('gConsiglio').hidden = !consiglio;
-  if (consiglio) $('gConsiglio').textContent = 'The name says ' + (consiglio.t === 'tabata' ? 'Tabata' : 'EMOM') + ': tap it to set its timer.';
+  if (consiglio) $('gConsiglio').textContent = 'Il nome dice ' + (consiglio.t === 'tabata' ? 'Tabata' : 'EMOM') + ': toccalo per impostare il suo timer.';
   $('gTabata').hidden = !t || t.t !== 'tabata';
   $('gEmom').hidden = !t || t.t !== 'emom';
   const es = esDelGruppo(sc, via);
@@ -2221,7 +2263,7 @@ function disegnaTipo(sc, via) {
     const box = $('gAlt');
     box.textContent = '';
     if (es.length > 1) {
-      box.appendChild(el('p', 'nota', 'Minutes in a row for each exercise, then the next one:'));
+      box.appendChild(el('p', 'nota', 'Minuti di fila per ogni esercizio, poi il prossimo:'));
       es.forEach((r, i) => {
         const l = el('label', 'gnum');
         l.appendChild(el('span', 'galt-es', r[0]));
@@ -2236,7 +2278,7 @@ function disegnaTipo(sc, via) {
     }
   }
   $('gTimerNota').hidden = !t;
-  if (t) $('gTimerNota').textContent = es.length ? riassuntoTipo(t, es.length) : 'Tick the exercises below: the timer uses them in this order.';
+  if (t) $('gTimerNota').textContent = es.length ? riassuntoTipo(t, es.length) : 'Spunta qui sotto gli esercizi: il timer li usa in questo ordine.';
 }
 
 function tipoCambia(fa) {
@@ -2286,7 +2328,7 @@ $('gAlt').addEventListener('change', ev => {
 $('gElimina').addEventListener('click', () => {
   if (!grp || !grp.via) return;
   const b = $('gElimina');
-  if (b.textContent !== 'Sure?') { b.textContent = 'Sure?'; return; }
+  if (b.textContent !== 'Sicuro? Tocca ancora') { b.textContent = 'Sicuro? Tocca ancora'; return; }
   const sc = schedeDi(grp.src)[grp.scheda];
   const via = grp.via, d = via.length - 1;
   for (const r of sc.es) {
@@ -2374,7 +2416,7 @@ $('impostazioniForm').addEventListener('submit', () => {
   paintEdit();
   paintW();
   if (token) provaToken();
-  else paintSync('solo lettura');
+  else paintSync('');
 });
 $('tokenAnnulla').addEventListener('click', () => dlgImp.close());
 
@@ -2491,10 +2533,8 @@ function paintSalva() {
     b.hidden = !((tstore.dirty && salvaErr) || coda);
     b.disabled = salvando;
     b.classList.toggle('err', !!salvaErr);
-    /* il bottone dell'editor parla inglese, quello della pagina italiano */
-    const it = b.id === 'salva';
     /* con un errore il bottone dice solo Riprova: il perche' sta nella riga sotto */
-    b.textContent = salvando ? (it ? 'Salvo…' : 'Saving…') : salvaErr ? (it ? 'Riprova' : 'Retry') : (it ? 'Salva' : 'Save');
+    b.textContent = salvando ? 'Salvo…' : salvaErr ? 'Riprova' : 'Salva';
   }
 }
 
@@ -2526,7 +2566,7 @@ async function pullTasks() {
      parla solo quando c'e' qualcosa da dire */
   const fine = msg => {
     if (/^(in sync|sincronizzato)/.test(msg || '')) msg = '';
-    paintSync(tokenKo ? 'token rifiutato' : (!token ? (msg ? 'solo lettura · ' + msg : 'solo lettura') : msg), tokenKo);
+    paintSync(tokenKo ? 'token rifiutato' : msg, tokenKo);
   };
   /* chi legge e basta non ha niente da salvare: comanda sempre quello online */
   if (!token && tstore.dirty) tstore.dirty = false;
@@ -2827,7 +2867,7 @@ setInterval(() => {
 paintEdit();
 disegnaW();
 paintSalva();
-paintSync(token ? '' : 'solo lettura');
+paintSync('');
 pullTasks();
 
 /* I video stanno nel telefono per sempre: si chiede al browser di non buttare

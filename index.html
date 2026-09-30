@@ -47,50 +47,50 @@
      gruppi ci sono, sotto si lavora su quello scelto. Tutto si salva al volo. -->
 <dialog class="chiusura" id="gruppo" tabindex="-1" aria-labelledby="gruppoTit">
   <form method="dialog" class="chiusura-box" id="gruppoForm">
-    <h2 class="chiusura-tit" id="gruppoTit">Groups</h2>
+    <h2 class="chiusura-tit" id="gruppoTit">Gruppi</h2>
 
     <div class="chips gchips" id="gElenco"></div>
 
     <div id="gCorpo" hidden>
       <div class="gtesta">
         <input class="campo" id="gNome" type="text" maxlength="40" autocomplete="off"
-               placeholder="group name" aria-label="Group name">
-        <select class="campo gsel" id="gDentro" aria-label="Inside which group"></select>
+               placeholder="nome del gruppo" aria-label="Nome del gruppo">
+        <select class="campo gsel" id="gDentro" aria-label="Dentro quale gruppo"></select>
       </div>
 
       <!-- il tipo del gruppo: con Tabata ed EMOM il timer sa esattamente cosa fare -->
-      <p class="commento-lab">Type</p>
+      <p class="commento-lab">Tipo</p>
       <div class="chips" id="gTipo">
-        <button type="button" class="chip" data-gtipo="">Normal</button>
+        <button type="button" class="chip" data-gtipo="">Normale</button>
         <button type="button" class="chip" data-gtipo="tabata">Tabata</button>
         <button type="button" class="chip" data-gtipo="emom">EMOM</button>
       </div>
       <p class="nota gconsiglio" id="gConsiglio" hidden></p>
       <div class="gtipo-campi" id="gTabata" hidden>
-        <label class="gnum"><span>Work</span><input class="campo" id="gLav" type="number" inputmode="numeric" min="1" max="600"><span>sec</span></label>
-        <label class="gnum"><span>Rest</span><input class="campo" id="gRec" type="number" inputmode="numeric" min="0" max="600"><span>sec</span></label>
-        <label class="gnum"><span>Rounds</span><input class="campo" id="gGiri" type="number" inputmode="numeric" min="0" max="99" placeholder="∞"><span>times the whole group</span></label>
+        <label class="gnum"><span>Lavoro</span><input class="campo" id="gLav" type="number" inputmode="numeric" min="1" max="600"><span>sec</span></label>
+        <label class="gnum"><span>Recupero</span><input class="campo" id="gRec" type="number" inputmode="numeric" min="0" max="600"><span>sec</span></label>
+        <label class="gnum"><span>Giri</span><input class="campo" id="gGiri" type="number" inputmode="numeric" min="0" max="99" placeholder="∞"><span>volte tutto il gruppo</span></label>
       </div>
       <div class="gtipo-campi" id="gEmom" hidden>
-        <label class="gnum"><span>Total</span><input class="campo" id="gMin" type="number" inputmode="numeric" min="0" max="180" placeholder="∞"><span>minutes</span></label>
+        <label class="gnum"><span>Totale</span><input class="campo" id="gMin" type="number" inputmode="numeric" min="0" max="180" placeholder="∞"><span>minuti</span></label>
         <div id="gAlt"></div>
       </div>
       <p class="nota gtimer" id="gTimerNota" hidden></p>
 
-      <p class="commento-lab">Tick what goes in</p>
+      <p class="commento-lab">Spunta cosa ci va dentro</p>
       <div class="glista" id="gLista"></div>
 
       <div class="wrow gnuovo">
-        <input class="wcampo" id="gNuovoEs" type="text" maxlength="60" placeholder="new exercise">
-        <input class="wcampo" id="gNuovoQ" type="text" maxlength="60" placeholder="how much">
-        <button type="button" class="schbtn" id="gNuovoOk">add</button>
+        <input class="wcampo" id="gNuovoEs" type="text" maxlength="60" placeholder="nuovo esercizio">
+        <input class="wcampo" id="gNuovoQ" type="text" maxlength="60" placeholder="quanto">
+        <button type="button" class="schbtn" id="gNuovoOk">aggiungi</button>
       </div>
 
-      <button type="button" class="btn btn-del btn-largo" id="gElimina">Delete this group</button>
+      <button type="button" class="btn btn-del btn-largo" id="gElimina">Sciogli questo gruppo</button>
     </div>
 
     <div class="chiusura-btn">
-      <button type="submit" class="btn btn-ok" value="ok">Done</button>
+      <button type="submit" class="btn btn-ok" value="ok">Fatto</button>
     </div>
   </form>
 </dialog>
@@ -146,13 +146,10 @@
         <span id="tAvviaTxt">Inizia</span>
       </button>
     </div>
-    <!-- Lo slot del video: sempre orizzontale, in cima. Play da qui; girando
-         il telefono va a schermo intero, e per i video verticali c'e' il bottone. -->
+    <!-- Lo slot del video: sempre orizzontale, in cima. Play, audio e
+         schermo intero dai comandi del video; girando il telefono va a schermo intero. -->
     <div class="vslot" id="vSlot" hidden>
       <video id="vVideo" controls playsinline preload="metadata" muted hidden></video>
-      <!-- i video partono muti: da qui si accende l'audio -->
-      <button type="button" class="vfull vaudio" id="vAudio" aria-label="Attiva l'audio" hidden>🔇</button>
-      <button type="button" class="vfull" id="vFull" aria-label="Schermo intero" hidden>⛶</button>
       <p class="vstato" id="vStato"></p>
       <!-- con piu' video: un avviso sopra il primo, che sparisce al tocco -->
       <p class="vavviso" id="vAvviso" hidden></p>
@@ -185,14 +182,14 @@
      l'elenco, a destra la pagina; sul telefono uno dopo l'altra. -->
 <div class="ed" id="ed" hidden role="dialog" aria-modal="true" aria-labelledby="edTit">
   <header class="ed-top">
-    <button type="button" class="ed-indietro" id="edIndietro" aria-label="Back to the list">&lsaquo;</button>
+    <button type="button" class="ed-indietro" id="edIndietro" aria-label="Torna all'elenco">&lsaquo;</button>
     <h2 class="ed-tit" id="edTit">Editor</h2>
     <span class="ed-stato" id="edStato"></span>
-    <button type="button" class="salva" id="edSalva" hidden>Save</button>
-    <button type="button" class="schbtn" id="edChiudi">Close</button>
+    <button type="button" class="salva" id="edSalva" hidden>Salva</button>
+    <button type="button" class="schbtn" id="edChiudi">Chiudi</button>
   </header>
   <div class="ed-corpo">
-    <nav class="ed-nav" id="edNav" aria-label="What to edit"></nav>
+    <nav class="ed-nav" id="edNav" aria-label="Cosa modificare"></nav>
     <section class="ed-pane" id="edPane"></section>
   </div>
   <!-- in basso a destra: le funzioni per giocare -->

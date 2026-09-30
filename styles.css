@@ -159,6 +159,8 @@ body{overflow-x:clip}
 }
 /* nelle schede il nome dell'esercizio si legge bene: niente maiuscolo grigio */
 .tab-i .tabc.eti{font-size:18px;letter-spacing:0;text-transform:none;color:var(--text)}
+/* il nome intero, anche su due righe: e' quello che distingue due esercizi simili */
+.tab-i .tabc.eti{white-space:normal;overflow-wrap:break-word;line-height:1.3}
 /* la testata di una scheda: il nome e il bottone per modificarla */
 .tab-i .tabr.schcapo{grid-template-columns:1fr auto auto}
 .tabr.schcapo .tabc + .tabc{border-left:0}
@@ -549,18 +551,6 @@ body{overflow-x:clip}
 }
 .vslot video{display:block;width:100%;height:100%;object-fit:contain;background:#000}
 .vstato{margin:0;padding:var(--s4);text-align:center;font-size:17px;color:var(--muted)}
-/* il bottone a schermo intero: in alto a destra, grande, sopra il video */
-.vfull{
-  position:absolute;top:var(--s2);right:var(--s2);z-index:2;
-  width:52px;height:52px;border-radius:var(--radius);
-  background:rgba(0,0,0,.55);color:#fff;font-size:28px;line-height:1;
-}
-.vfull:active{background:rgba(0,0,0,.8)}
-/* l'audio: accanto allo schermo intero */
-.vaudio{right:calc(var(--s2) * 2 + 52px);font-size:24px}
-/* per un video verticale il bottone e' la via per vederlo grande: si accende */
-.vslot.verticale .vfull{background:var(--accent);color:var(--bg)}
-.vslot.verticale .vaudio{background:rgba(0,0,0,.55);color:#fff}
 /* piu' video: le frecce sotto lo slot, e l'avviso leggero sopra il primo */
 .vnav{display:flex;align-items:center;justify-content:center;gap:var(--s3);margin:calc(-1 * var(--s2)) 0 var(--s3)}
 .vnav-btn{width:48px;height:40px;border-radius:var(--radius);border:1px solid var(--line);background:transparent;color:var(--text);font-size:26px;line-height:1;cursor:pointer}
@@ -571,7 +561,7 @@ body{overflow-x:clip}
   border-radius:var(--radius);background:var(--accent);color:#0d0f12;font-size:18px;font-weight:700;text-decoration:none}
 .vlink-host{font-size:13px;font-weight:600;opacity:.75}
 .vavviso{
-  position:absolute;left:var(--s2);top:var(--s2);z-index:3;max-width:calc(100% - 146px);
+  position:absolute;left:var(--s2);top:var(--s2);z-index:3;max-width:calc(100% - 16px);
   margin:0;padding:6px 14px;border-radius:999px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   background:rgba(0,0,0,.72);color:#fff;font-size:14px;font-weight:700;cursor:pointer;
 }
@@ -825,7 +815,7 @@ body.ed-aperto{overflow:hidden}
 .ed-giorno.fuori .ed-giorno-nome{color:var(--muted)}
 .ed-giorno-data{font-weight:400;color:var(--muted);font-size:15px;white-space:nowrap}
 /* nelle schede da leggere la quantita' e' corta: sta a destra, meno larga */
-.tab-i .tabc.val{white-space:normal;overflow-wrap:anywhere}
+.tab-i .tabc.val{white-space:normal;overflow-wrap:break-word;hyphens:auto;-webkit-hyphens:auto}
 .ed-cat{margin:0 0 var(--s1)}
 
 /* ---------- easter egg ---------- */
@@ -1043,10 +1033,11 @@ body.ed-aperto{overflow:hidden}
 /* il tipo di un gruppo: Tabata o EMOM, coi numeri del timer */
 .gtipo-campi{display:flex;flex-direction:column;gap:var(--s2);margin:var(--s2) 0}
 .gnum{display:flex;align-items:center;gap:var(--s2);font-size:16px;color:var(--text-2)}
-.gnum > span:first-child{flex:0 0 64px;font-weight:700;color:var(--text)}
+.gnum > span:first-child{flex:0 0 84px;font-weight:700;color:var(--text)}
 .gnum .campo{flex:0 0 84px;width:84px;text-align:center;font-size:18px}
 .gnum > span:last-child{font-size:14px;color:var(--muted)}
 .gnum > span.galt-es{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
 .gconsiglio{color:var(--accent);font-weight:700}
 .gtimer{margin-top:0;color:var(--text-2)}
 #gTipo .chip.consigliato{border-color:var(--accent);border-style:dashed}
+.tabr.recgiu.condesc .tabc{justify-content:flex-end;gap:8px}
