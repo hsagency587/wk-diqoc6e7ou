@@ -1030,3 +1030,14 @@ body.ed-aperto{overflow:hidden}
   .ed-es-qta{flex:0 0 78px;min-width:0}
   .ed-nota-az.solo-tel{display:flex}
 }
+
+/* il tipo di un gruppo: Tabata o EMOM, coi numeri del timer */
+.gtipo-campi{display:flex;flex-direction:column;gap:var(--s2);margin:var(--s2) 0}
+.gnum{display:flex;align-items:center;gap:var(--s2);font-size:16px;color:var(--text-2)}
+.gnum > span:first-child{flex:0 0 64px;font-weight:700;color:var(--text)}
+.gnum .campo{flex:0 0 84px;width:84px;text-align:center;font-size:18px}
+.gnum > span:last-child{font-size:14px;color:var(--muted)}
+.gnum > span.galt-es{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.gconsiglio{color:var(--accent);font-weight:700}
+.gtimer{margin-top:0;color:var(--text-2)}
+#gTipo .chip.consigliato{border-color:var(--accent);border-style:dashed}

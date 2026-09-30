@@ -58,6 +58,25 @@
         <select class="campo gsel" id="gDentro" aria-label="Inside which group"></select>
       </div>
 
+      <!-- il tipo del gruppo: con Tabata ed EMOM il timer sa esattamente cosa fare -->
+      <p class="commento-lab">Type</p>
+      <div class="chips" id="gTipo">
+        <button type="button" class="chip" data-gtipo="">Normal</button>
+        <button type="button" class="chip" data-gtipo="tabata">Tabata</button>
+        <button type="button" class="chip" data-gtipo="emom">EMOM</button>
+      </div>
+      <p class="nota gconsiglio" id="gConsiglio" hidden></p>
+      <div class="gtipo-campi" id="gTabata" hidden>
+        <label class="gnum"><span>Work</span><input class="campo" id="gLav" type="number" inputmode="numeric" min="1" max="600"><span>sec</span></label>
+        <label class="gnum"><span>Rest</span><input class="campo" id="gRec" type="number" inputmode="numeric" min="0" max="600"><span>sec</span></label>
+        <label class="gnum"><span>Rounds</span><input class="campo" id="gGiri" type="number" inputmode="numeric" min="0" max="99" placeholder="∞"><span>times the whole group</span></label>
+      </div>
+      <div class="gtipo-campi" id="gEmom" hidden>
+        <label class="gnum"><span>Total</span><input class="campo" id="gMin" type="number" inputmode="numeric" min="0" max="180" placeholder="∞"><span>minutes</span></label>
+        <div id="gAlt"></div>
+      </div>
+      <p class="nota gtimer" id="gTimerNota" hidden></p>
+
       <p class="commento-lab">Tick what goes in</p>
       <div class="glista" id="gLista"></div>
 

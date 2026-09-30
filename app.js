@@ -157,9 +157,66 @@ function validSchede(w) {
       String((Array.isArray(r) ? r[4] : '') || '').split(',').filter(nomeVideoOk).slice(0, 6).join(',')
     ]).filter(r => r[0] || r[1]);
     const rec = String(v.rec == null ? '' : v.rec).slice(0, 60).trim();
-    if (es.length || rec) out[nome] = { es: es, rec: rec };
+    if (!es.length && !rec) continue;
+    out[nome] = { es: es, rec: rec };
+    const tipi = validTipi(v.tipi, es);
+    if (tipi) out[nome].tipi = tipi;
   }
   return out;
+}
+
+/* Il tipo di un gruppo di un workout: Tabata o EMOM, con i numeri che servono
+   al timer. Sta nella scheda, per gruppo: la chiave e' la via del gruppo
+   scritta come testo (JSON). Tabata: l = secondi di lavoro, r = secondi di
+   recupero, g = giri (0: finche' non si ferma). EMOM: m = minuti (0: finche'
+   non si ferma), a = i minuti di fila di ogni esercizio, in ordine (1,1 =
+   uno al minuto a turno; 2,1 = due minuti il primo e uno il secondo). Un
+   gruppo che non c'e' piu' nelle righe perde il suo tipo. */
+const intra = (x, min, max, def) => { const n = Math.round(+x); return n >= min && n <= max ? n : def; };
+function validTipo(x) {
+  if (!x || typeof x !== 'object') return null;
+  if (x.t === 'tabata') return { t: 'tabata', l: intra(x.l, 1, 600, 20), r: intra(x.r, 0, 600, 10), g: intra(x.g, 0, 99, 0) };
+  if (x.t === 'emom') {
+    const a = (Array.isArray(x.a) ? x.a : []).slice(0, 20).map(n => intra(n, 1, 10, 1));
+    return { t: 'emom', m: intra(x.m, 0, 180, 0), a: a };
+  }
+  return null;
+}
+function validTipi(t, es) {
+  if (!t || typeof t !== 'object' || Array.isArray(t)) return null;
+  const out = {};
+  for (const k of Object.keys(t).slice(0, 40)) {
+    let via;
+    try { via = viaGruppi(JSON.parse(k)); } catch (e) { continue; }
+    if (!via.length) continue;
+    const usata = es.some(r => via.every((x, i) => (r[2] || [])[i] === x));
+    const v = validTipo(t[k]);
+    if (usata && v) out[JSON.stringify(via)] = v;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+/* Il tipo del gruppo piu' interno di una riga che ne ha uno, con la sua via. */
+function tipoDi(sc, r) {
+  const g = (r && r[2]) || [];
+  for (let d = g.length; d > 0; d--) {
+    const t = sc && sc.tipi && sc.tipi[JSON.stringify(g.slice(0, d))];
+    if (t) return { via: g.slice(0, d), tipo: t };
+  }
+  return null;
+}
+
+/* Quando un gruppo cambia via (nome, o dentro un altro), il suo tipo e
+   quelli dei gruppi dentro lo seguono. */
+function spostaTipi(sc, vecchia, nuova) {
+  if (!sc.tipi) return;
+  const out = {};
+  for (const k of Object.keys(sc.tipi)) {
+    const v = JSON.parse(k);
+    const dentro = vecchia.every((x, i) => v[i] === x) && v.length >= vecchia.length;
+    out[JSON.stringify(dentro ? nuova.concat(v.slice(vecchia.length)) : v)] = sc.tipi[k];
+  }
+  sc.tipi = out;
 }
 
 /* Il nome di un video: lettere e numeri a caso, e l'estensione. Lo sceglie
@@ -764,7 +821,7 @@ function righeScheda(tab, sc, src, nome) {
        che sotto c'e' qualcosa da leggere o da guardare. In un Tabata si apre
        ogni esercizio, anche senza descrizione: da li' parte la sequenza, che
        comincia sempre dal primo del gruppo. */
-    const tabata = (r[2] || []).some(x => /tabata/i.test(x));
+    const tabata = !!tipoDi(sc, r0) || (r[2] || []).some(x => /tabata/i.test(x));
     if (r[3] || r[4] || tabata) {
       riga.classList.add('condesc');
       riga.dataset.desces = JSON.stringify([src, nome, i]);
@@ -851,7 +908,7 @@ function paintMorning(box, pi, k) {
   for (const l of listeDelGiorno(pi, k)) {
     const sc = pi.schede[l.chiave];
     const tab = tabScheda(l.nome, sc);
-    box.appendChild(righeScheda(tab, { es: sc.es, rec: '' }, pi.src, l.chiave));
+    box.appendChild(righeScheda(tab, { es: sc.es, rec: '', tipi: sc.tipi }, pi.src, l.chiave));
   }
 }
 
@@ -869,7 +926,7 @@ function paintOggi(box, pi, k, g, titolo) {
       if (!capo) { box.appendChild(el('p', 'grp', titolo || 'ALLENAMENTI DI OGGI')); capo = true; }
       const tm = tabScheda(nomeMattinaDi(pi), scm);
       tm.classList.add('tab-oggi');
-      box.appendChild(righeScheda(tm, { es: scm.es, rec: '' }, pi.src, MORNING));
+      box.appendChild(righeScheda(tm, { es: scm.es, rec: '', tipi: scm.tipi }, pi.src, MORNING));
       continue;
     }
     const sc = pi.schede[nome];
@@ -1109,11 +1166,12 @@ function apriDesc(src, nome, i) {
   const lista = nome.indexOf('__') === 0 ? listeDi(src === 'base' ? tstore : tstore.prep.find(p => p.id === src) || tstore).find(l => l.chiave === nome) : null;
   $('descTit').textContent = r[0] || (lista ? lista.nome : nome);
   /* sotto il nome, per esteso: quanto (ripetizioni, tempi) e in che gruppo */
-  const quanto = [r[1], (r[2] || []).join(' › ')].filter(Boolean);
+  const tg = tipoDi(sc, sc.es[i]);
+  const quanto = [r[1], (r[2] || []).join(' › '), tg ? detto(tg.tipo) : ''].filter(Boolean);
   $('descQta').textContent = quanto.join('  ·  ');
   $('descQta').hidden = !quanto.length;
   /* se i tempi sono tempi veri, accanto c'e' il tasto del timer */
-  tPiano = pianoTimer(sc.es, sc.es[i]);
+  tPiano = pianoTimer(sc, sc.es[i]);
   $('tAvvia').hidden = !tPiano;
   if (tPiano) $('tAvviaTxt').textContent = tPiano.sequenza ? 'Inizia sequenza' : 'Inizia';
   $('descQtaRiga').hidden = !quanto.length && !tPiano;
@@ -1230,18 +1288,28 @@ const secondiDi = m => m[1] ? +m[1] : +m[2] * 60 + (+m[3] || 0);
 const tempiIn = t => [...String(t || '').matchAll(T_RE)].map(secondiDi).filter(x => x > 0);
 const giriIn = t => { const m = String(t).match(/(?:^|\s)[x×]\s*(\d{1,2})\b|\b(\d{1,2})\s*(?:giri|round|rounds)\b/i); return m ? +(m[1] || m[2]) : 0; };
 
+/* Il tipo di un gruppo detto per il Sifu, sotto il nome dell'esercizio. */
+const detto = t => t.t === 'tabata'
+  ? 'Tabata ' + t.l + '" lavoro / ' + t.r + '" recupero · ' + (t.g ? t.g + (t.g === 1 ? ' giro' : ' giri') : 'giri liberi')
+  : 'EMOM · ' + (t.m ? t.m + ' minuti' : 'minuti liberi');
+
 /* Il piano del timer per una riga della scheda, o null se non ci sono tempi.
-   `fase(i)` dice la fase numero i: { pausa, sec, nome, info }, o null alla fine. */
+   `fase(i)` dice la fase numero i: { pausa, sec, nome, info }, o null alla fine.
+   Un gruppo col suo tipo (Tabata, EMOM) comanda; senza, i tempi si leggono
+   dal nome, come prima. */
 let tPiano = null;
-function pianoTimer(righe, r) {
+function pianoTimer(sc, r) {
   if (!r) return null;
+  const righe = sc.es;
   const g = r[2] || [];
   const nomi = via => righe.filter(x => x[0] && dentroVia(x[2] || [], via)).map(x => x[0]);
+  const tg = tipoDi(sc, r);
 
-  const kt = g.findIndex(x => /tabata/i.test(x));
-  if (kt >= 0) {
-    const via = g.slice(0, kt + 1), es = nomi(via), t = tempiIn(g[kt]);
-    const lav = t[0] || 20, rec = t.length > 1 ? t[1] : 10, giri = giriIn(g[kt]), n = es.length;
+  const kt = tg ? -1 : g.findIndex(x => /tabata/i.test(x));
+  if ((tg && tg.tipo.t === 'tabata') || kt >= 0) {
+    const via = tg ? tg.via : g.slice(0, kt + 1), es = nomi(via), t = tg ? null : tempiIn(g[kt]);
+    const lav = tg ? tg.tipo.l : t[0] || 20, rec = tg ? tg.tipo.r : (t.length > 1 ? t[1] : 10);
+    const giri = tg ? tg.tipo.g : giriIn(g[kt]), n = es.length;
     if (!n) return null;
     return { sequenza: true, fase: i => {
       const passo = Math.floor(i / 2), pausa = i % 2 === 1;
@@ -1255,8 +1323,19 @@ function pianoTimer(righe, r) {
     } };
   }
 
+  if (tg && tg.tipo.t === 'emom') {
+    /* ogni esercizio per i suoi minuti di fila, poi il prossimo, a giro */
+    const es = nomi(tg.via), min = tg.tipo.m, turno = [];
+    es.forEach((x, j) => { for (let q = 0; q < (tg.tipo.a[j] || 1); q++) turno.push(x); });
+    if (!turno.length) return null;
+    return { sequenza: es.length > 1, fase: i => {
+      if (min && i >= min) return null;
+      return { sec: 60, nome: turno[i % turno.length], info: 'Minuto ' + (i + 1) + (min ? ' di ' + min : '') };
+    } };
+  }
+
   const ke = g.findIndex(x => /emom/i.test(x));
-  if (ke >= 0 || /emom/i.test(r[0] + ' ' + r[1])) {
+  if (!tg && (ke >= 0 || /emom/i.test(r[0] + ' ' + r[1]))) {
     const testo = ke >= 0 ? g[ke] : r[0] + ' ' + r[1];
     const m = testo.match(/emom\s*(?:x\s*|di\s*)?(\d{1,3})(?!\d|\s*["”″\/])/i) || testo.match(/(\d{1,3})\s*(?:min|['’′])/i);
     const min = m ? +m[1] : 0;
@@ -1929,6 +2008,8 @@ function disegnaGruppi() {
   const padre = via.slice(0, -1);
   sel.value = padre.length ? JSON.stringify(padre) : '';
 
+  disegnaTipo(sc, via);
+
   const lista = $('gLista');
   lista.textContent = '';
   sc.es.forEach((r, i) => {
@@ -1976,6 +2057,7 @@ $('gNome').addEventListener('change', () => {
     const g = r[2] || [];
     if (dentroVia(g, via)) g[d] = v;
   }
+  spostaTipi(sc, via, via.slice(0, d).concat([v]));
   grp.via = via.slice(0, d).concat([v]);
   touch();
   disegnaGruppi();
@@ -1991,6 +2073,7 @@ $('gDentro').addEventListener('change', () => {
   const righe = [];
   sc.es.forEach((r, i) => { if (dentroVia(r[2] || [], via)) righe.push(i); });
   for (const i of righe) sc.es[i][2] = nuova.concat((sc.es[i][2] || []).slice(via.length)).slice(0, 4);
+  spostaTipi(sc, via, nuova);
   if (padre.length) {
     const blocco = righe.map(i => sc.es[i]);
     const resto = sc.es.filter((r, i) => righe.indexOf(i) < 0);
@@ -2040,6 +2123,120 @@ $('gNuovoOk').addEventListener('click', () => {
   $('gNuovoEs').focus();
 });
 
+/* --- il tipo del gruppo nel pannello ---------------------------------- */
+
+/* Dal nome si indovina il tipo, solo per consigliarlo: "Tabata 45/15 x3". */
+function tipoDalNome(nome) {
+  if (/tabata/i.test(nome)) {
+    const t = tempiIn(nome);
+    return { t: 'tabata', l: t[0] || 20, r: t.length > 1 ? t[1] : 10, g: giriIn(nome) };
+  }
+  if (/emom/i.test(nome)) {
+    const m = nome.match(/emom\s*(?:x\s*|di\s*)?(\d{1,3})(?!\d|\s*["”″\/])/i) || nome.match(/(\d{1,3})\s*(?:min|['’′])/i);
+    return { t: 'emom', m: m ? +m[1] : 0, a: [] };
+  }
+  return null;
+}
+
+/* Gli esercizi di un gruppo, in ordine. */
+const esDelGruppo = (sc, via) => sc.es.filter(r => r[0] && dentroVia(r[2] || [], via));
+
+/* Quanto dura, detto in chiaro: e' quello che fara' il timer. */
+function riassuntoTipo(t, n) {
+  if (t.t === 'tabata') {
+    const tot = t.g ? t.g * n * (t.l + t.r) - t.r : 0;
+    return 'Timer: ' + n + (n === 1 ? ' exercise' : ' exercises') + ' in a row, ' + t.l + '" work and ' + t.r + '" rest each, ' +
+      (t.g ? t.g + (t.g === 1 ? ' round' : ' rounds') + ' · ' + mmss(tot) + ' in total.' : 'round after round until Stop.');
+  }
+  const a = t.a.length ? t.a : [1];
+  const turno = a.slice(0, Math.max(1, n)).map(x => x + (x === 1 ? ' min' : ' min')).join(' + ');
+  return 'Timer: a new minute every 60", ' + (n > 1 ? 'exercises in turn (' + turno + '), ' : '') +
+    (t.m ? t.m + ' minutes in total.' : 'until Stop.');
+}
+
+function disegnaTipo(sc, via) {
+  const nome = via[via.length - 1] || '';
+  const k = JSON.stringify(via);
+  const t = (sc.tipi && sc.tipi[k]) || null;
+  const consiglio = !t && tipoDalNome(nome);
+  for (const b of $('gTipo').querySelectorAll('[data-gtipo]')) {
+    b.classList.toggle('sel', (t ? t.t : '') === b.dataset.gtipo);
+    b.classList.toggle('consigliato', !!consiglio && consiglio.t === b.dataset.gtipo);
+  }
+  $('gConsiglio').hidden = !consiglio;
+  if (consiglio) $('gConsiglio').textContent = 'The name says ' + (consiglio.t === 'tabata' ? 'Tabata' : 'EMOM') + ': tap it to set its timer.';
+  $('gTabata').hidden = !t || t.t !== 'tabata';
+  $('gEmom').hidden = !t || t.t !== 'emom';
+  const es = esDelGruppo(sc, via);
+  if (t && t.t === 'tabata') {
+    $('gLav').value = t.l; $('gRec').value = t.r; $('gGiri').value = t.g || '';
+  }
+  if (t && t.t === 'emom') {
+    $('gMin').value = t.m || '';
+    const box = $('gAlt');
+    box.textContent = '';
+    if (es.length > 1) {
+      box.appendChild(el('p', 'nota', 'Minutes in a row for each exercise, then the next one:'));
+      es.forEach((r, i) => {
+        const l = el('label', 'gnum');
+        l.appendChild(el('span', 'galt-es', r[0]));
+        const inp = el('input', 'campo');
+        inp.type = 'number'; inp.inputMode = 'numeric'; inp.min = 1; inp.max = 10;
+        inp.value = t.a[i] || 1;
+        inp.dataset.galt = i;
+        l.appendChild(inp);
+        l.appendChild(el('span', null, 'min'));
+        box.appendChild(l);
+      });
+    }
+  }
+  $('gTimerNota').hidden = !t;
+  if (t) $('gTimerNota').textContent = es.length ? riassuntoTipo(t, es.length) : 'Tick the exercises below: the timer uses them in this order.';
+}
+
+function tipoCambia(fa) {
+  if (!grp || !grp.via || !grp.via[grp.via.length - 1]) return;
+  const sc = schedeDi(grp.src)[grp.scheda];
+  const k = JSON.stringify(grp.via);
+  if (!sc.tipi) sc.tipi = {};
+  fa(sc, k);
+  if (sc.tipi[k]) sc.tipi[k] = validTipo(sc.tipi[k]);
+  if (!sc.tipi[k]) delete sc.tipi[k];
+  if (!Object.keys(sc.tipi).length) delete sc.tipi;
+  touch();
+  disegnaGruppi();
+  dopoModifica();
+}
+
+$('gTipo').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-gtipo]');
+  if (!b) return;
+  if (grp && grp.via && !grp.via[grp.via.length - 1]) { $('gNome').focus(); return; }
+  tipoCambia((sc, k) => {
+    const tipo = b.dataset.gtipo;
+    if (!tipo) { delete sc.tipi[k]; return; }
+    if (sc.tipi[k] && sc.tipi[k].t === tipo) return;
+    const dal = tipoDalNome(grp.via[grp.via.length - 1]);
+    sc.tipi[k] = dal && dal.t === tipo ? dal : tipo === 'tabata' ? { t: 'tabata', l: 20, r: 10, g: 8 } : { t: 'emom', m: 10, a: [] };
+  });
+});
+for (const [id, campo] of [['gLav', 'l'], ['gRec', 'r'], ['gGiri', 'g'], ['gMin', 'm']]) {
+  $(id).addEventListener('change', () => tipoCambia((sc, k) => { if (sc.tipi[k]) sc.tipi[k][campo] = +$(id).value || 0; }));
+}
+$('gAlt').addEventListener('change', ev => {
+  const inp = ev.target.closest('[data-galt]');
+  if (!inp) return;
+  tipoCambia((sc, k) => {
+    const t = sc.tipi[k];
+    if (!t) return;
+    const n = esDelGruppo(sc, grp.via).length;
+    const a = [];
+    for (let i = 0; i < n; i++) a.push(t.a[i] || 1);
+    a[+inp.dataset.galt] = +inp.value || 1;
+    t.a = a;
+  });
+});
+
 /* due tocchi per sciogliere il gruppo: le righe restano */
 $('gElimina').addEventListener('click', () => {
   if (!grp || !grp.via) return;
@@ -2050,6 +2247,11 @@ $('gElimina').addEventListener('click', () => {
   for (const r of sc.es) {
     const g = r[2] || [];
     if (dentroVia(g, via)) g.splice(d, 1);
+  }
+  /* il suo tipo se ne va; quelli dei gruppi dentro salgono di un posto */
+  if (sc.tipi) {
+    delete sc.tipi[JSON.stringify(via)];
+    spostaTipi(sc, via, via.slice(0, -1));
   }
   grp.via = null;
   touch();
