@@ -919,7 +919,6 @@ body.ed-aperto{overflow:hidden}
 .ed-lib-sel .ed-azioni{margin:var(--s2) 0 0}
 .ed-lib-meta{display:flex;flex-wrap:wrap;gap:6px var(--s3);margin:0 0 var(--s2)}
 .ed-lib-postilla{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
-.ed-lib-cat{padding:4px 8px;font-size:13px;min-width:0;max-width:200px}
 /* la domanda sotto un esercizio appena scritto */
 .ed-domanda{margin:0 var(--s3) var(--s2);padding:var(--s2);border:1px dashed var(--accent);border-radius:var(--radius)}
 .ed-domanda-t{margin:0 0 6px;font-size:14px}

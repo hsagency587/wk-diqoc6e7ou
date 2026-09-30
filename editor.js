@@ -1696,7 +1696,8 @@ function edLibRinomina(n, nuovo) {
    Stanno in tstore.esercizi, per nome: p = il nome del padre, c = la
    categoria. Una variante e' un esercizio a se', con descrizione e video
    suoi: e' solo appesa a un padre. Un padre non e' mai a sua volta una
-   variante. La categoria si vede solo qui nell'editor. */
+   variante. La categoria (c) resta nei dati scritti prima, ma l'editor non
+   la mostra ne' la cambia piu'. */
 const edMeta = n => tstore.esercizi[n] || {};
 function edMetaSet(n, campo, v) {
   const x = Object.assign({}, tstore.esercizi[n] || {});
@@ -1705,14 +1706,13 @@ function edMetaSet(n, campo, v) {
 }
 
 /* n diventa variante di `padre` (vuoto: torna esercizio principale). Le sue
-   varianti passano al nuovo padre; se non ha categoria prende quella del padre. */
+   varianti passano al nuovo padre. */
 function edFaiVariante(n, padre) {
   const pk = edNorm(padre);
   if (!pk || pk === n) { edMetaSet(n, 'p', ''); return; }
   if (edMeta(pk).p) return;
   edMetaSet(n, 'p', padre);
   for (const k of Object.keys(tstore.esercizi)) if (k !== n && edNorm(tstore.esercizi[k].p) === n) edMetaSet(k, 'p', padre);
-  if (!edMeta(n).c && edMeta(pk).c) edMetaSet(n, 'c', edMeta(pk).c);
 }
 
 /* Gli esercizi principali, per nome: quelli che possono fare da padre. */
@@ -1733,24 +1733,6 @@ function edPadriPossibili(nome) {
   return dentro.concat(prima).slice(0, 3);
 }
 
-/* La categoria di un esercizio appena creato: quella del padre; se non e'
-   una variante, la piu' frequente fra gli altri esercizi dello stesso workout. */
-function edCatAuto(n, sc) {
-  const p = edMeta(n).p;
-  if (p) return edMeta(edNorm(p)).c || '';
-  if (!sc) return '';
-  const conta = {};
-  let meglio = '', max = 0;
-  for (const r of sc.es) {
-    const k = edNorm(r[0]);
-    const c = k && k !== n ? edMeta(k).c : '';
-    if (!c) continue;
-    conta[c] = (conta[c] || 0) + 1;
-    if (conta[c] > max) { max = conta[c]; meglio = c; }
-  }
-  return meglio;
-}
-
 /* I nomi appena scritti per la prima volta: aspettano la risposta. */
 let edChiedi = new Set();
 function edDomanda(k, nome, sc) {
@@ -1759,7 +1741,6 @@ function edDomanda(k, nome, sc) {
   const t = el('div', 'ed-domanda-tasti');
   const fatto = () => {
     edChiedi.delete(k);
-    if (!edMeta(k).c) { const c = edCatAuto(k, sc); if (c) edMetaSet(k, 'c', c); }
     edCambio(false);
     edPagina();
   };
@@ -1846,12 +1827,12 @@ function edPagLibreria(box) {
   function disegna() {
     lista.textContent = '';
     const q = edNorm(edLibCerca);
-    /* la ricerca guarda il nome, la categoria e il nome del padre */
+    /* la ricerca guarda il nome e il nome del padre */
     const va = x => {
       if (edLibSenzaVideo && x.video) return false;
       if (!q) return true;
       const px = padreDi(x);
-      return [x.nome, edMeta(x.k).c, px ? px.nome : ''].some(t => edNorm(t).indexOf(q) >= 0);
+      return [x.nome, px ? px.nome : ''].some(t => edNorm(t).indexOf(q) >= 0);
     };
     const righe = [];
     for (const x of tutti) {
@@ -1877,16 +1858,6 @@ function edPagLibreria(box) {
     b.appendChild(el('p', 'ed-sotto', n ? n + ' selected' : 'Tap the exercises to select them.'));
     if (!n) return b;
     const scelti = tutti.filter(x => edLibSel.has(x.k));
-    const cat = el('div', 'ed-lib-nuovo');
-    const ci = el('input', 'campo');
-    ci.type = 'text'; ci.maxLength = 40; ci.placeholder = 'Category';
-    cat.appendChild(ci);
-    edBottone(cat, 'Set category', '', () => {
-      const c = ci.value.slice(0, 40).trim();
-      for (const x of scelti) edMetaSet(x.k, 'c', c);
-      edCambio(false); edPagina();
-    });
-    b.appendChild(cat);
     const az = el('div', 'ed-lib-nuovo');
     const sel = edCercaPadre('', '', p => {
       if (!p) return;
@@ -1942,14 +1913,8 @@ function edPagLibreria(box) {
         });
         c.appendChild(nomeC);
         if (x.posti > 1) c.appendChild(el('p', 'ed-lib-nota', 'Shown in all ' + x.posti + ' places where it is written.'));
-        /* la postilla: categoria e padre, da correggere qui */
+        /* la postilla: il padre, da correggere qui */
         const meta = el('div', 'ed-lib-meta');
-        const lc = el('label', 'ed-lib-postilla', 'Category ');
-        const ci = el('input', 'campo ed-lib-cat');
-        ci.type = 'text'; ci.maxLength = 40; ci.placeholder = 'none'; ci.value = edMeta(k).c || '';
-        ci.addEventListener('change', () => { edMetaSet(k, 'c', ci.value.slice(0, 40).trim()); edCambio(false); });
-        lc.appendChild(ci);
-        meta.appendChild(lc);
         const lp = el('div', 'ed-lib-postilla', 'Variant of ');
         const px = padreDi(x);
         lp.appendChild(edCercaPadre(k, px ? px.nome : '', p => { edFaiVariante(k, p); edCambio(false); edPagina(); }, '— main exercise'));
