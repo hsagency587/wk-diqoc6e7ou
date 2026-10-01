@@ -846,11 +846,16 @@ function righeScheda(tab, sc, src, nome) {
     const c = el('div', 'tabc');
     c.appendChild(el('span', 'receti', 'Recupero'));
     c.appendChild(el('span', 'recval', sc.rec));
-    /* un recupero scritto come tempo si tocca: apre il suo timer */
+    /* un recupero scritto come tempo ha il tasto del suo timer, a sinistra
+       nella stessa casella: niente descrizione, parte subito */
     if (tempiRiga(sc.rec)) {
-      r.classList.add('condesc');
-      r.dataset.recup = JSON.stringify([src, nome]);
-      c.appendChild(el('span', 'desfrec', '▾'));
+      r.classList.add('contimer');
+      const b = el('button', 'tavvia tavvia-rec');
+      b.type = 'button';
+      b.dataset.recup = JSON.stringify([src, nome]);
+      b.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="14" r="8"/><path d="M12 14V10M9 2h6M12 2v4M19 7l1.5-1.5"/></svg>';
+      b.appendChild(el('span', null, 'Inizia'));
+      c.prepend(b);
     }
     r.appendChild(c);
     tab.appendChild(r);
@@ -1056,10 +1061,10 @@ $('wlist').addEventListener('click', ev => {
     apriDesc(q[0], q[1], q[2]);
     return;
   }
-  const rc = ev.target.closest('.tabr[data-recup]');
+  const rc = ev.target.closest('button[data-recup]');
   if (rc) {
     const q = JSON.parse(rc.dataset.recup);
-    apriRecupero(q[0], q[1]);
+    avviaRecupero(q[0], q[1]);
   }
 });
 
@@ -1217,26 +1222,23 @@ function apriDesc(src, nome, i) {
   mostraElemento(vLista[0] || null);
 }
 
-/* Il recupero di una scheda: la stessa finestra, col suo timer e basta. */
-function apriRecupero(src, nome) {
+/* Il recupero di una scheda: il timer parte subito, a tutto schermo, senza
+   passare da una descrizione. Fermandolo si torna alla pagina. */
+let tSoloTimer = false;
+function avviaRecupero(src, nome) {
   const sc = schedeDi(src)[nome];
-  if (!sc || !sc.rec) return;
-  $('descTit').textContent = 'Recupero';
-  $('descQta').textContent = sc.rec + '  ·  ' + nome;
-  $('descQta').hidden = false;
+  const pr = sc && sc.rec && pianoTempi('Recupero', sc.rec);
+  if (!pr) return;
   /* e' tutto recupero: il timer lo dice e lo colora cosi' */
-  const pr = pianoTempi('Recupero', sc.rec);
-  tPiano = pr && { sequenza: false, fase: i => { const f = pr.fase(i); return f && Object.assign({}, f, { pausa: true }); } };
-  $('tAvvia').hidden = !tPiano;
-  $('tAvviaTxt').textContent = 'Inizia';
-  $('descQtaRiga').hidden = false;
+  const piano = { sequenza: false, fase: i => { const f = pr.fase(i); return f && Object.assign({}, f, { pausa: true }); } };
+  $('descTit').textContent = '';
+  $('descQta').hidden = true;
+  $('descQtaRiga').hidden = true;
   testoDesc($('descTesto'), '', true);
-  dlgDesc.showModal();
-  dlgDesc.focus();
-  vLista = [];
-  paintVNav();
-  $('vAvviso').hidden = true;
   mostraElemento(null);
+  dlgDesc.showModal();
+  tmrAvvia(piano);
+  tSoloTimer = true;               /* dopo: tmrAvvia ferma un timer vecchio */
 }
 
 /* Un elemento dello slot: un video caricato, un lettore incorporato
@@ -1619,6 +1621,7 @@ function tmrFine() {
 
 function tmrFerma() {
   clearInterval(tmr.tic);
+  if (tSoloTimer) { tSoloTimer = false; setTimeout(chiudiDesc, 0); }
   if (tSorpresaSuona) { try { tSorpresaSuona.stop(); } catch (e) { /* gia' finito */ } tSorpresaSuona = null; }
   tmr.piano = null; tmr.f = null;
   $('tmr').hidden = true;
