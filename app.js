@@ -854,8 +854,10 @@ function righeScheda(tab, sc, src, nome) {
       b.type = 'button';
       b.dataset.recup = JSON.stringify([src, nome]);
       b.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="14" r="8"/><path d="M12 14V10M9 2h6M12 2v4M19 7l1.5-1.5"/></svg>';
-      b.appendChild(el('span', null, 'Inizia'));
+      b.appendChild(el('span', null, 'Recupero'));
       c.prepend(b);
+      /* il tasto dice gia' Recupero: a destra resta solo il tempo */
+      c.querySelector('.receti').remove();
     }
     r.appendChild(c);
     tab.appendChild(r);
