@@ -160,6 +160,7 @@ function edVoceAnteprima(box, testo, vista, attiva, cls, chiave, riempi) {
     if (!pv.children.length) pv.appendChild(el('p', 'ed-ant-vuota', 'Ancora niente di scritto.'));
     box.appendChild(pv);
   }
+  return riga;
 }
 
 /* Le righe di una scheda, da leggere: nome, quanto, e il gruppo davanti. */
@@ -223,13 +224,15 @@ function edVociFonte(box, ctx) {
   }
   /* la lista di tutti i giorni sta nella sua categoria: Every day */
   box.appendChild(el('p', 'ed-sub', 'Ogni giorno'));
-  edVoceAnteprima(box, nomeMattinaDi(f.obj) + (f.obj.mattinaVia ? ' (nascosta)' : ''), { pag: 'morning', ctx: ctx },
+  /* sotto il nome: quando si vede, e quante volte */
+  const quando = (riga, q, via) => { if (!via) riga.querySelector('.ed-voce').appendChild(el('span', 'ed-voce-sotto', edQuandoBreve(q))); };
+  quando(edVoceAnteprima(box, nomeMattinaDi(f.obj) + (f.obj.mattinaVia ? ' (nascosta)' : ''), { pag: 'morning', ctx: ctx },
     v.pag === 'morning' && v.ctx === ctx && !v.lista, f.obj.mattinaVia ? 'spenta' : '',
-    ctx + ':morning', pv => edAnteprimaScheda(pv, f.schede[MORNING]));
+    ctx + ':morning', pv => edAnteprimaScheda(pv, f.schede[MORNING])), f.obj.mattinaQuando, f.obj.mattinaVia);
   for (const a of f.obj.altre) {
-    edVoceAnteprima(box, (a.nome || 'Ogni giorno') + (a.via ? ' (nascosta)' : ''), { pag: 'morning', ctx: ctx, lista: a.id },
+    quando(edVoceAnteprima(box, (a.nome || 'Ogni giorno') + (a.via ? ' (nascosta)' : ''), { pag: 'morning', ctx: ctx, lista: a.id },
       v.pag === 'morning' && v.ctx === ctx && v.lista === a.id, a.via ? 'spenta' : '',
-      ctx + ':ev:' + a.id, pv => edAnteprimaScheda(pv, f.schede[EV(a.id)]));
+      ctx + ':ev:' + a.id, pv => edAnteprimaScheda(pv, f.schede[EV(a.id)])), a.quando, a.via);
   }
   /* una lista nuova: nasce vuota, con il suo nome da scrivere */
   if (f.obj.altre.length < 10) {
@@ -1269,6 +1272,7 @@ function edPagMattina(box, ctx, listaId) {
   });
 
   edQuando(box, L.quando);
+  edSettimanaLista(box, f, L.chiave);
 
   if (!f.schede[L.chiave]) f.schede[L.chiave] = { es: [], rec: '' };
   box.appendChild(el('p', 'ed-sez-pag', 'ESERCIZI'));
@@ -1361,6 +1365,56 @@ function edQuando(box, q) {
     else box.appendChild(lista);
     edCalendario(box, q);
   }
+}
+
+/* Quando si vede una lista, in breve: la regola e quante volte. */
+function edQuandoBreve(q) {
+  q = q || { modo: 'sempre' };
+  const oggi = today();
+  const volte = () => { let n = 0; for (let i = 0; i < 7; i++) if (quandoVale(q, chiaveData(piuGiorni(oggi, i)))) n++; return n; };
+  const nei7 = () => { const n = volte(); return n === 1 ? '1 volta nei prossimi 7 giorni' : n + ' volte nei prossimi 7 giorni'; };
+  if (q.modo === 'giorni') {
+    if (!q.giorni.length) return 'mai';
+    return SETTIMANA.filter(g => q.giorni.indexOf(g) >= 0).map(g => GIORNI2[g]).join(' ') + ' · ' + q.giorni.length + ' a settimana';
+  }
+  if (q.modo === 'ogni') return (q.n === 2 ? 'un giorno sì, uno no' : 'ogni ' + q.n + ' giorni') + ' · ' + nei7();
+  if (q.modo === 'ciclo') return q.passi.map(x => Math.abs(x) + (x > 0 ? ' sì' : ' no')).join(', ') + ' · ' + nei7();
+  if (q.modo === 'date') {
+    const k = chiaveData(oggi);
+    const pross = q.date.find(d => d >= k);
+    return (q.date.length === 1 ? '1 data' : q.date.length + ' date') + ' · ' + (pross ? 'prossima ' + GIORNI2[daChiave(pross).getDay()] + ' ' + dataCorta(pross) : 'nessuna in arrivo');
+  }
+  return 'tutti i giorni · 7 a settimana';
+}
+
+/* La settimana, da leggere mentre si scrive una lista: per ogni giorno i
+   workout e le liste Ogni giorno che si vedono; quella aperta in evidenza. */
+function edSettimanaLista(box, f, chiave) {
+  const oggi = chiaveData(today());
+  /* in una preparazione: la settimana di oggi se ci si e' dentro, se no la prima */
+  const dentro = f.base || (f.prep.dal <= oggi && oggi <= f.prep.al);
+  const lun = lunedi(dentro ? today() : daChiave(f.prep.dal));
+  box.appendChild(el('p', 'ed-sez-pag', 'SETTIMANA'));
+  const tab = el('div', 'ed-sett-lista');
+  SETTIMANA.forEach((g, pos) => {
+    const k = chiaveData(piuGiorni(lun, pos));
+    const fuori = !f.base && (k < f.prep.dal || k > f.prep.al);
+    const liste = fuori ? [] : listeDi(f.obj).filter(l => !l.via && quandoVale(l.quando, k));
+    const qui = liste.some(l => l.chiave === chiave);
+    const riga = el('div', 'ed-sl-riga' + (qui ? ' qui' : '') + (fuori ? ' fuori' : '') + (k === oggi ? ' oggi' : ''));
+    riga.appendChild(el('span', 'ed-sl-giorno', GIORNI2[g] + ' ' + daChiave(k).getDate()));
+    const corpo = el('div', 'ed-sl-corpo');
+    if (fuori) corpo.appendChild(el('span', 'ed-sl-wk', 'fuori dalla preparazione'));
+    else {
+      const w = f.settimane[f.base ? 0 : settimanaDi(f.prep, k)];
+      const nomi = (w.workout[g] || []).slice(0, w.conti[g] || 0).map(x => x === MORNING ? nomeMattinaDi(f.obj) : x).filter(Boolean);
+      corpo.appendChild(el('span', 'ed-sl-wk', nomi.length ? nomi.join(' + ') : 'Riposo'));
+      for (const l of liste) corpo.appendChild(el('span', 'ed-sl-lista' + (l.chiave === chiave ? ' on' : ''), l.nome));
+    }
+    riga.appendChild(corpo);
+    tab.appendChild(riga);
+  });
+  box.appendChild(tab);
 }
 
 /* Il calendario, una settimana per riga (da lunedi'): si toccano i giorni,

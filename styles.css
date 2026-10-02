@@ -1090,3 +1090,17 @@ body.ed-aperto{overflow:hidden}
 .ed-es-riga:has(.ed-tend-w.nome :focus) > :not(.ed-tend-w.nome){display:none}
 .ed-es-riga > .ed-es-qta:focus,
 .ed-es-riga > .ed-tend-w.nome:focus-within{flex:1 1 100%;max-width:none}
+
+/* sotto il nome di una lista Ogni giorno: quando si vede */
+.ed-voce-sotto{display:block;font-size:13px;color:var(--muted);font-weight:400}
+/* la settimana nella pagina di una lista */
+.ed-sett-lista{display:flex;flex-direction:column;gap:4px;margin-bottom:var(--s3)}
+.ed-sl-riga{display:flex;gap:var(--s2);align-items:baseline;padding:6px var(--s2);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+.ed-sl-riga.qui{border-left-color:var(--accent)}
+.ed-sl-riga.oggi .ed-sl-giorno{color:var(--accent)}
+.ed-sl-riga.fuori{opacity:.5}
+.ed-sl-giorno{flex:0 0 52px;white-space:nowrap;font-weight:700;font-size:14px}
+.ed-sl-corpo{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline}
+.ed-sl-wk{font-size:15px}
+.ed-sl-lista{font-size:13px;padding:1px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.ed-sl-lista.on{border-color:var(--accent);color:var(--accent);font-weight:700}
