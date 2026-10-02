@@ -2077,7 +2077,7 @@
         }
       },
       "mattina": "Morning Routine",
-      "mattinaVia": false,
+      "mattinaVia": true,
       "mattinaQuando": {
         "modo": "giorni",
         "giorni": [
