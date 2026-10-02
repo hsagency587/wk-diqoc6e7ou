@@ -1083,3 +1083,10 @@ body.ed-aperto{overflow:hidden}
 /* la tendina delle preparazioni finite */
 .ed-voce.ed-finite{color:var(--muted);font-size:15px;font-weight:700}
 .ed-finite-box{padding-left:var(--s2)}
+
+/* scrivendo nella riga di un esercizio, il campo prende tutta la larghezza:
+   il resto della riga sparisce finche' non si esce dal campo */
+.ed-es-riga:has(.ed-es-qta:focus) > :not(.ed-es-qta),
+.ed-es-riga:has(.ed-tend-w.nome :focus) > :not(.ed-tend-w.nome){display:none}
+.ed-es-riga > .ed-es-qta:focus,
+.ed-es-riga > .ed-tend-w.nome:focus-within{flex:1 1 100%;max-width:none}
