@@ -2132,9 +2132,75 @@ function disegnaGruppi() {
   $('gElimina').textContent = 'Sciogli questo gruppo';
 }
 
+/* --- copia e incolla di un gruppo ---------------------------------------
+   Tenendo premuta l'etichetta di un gruppo nel pannello compare "Copia": il
+   gruppo (esercizi, quantita', gruppi dentro e tipo) va negli appunti di
+   questo telefono. Nella pagina di un workout c'e' poi "Incolla". */
+const APPUNTI_KEY = 'wk-appunti-gruppo-v1';
+function appuntiGruppo() {
+  try { const v = JSON.parse(localStorage.getItem(APPUNTI_KEY) || 'null'); return v && Array.isArray(v.es) && v.es.length ? v : null; }
+  catch (e) { return null; }
+}
+function copiaGruppo(sc, via) {
+  const d = via.length - 1;
+  const es = sc.es.filter(r => r[0] && dentroVia(r[2] || [], via))
+    .map(r => [r[0], r[1] || '', (r[2] || []).slice(d), r[3] || '', r[4] || '']);
+  const tipi = {};
+  for (const k of Object.keys(sc.tipi || {})) {
+    const v = JSON.parse(k);
+    if (dentroVia(v, via)) tipi[JSON.stringify(v.slice(d))] = sc.tipi[k];
+  }
+  try { localStorage.setItem(APPUNTI_KEY, JSON.stringify({ nome: via[d], es: es, tipi: tipi })); } catch (e) { return false; }
+  return true;
+}
+/* Incolla in fondo alla scheda, fuori da altri gruppi. Se c'e' gia' un gruppo
+   con lo stesso nome, il nuovo prende un numero dopo il nome. */
+function incollaGruppo(sc) {
+  const a = appuntiGruppo();
+  if (!a) return '';
+  const usati = new Set(sc.es.map(r => (r[2] || [])[0]).filter(Boolean));
+  let nome = a.nome, n = 2;
+  while (usati.has(nome)) nome = (a.nome + ' ' + n++).slice(0, 40);
+  sc.es = sc.es.concat(a.es.map(r => [r[0], r[1], [nome].concat(r[2].slice(1)), r[3], r[4]]));
+  for (const k of Object.keys(a.tipi || {})) {
+    const v = JSON.parse(k);
+    if (!sc.tipi) sc.tipi = {};
+    sc.tipi[JSON.stringify([nome].concat(v.slice(1)))] = a.tipi[k];
+  }
+  return nome;
+}
+
+/* Il dito tenuto giu' su un'etichetta: dopo mezzo secondo compare "Copia" */
+let gPremuto = null, gPremutoT = null;
+$('gElenco').addEventListener('pointerdown', ev => {
+  const a = ev.target.closest('button[data-gapri]');
+  if (!a) return;
+  clearTimeout(gPremutoT);
+  gPremutoT = setTimeout(() => { gPremuto = a; mostraCopia(a); }, 550);
+});
+for (const t of ['pointerup', 'pointerleave', 'pointercancel']) $('gElenco').addEventListener(t, () => clearTimeout(gPremutoT));
+$('gElenco').addEventListener('contextmenu', ev => { if (ev.target.closest('button[data-gapri]')) ev.preventDefault(); });
+function mostraCopia(a) {
+  for (const x of $('gElenco').querySelectorAll('.gcopia')) x.remove();
+  const b = el('button', 'chip gcopia', 'Copia');
+  b.type = 'button';
+  b.addEventListener('click', ev => {
+    ev.stopPropagation();
+    const sc = schedeDi(grp.src)[grp.scheda];
+    const via = viaGruppi(JSON.parse(a.dataset.gapri));
+    b.textContent = copiaGruppo(sc, via) ? 'Copiato ✓' : 'Non riesco a copiare';
+    b.disabled = true;
+    setTimeout(() => b.remove(), 1500);
+  });
+  a.after(b);
+}
+
 $('gElenco').addEventListener('click', ev => {
   if (!grp) return;
+  if (ev.target.closest('.gcopia')) return;
   const a = ev.target.closest('button[data-gapri]');
+  /* il tocco lungo che ha fatto comparire Copia non apre il gruppo */
+  if (a && gPremuto === a) { gPremuto = null; return; }
   if (a) { grp.via = viaGruppi(JSON.parse(a.dataset.gapri)); disegnaGruppi(); return; }
   if (ev.target.closest('button[data-gnuovo]')) {
     grp.via = [''];

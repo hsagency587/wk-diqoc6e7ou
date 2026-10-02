@@ -735,6 +735,17 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
     const campi = $('edPane').querySelectorAll('.ed-es-nome');
     if (campi.length) campi[campi.length - 1].focus();
   });
+  /* un gruppo copiato dal pannello Gruppi: si incolla qui, con i suoi esercizi */
+  const ap = appuntiGruppo();
+  if (ap) {
+    edBottone(box, '📋 Incolla il gruppo "' + ap.nome + '" (' + ap.es.length + (ap.es.length === 1 ? ' esercizio)' : ' esercizi)'), 'ed-aggiungi ed-incolla', () => {
+      const nome = incollaGruppo(sc);
+      /* gli esercizi incollati hanno la loro scheda in libreria, come quando si scrivono */
+      for (const r of sc.es) if (r[0] && (r[2] || [])[0] === nome) edLib(edNorm(r[0]), r[0]);
+      edCambio(false);
+      edPagina();
+    });
+  }
 }
 
 /* Trascinare una riga col dito, dalla maniglia: le altre si scostano per

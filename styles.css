@@ -1064,3 +1064,7 @@ body.ed-aperto{overflow:hidden}
 /* nell'elenco dell'editor la voce aperta non si evidenzia: si vede la pagina */
 #edNav .ed-voce.on{background:none;box-shadow:none;font-weight:inherit;color:inherit}
 #edNav .ed-voce.ed-lib-link.on{color:var(--blu);font-weight:800}
+
+/* copia e incolla di un gruppo */
+.chip.gcopia{background:var(--blu);border-color:var(--blu);color:#fff;font-weight:800}
+.ed-incolla{border-color:var(--blu);color:var(--blu)}
