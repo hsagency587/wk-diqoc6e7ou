@@ -1104,3 +1104,6 @@ body.ed-aperto{overflow:hidden}
 .ed-sl-wk{font-size:15px}
 .ed-sl-lista{font-size:13px;padding:1px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
 .ed-sl-lista.on{border-color:var(--accent);color:var(--accent);font-weight:700}
+
+/* Pubblica grande quanto Chiudi */
+.ed .salva.pubblica{min-height:36px;padding:0 10px;font-size:15px;font-weight:600;border:1px solid transparent;border-radius:var(--radius)}
