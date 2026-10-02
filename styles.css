@@ -1029,6 +1029,13 @@ body.ed-aperto{overflow:hidden}
 .ed-es.trascina{position:relative;z-index:3;box-shadow:0 8px 22px rgba(0,0,0,.35);border-color:var(--accent)}
 .ed-es-lista .ed-es{transition:transform .12s}
 .ed-es-lista .ed-es.trascina{transition:none}
+/* selezionati: il gruppo (o l'esercizio) che si sposta */
+.ed-es.sel{border-color:var(--blu);box-shadow:inset 3px 0 0 var(--blu)}
+.ed-sel-barra{display:flex;align-items:center;gap:var(--s2);padding:6px var(--s3) 0;font-size:14px;color:var(--blu);font-weight:700}
+.ed-sel-t{flex:1;min-width:0}
+.ed-sel-via{min-height:36px;padding:0 var(--s3);border-radius:var(--radius);border:1px solid var(--blu);color:var(--blu);font-size:14px;font-weight:700;background:none}
+.ed-domanda-gr{border-color:var(--blu)}
+.trascina-gruppo .ed-in-gruppo{visibility:hidden}
 .ed-nota-az{padding:0 4px 6px}
 @media (max-width: 899px){
   .solo-pc{display:none}

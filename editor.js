@@ -608,7 +608,7 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
   sc.es.forEach((r, i) => {
     const chiave = ctx + '|' + nomeScheda + '|' + i;
     const aperto = edAperti.has(chiave);
-    const es = el('div', 'ed-es' + (aperto ? ' aperto' : ''));
+    const es = el('div', 'ed-es' + (aperto ? ' aperto' : '') + (edSelezionata(sc, i) ? ' sel' : ''));
     const riga = el('div', 'ed-es-riga');
 
     /* sul telefono si sposta col dito, dalla maniglia; sul PC con le frecce */
@@ -657,10 +657,11 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
       const pen = edBottone(tasti, '✎', 'ed-tasto solo-pc', () => edApriInLibreria(edNorm(r[0])));
       pen.setAttribute('aria-label', 'Modifica in libreria'); pen.title = 'Modifica in libreria';
     }
+    const blk = edBlocco(sc, i);
     const su = edBottone(tasti, '↑', 'ed-tasto solo-pc', () => edSposta(sc, i, -1));
-    su.disabled = i === 0; su.setAttribute('aria-label', 'Sposta su');
+    su.disabled = blk[0] === 0; su.setAttribute('aria-label', 'Sposta su');
     const giu = edBottone(tasti, '↓', 'ed-tasto solo-pc', () => edSposta(sc, i, 1));
-    giu.disabled = i === sc.es.length - 1; giu.setAttribute('aria-label', 'Sposta giù');
+    giu.disabled = blk[blk.length - 1] === sc.es.length - 1; giu.setAttribute('aria-label', 'Sposta giù');
     /* toglie la riga da questo workout e basta: in libreria l'esercizio resta,
        e resta negli altri workout. Per qualche secondo si puo' annullare. */
     const togli = () => {
@@ -706,6 +707,14 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
     }
     const kr = edNorm(r[0]);
     if (kr && edChiedi.has(kr)) es.appendChild(edDomanda(kr, r[0], sc));
+    if (edChiediSel && edChiediSel.sc === sc && edChiediSel.r === r) es.appendChild(edDomandaGruppo(sc, i));
+    /* il gruppo selezionato: sul primo esercizio, il tasto per lasciarlo */
+    if (edSelGr && edSelGr.sc === sc && edTop(r) === edSelGr.g && edTop(sc.es[i - 1]) !== edSelGr.g) {
+      const sb = el('div', 'ed-sel-barra');
+      sb.appendChild(el('span', 'ed-sel-t', 'Gruppo "' + edSelGr.g + '" selezionato'));
+      edBottone(sb, 'Deseleziona', 'ed-sel-via', () => { edSelGr = null; edPagina(); });
+      es.insertBefore(sb, es.firstChild);
+    }
 
     /* aperta: quello che c'e' in libreria, da leggere, e la nota di questa
        riga sola */
@@ -752,44 +761,132 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
   }
 }
 
+/* Selezionare un esercizio di un gruppo: si chiede se va preso tutto il
+   gruppo. Preso il gruppo, si sposta tutto insieme nel workout. */
+const ED_NONCHIEDERE_KEY = 'wk-gruppo-nonchiedere-v1';
+let edSelGr = null;       /* { sc, g }: il gruppo selezionato */
+let edSelRiga = null;     /* { sc, r }: un esercizio solo, senza il suo gruppo */
+let edChiediSel = null;   /* { sc, r }: la riga che sta facendo la domanda */
+
+/* il gruppo piu' esterno della riga: e' quello che si muove intero */
+const edTop = r => (r && (r[2] || [])[0]) || '';
+const edNonChiedere = () => { try { return localStorage.getItem(ED_NONCHIEDERE_KEY) === '1'; } catch (e) { return false; } };
+
+/* le righe che si muovono insieme a quella: tutto il gruppo, se e' selezionato */
+function edBlocco(sc, i) {
+  const g = edTop(sc.es[i]);
+  if (!g || !edSelGr || edSelGr.sc !== sc || edSelGr.g !== g) return [i];
+  const b = [];
+  sc.es.forEach((r, t) => { if (edTop(r) === g) b.push(t); });
+  return b;
+}
+
+function edSelezionata(sc, i) {
+  const r = sc.es[i];
+  if (edSelGr && edSelGr.sc === sc && edTop(r) === edSelGr.g) return true;
+  return !!(edSelRiga && edSelRiga.sc === sc && edSelRiga.r === r);
+}
+
+/* va chiesto? solo per una riga di un gruppo, non ancora scelta */
+function edVaChiesto(sc, i) {
+  const r = sc.es[i];
+  if (!edTop(r) || edNonChiedere()) return false;
+  return !edSelezionata(sc, i);
+}
+
+function edChiediGruppo(sc, i) {
+  edChiediSel = { sc: sc, r: sc.es[i] };
+  edPagina();
+}
+
+function edDomandaGruppo(sc, i) {
+  const r = sc.es[i], g = edTop(r);
+  const box = el('div', 'ed-domanda ed-domanda-gr');
+  box.appendChild(el('p', 'ed-domanda-t', 'Selezioni tutto il gruppo "' + g + '"?'));
+  const t = el('div', 'ed-domanda-tasti');
+  const fatto = () => { edChiediSel = null; edPagina(); };
+  edBottone(t, 'Seleziona tutto il gruppo', 'ed-ok', () => {
+    edSelGr = { sc: sc, g: g }; edSelRiga = null;
+    /* il gruppo si raccoglie tutto dove sta il suo primo esercizio */
+    const b = edBlocco(sc, i);
+    if (b[b.length - 1] - b[0] !== b.length - 1) {
+      edMuoviBlocco(sc, b, sc.es.slice(0, b[0]).filter(x => edTop(x) !== g).length);
+      edCambio(false);
+    }
+    fatto();
+  });
+  edBottone(t, 'Non selezionare tutto il gruppo', '', () => {
+    edSelRiga = { sc: sc, r: r };
+    if (edSelGr && edSelGr.sc === sc && edSelGr.g === g) edSelGr = null;
+    fatto();
+  });
+  edBottone(t, 'Non selezionare e non chiedere più', '', () => {
+    try { localStorage.setItem(ED_NONCHIEDERE_KEY, '1'); } catch (e) { /* niente */ }
+    edSelRiga = { sc: sc, r: r };
+    fatto();
+  });
+  box.appendChild(t);
+  return box;
+}
+
+/* Le righe `b` (in ordine) vanno messe insieme, dopo `k` delle altre. */
+function edMuoviBlocco(sc, b, k) {
+  const set = new Set(b);
+  const blocco = b.map(t => sc.es[t]);
+  const altri = sc.es.filter((_, t) => !set.has(t));
+  altri.splice(k, 0, ...blocco);
+  sc.es.splice(0, sc.es.length, ...altri);
+}
+
+/* un gruppo che si muove non entra in mezzo a un altro gruppo */
+const edSpezza = (sc, O, k) => k > 0 && k < O.length && edTop(sc.es[O[k - 1]]) &&
+  edTop(sc.es[O[k - 1]]) === edTop(sc.es[O[k]]);
+
 /* Trascinare una riga col dito, dalla maniglia: le altre si scostano per
-   fargli posto; lasciata, la riga va li'. Vicino ai bordi la pagina scorre. */
+   fargli posto; lasciata, la riga va li'. Vicino ai bordi la pagina scorre.
+   Con il gruppo selezionato si trascina tutto il gruppo. */
 function edTrascina(man, es, cont, sc, i) {
   man.addEventListener('pointerdown', ev => {
     ev.preventDefault();
+    if (edVaChiesto(sc, i)) { edChiediGruppo(sc, i); return; }
     man.setPointerCapture(ev.pointerId);
     const pane = $('edPane');
     const carte = [...cont.querySelectorAll(':scope > .ed-es')];
     const rects = carte.map(c => c.getBoundingClientRect());
-    const alto = rects[i].height + 6;
+    const B = edBlocco(sc, i), inB = new Set(B);
+    const O = carte.map((_, t) => t).filter(t => !inB.has(t));
+    const gruppo = B.length > 1;
+    const primo = rects[B[0]], ultimo = rects[B[B.length - 1]];
+    const spazio = rects.length > 1 ? Math.max(0, rects[1].top - rects[0].bottom) : 6;
+    const alto = ultimo.bottom - primo.top + spazio;
+    const meta = (primo.top + ultimo.bottom) / 2;
+    const a = O.filter(t => t < B[0]).length;
     const y0 = ev.clientY, s0 = pane.scrollTop;
-    let j = i;
-    es.classList.add('trascina');
+    let k = a;
+    for (const t of B) carte[t].classList.add('trascina');
+    if (gruppo) cont.classList.add('trascina-gruppo');
     const muovi = e => {
       const bordo = pane.getBoundingClientRect();
       if (e.clientY > bordo.bottom - 40) pane.scrollTop += 14;
       else if (e.clientY < bordo.top + 40) pane.scrollTop -= 14;
       const dy = e.clientY - y0 + (pane.scrollTop - s0);
-      es.style.transform = 'translateY(' + dy + 'px)';
-      const centro = rects[i].top + rects[i].height / 2 + dy;
-      j = i;
-      for (let t = 0; t < i; t++) if (centro < rects[t].top + rects[t].height / 2) { j = t; break; }
-      for (let t = rects.length - 1; t > i; t--) if (centro > rects[t].top + rects[t].height / 2) { j = t; break; }
-      carte.forEach((c, t) => {
-        if (t === i) return;
-        const sp = j > i && t > i && t <= j ? -alto : j < i && t >= j && t < i ? alto : 0;
-        c.style.transform = sp ? 'translateY(' + sp + 'px)' : '';
+      for (const t of B) carte[t].style.transform = 'translateY(' + dy + 'px)';
+      const centro = meta + dy;
+      k = O.filter(t => centro > rects[t].top + rects[t].height / 2).length;
+      if (gruppo) while (edSpezza(sc, O, k)) k += k > a ? -1 : 1;
+      O.forEach((t, p) => {
+        const sp = k < a && p >= k && p < a ? alto : k > a && p >= a && p < k ? -alto : 0;
+        carte[t].style.transform = sp ? 'translateY(' + sp + 'px)' : '';
       });
     };
     const fine = () => {
       man.removeEventListener('pointermove', muovi);
       man.removeEventListener('pointerup', fine);
       man.removeEventListener('pointercancel', fine);
-      for (const c of carte) c.style.transform = '';
-      es.classList.remove('trascina');
-      if (j !== i) {
-        const [r] = sc.es.splice(i, 1);
-        sc.es.splice(j, 0, r);
+      for (const c of carte) { c.style.transform = ''; c.classList.remove('trascina'); }
+      cont.classList.remove('trascina-gruppo');
+      if (k !== a) {
+        edMuoviBlocco(sc, B, k);
         edAperti = new Set();
         edCambio(false);
       }
@@ -802,11 +899,24 @@ function edTrascina(man, es, cont, sc, i) {
 }
 
 /* Le righe cambiano posto una alla volta. Un gruppo resta com'e': la riga
-   spostata porta con se' il suo. */
+   spostata porta con se' il suo. Il gruppo selezionato si sposta intero, e
+   salta un altro gruppo tutto in una volta. */
 function edSposta(sc, i, dir) {
-  const j = i + dir;
-  if (j < 0 || j >= sc.es.length) return;
-  const t = sc.es[i]; sc.es[i] = sc.es[j]; sc.es[j] = t;
+  if (edVaChiesto(sc, i)) { edChiediGruppo(sc, i); return; }
+  const B = edBlocco(sc, i);
+  if (B.length > 1) {
+    const inB = new Set(B);
+    const O = sc.es.map((_, t) => t).filter(t => !inB.has(t));
+    const a = O.filter(t => t < B[0]).length;
+    let k = a + dir;
+    if (k < 0 || k > O.length) return;
+    while (edSpezza(sc, O, k)) k += dir;
+    edMuoviBlocco(sc, B, k);
+  } else {
+    const j = i + dir;
+    if (j < 0 || j >= sc.es.length) return;
+    const t = sc.es[i]; sc.es[i] = sc.es[j]; sc.es[j] = t;
+  }
   edAperti = new Set();
   edCambio(false);
   edPagina();
