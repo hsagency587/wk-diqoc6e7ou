@@ -573,7 +573,11 @@
           "t": "tabata",
           "l": 45,
           "r": 15,
-          "g": 0
+          "g": 0,
+          "lati": {
+            "starfish side plank": 2,
+            "suitcase carry": 2
+          }
         }
       }
     },
