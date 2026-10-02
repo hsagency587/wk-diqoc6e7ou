@@ -911,10 +911,8 @@ function edNotaRiga(r, L) {
   if (n) {
     /* la scheda intera in libreria, a un tocco */
     const vai = el('div', 'ed-nota-lib');
-    vai.appendChild(el('span', 'ed-nota-cosa', 'Scheda in libreria'));
     edBottone(vai, '✎ Vai alla libreria', 'ed-nota-vai', () => edApriInLibreria(n));
     box.appendChild(vai);
-    box.appendChild(el('p', 'ed-eti', 'Descrizione e video: vanno in libreria, valgono in tutti i workout'));
     const fin = [r[0], '', [], (L && L[3]) || '', (L && L[4]) || ''];
     box.appendChild(edDescrizione(fin, () => {
       const X = edLib(n, r[0]);
@@ -1298,7 +1296,7 @@ function edCiclo(box, q) {
     edPagina();
   });
   box.appendChild(r);
-  box.appendChild(el('p', 'ed-sotto', q.passi.map(x => Math.abs(x) + ' ' + (x > 0 ? 'yes' : 'no')).join(', ') + ", poi di nuovo dall'inizio."));
+  box.appendChild(el('p', 'ed-sotto', q.passi.map(x => Math.abs(x) + ' ' + (x > 0 ? 'sì' : 'no')).join(', ') + ", poi di nuovo dall'inizio."));
 }
 
 /* --- un workout --------------------------------------------------------- */
