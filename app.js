@@ -826,6 +826,7 @@ function frecceChip(riga) {
 /* Una scheda da leggere: il nome nella riga grigia in alto, poi gli esercizi. */
 function tabScheda(nome, sc) {
   const tab = el('div', 'tab tab-i');
+  osservaTab.observe(tab);
   const cap = el('div', 'tabr capo schcapo');
   cap.appendChild(el('div', 'tabc', nome));
   /* una quantita' scritta senza esercizio sta nella banda del nome */
@@ -834,6 +835,63 @@ function tabScheda(nome, sc) {
   tab.appendChild(cap);
   return tab;
 }
+
+/* Le due colonne di una scheda, nome e quanto, si dividono lo spazio secondo
+   quello che c'e' scritto: se il quanto e' lungo la sua colonna si allarga,
+   fino a meta' scheda al massimo. Si prova ogni larghezza e si tiene quella
+   che fa la scheda piu' bassa; a parita', la colonna del nome resta larga. */
+const COL_Q_MIN = 1.25 / 4.25, COL_Q_MAX = 0.5;
+let righello = null;
+function righe(testo, font, largo) {
+  if (!testo) return 0;
+  if (largo <= 0) return 99;
+  const ctx = righello || (righello = document.createElement('canvas').getContext('2d'));
+  ctx.font = font;
+  const spazio = ctx.measureText(' ').width;
+  let n = 1, x = 0;
+  for (const w of testo.split(/\s+/).filter(Boolean)) {
+    const lw = ctx.measureText(w).width;
+    if (lw > largo) {                       /* parola piu' lunga della colonna: va a capo dentro */
+      if (x > 0) n++;
+      n += Math.ceil(lw / largo) - 1;
+      x = lw % largo;
+      continue;
+    }
+    if (x > 0 && x + spazio + lw > largo) { n++; x = lw; }
+    else x += (x > 0 ? spazio : 0) + lw;
+  }
+  return n;
+}
+function bilanciaTab(tab) {
+  if (!tab.isConnected) { osservaTab.unobserve(tab); return; }
+  const dati = [];
+  for (const r of tab.querySelectorAll('.tabr')) {
+    const eti = r.querySelector(':scope > .tabc.eti'), val = r.querySelector(':scope > .tabc.val');
+    if (!eti || !val || r.classList.contains('capo')) continue;
+    const W = r.clientWidth;
+    if (!W) continue;
+    const fe = getComputedStyle(eti), fv = getComputedStyle(val);
+    const pad = c => parseFloat(c.paddingLeft) + parseFloat(c.paddingRight);
+    const frec = val.querySelector('.desfrec');
+    const extra = frec ? frec.getBoundingClientRect().width + 8 : 0;
+    const tv = [...val.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join(' ');
+    dati.push({ W, te: eti.textContent, tv, font: [fe.font, fv.font], pad: [pad(fe), pad(fv) + extra + 1] });
+  }
+  if (!dati.length) return;
+  let meglio = COL_Q_MIN, costo = Infinity;
+  for (let p = COL_Q_MIN; p <= COL_Q_MAX + 1e-9; p += 0.01) {
+    let c = 0;
+    for (const d of dati) c += Math.max(righe(d.te, d.font[0], d.W * (1 - p) - d.pad[0]), righe(d.tv, d.font[1], d.W * p - d.pad[1]));
+    if (c < costo - 1e-9) { costo = c; meglio = p; }
+  }
+  const q = Math.min(COL_Q_MAX, meglio);
+  tab.style.setProperty('--colonne', 'minmax(0,' + (1 - q).toFixed(3) + 'fr) minmax(0,' + q.toFixed(3) + 'fr)');
+}
+/* la scheda si ribilancia quando cambia larghezza: girando il telefono, o
+   aprendo la tendina che la contiene */
+const osservaTab = typeof ResizeObserver === 'function'
+  ? new ResizeObserver(voci => { for (const v of voci) bilanciaTab(v.target); })
+  : { observe() {}, unobserve() {} };
 
 /* Le righe di una scheda: gli esercizi, e il recupero in fondo a destra, solo
    se e' scritto. `src` e `nome` dicono dove sta la scheda, per aprire la
