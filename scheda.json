@@ -288,12 +288,21 @@
         [
           "EMOM 10min alternando push up e plank",
           "10/30\"",
-          [],
+          [
+            "EMOM 10 min"
+          ],
           "",
           ""
         ]
       ],
-      "rec": "1’"
+      "rec": "1’",
+      "tipi": {
+        "[\"EMOM 10 min\"]": {
+          "t": "emom",
+          "m": 10,
+          "a": []
+        }
+      }
     },
     "FASCIA FULL": {
       "es": [
@@ -918,12 +927,21 @@
             [
               "EMOM 10min alternando push up e plank",
               "10/15’",
-              [],
+              [
+                "EMOM 10 min"
+              ],
               "",
               ""
             ]
           ],
-          "rec": "1’"
+          "rec": "1’",
+          "tipi": {
+            "[\"EMOM 10 min\"]": {
+              "t": "emom",
+              "m": 10,
+              "a": []
+            }
+          }
         },
         "FASCIA FULL": {
           "es": [
@@ -1214,7 +1232,9 @@
             [
               "EMOM 10min alternando push up e plank",
               "10 / 20-30”",
-              [],
+              [
+                "EMOM 10 min"
+              ],
               "",
               ""
             ],
@@ -1254,7 +1274,14 @@
               ""
             ]
           ],
-          "rec": "1 Min"
+          "rec": "1 Min",
+          "tipi": {
+            "[\"EMOM 10 min\"]": {
+              "t": "emom",
+              "m": 10,
+              "a": []
+            }
+          }
         },
         "MONTAGNA MARTEDÌ": {
           "es": [
