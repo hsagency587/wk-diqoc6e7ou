@@ -132,9 +132,61 @@ function edVoce(testo, vista, attiva, cls) {
   return b;
 }
 
-/* Una voce dell'elenco: apre la pagina per modificare. */
-function edVoceElenco(box, testo, vista, attiva, cls) {
-  box.appendChild(edVoce(testo, vista, attiva, cls));
+/* Una voce dell'elenco con la sua freccetta: il nome apre la pagina per
+   modificare, la freccetta apre sotto un'anteprima da leggere. */
+let edAnteprime = new Set();
+function edVoceAnteprima(box, testo, vista, attiva, cls, chiave, riempi) {
+  const riga = el('div', 'ed-riga');
+  riga.appendChild(edVoce(testo, vista, attiva, cls));
+  const aperta = edAnteprime.has(chiave);
+  const f = el('button', 'ed-freccia' + (aperta ? ' open' : ''), '▾');
+  f.type = 'button';
+  f.setAttribute('aria-label', aperta ? 'Nascondi anteprima' : 'Mostra anteprima');
+  f.setAttribute('aria-expanded', aperta ? 'true' : 'false');
+  f.addEventListener('click', ev => {
+    ev.stopPropagation();
+    if (aperta) edAnteprime.delete(chiave); else edAnteprime.add(chiave);
+    edElenco();
+  });
+  riga.appendChild(f);
+  box.appendChild(riga);
+  if (aperta) {
+    const pv = el('div', 'ed-anteprima');
+    riempi(pv);
+    if (!pv.children.length) pv.appendChild(el('p', 'ed-ant-vuota', 'Ancora niente di scritto.'));
+    box.appendChild(pv);
+  }
+}
+
+/* Le righe di una scheda, da leggere: nome, quanto, e il gruppo davanti. */
+function edAnteprimaScheda(pv, sc) {
+  if (!sc) return;
+  for (const r of sc.es) {
+    if (!r[0] && !r[1]) continue;
+    const l = el('div', 'ed-ant-riga');
+    const n = el('span', 'ed-ant-nome', r[0] || '—');
+    if (r[2] && r[2].length) n.prepend(el('span', 'ed-ant-grp', r[2].join(' › ') + ' · '));
+    l.appendChild(n);
+    if (r[1]) l.appendChild(el('span', 'ed-ant-qta', r[1]));
+    pv.appendChild(l);
+  }
+  if (sc.rec) pv.appendChild(el('div', 'ed-ant-riga ed-ant-rec', 'Recupero ' + sc.rec));
+}
+
+/* I giorni di una settimana, da leggere: in una preparazione solo quelli del
+   periodo. */
+function edAnteprimaSett(pv, f, si) {
+  const w = f.settimane[Math.min(si, f.settimane.length - 1)];
+  const lun = f.base ? null : piuGiorni(lunedi(daChiave(f.prep.dal)), 7 * si);
+  SETTIMANA.forEach((g, pos) => {
+    const k = lun ? chiaveData(piuGiorni(lun, pos)) : null;
+    if (k && (k < f.prep.dal || k > f.prep.al)) return;
+    const nomi = (w.workout[g] || []).slice(0, w.conti[g] || 0).map(x => x === MORNING ? nomeMattinaDi(f.obj) : x).filter(Boolean);
+    const l = el('div', 'ed-ant-riga');
+    l.appendChild(el('span', 'ed-ant-giorno', GIORNI2[g] + (k ? ' ' + daChiave(k).getDate() : '')));
+    l.appendChild(el('span', 'ed-ant-nome', nomi.length ? nomi.join(' + ') : 'Riposo'));
+    pv.appendChild(l);
+  });
 }
 
 /* I workout scritti nei giorni che contano: nel piano tutta la settimana, in
@@ -157,20 +209,23 @@ function edVociFonte(box, ctx) {
   const f = edFonte(ctx);
   const v = edVista;
   if (f.base) {
-    edVoceElenco(box, 'Settimana', { pag: 'week', ctx: ctx, sett: 0 }, v.pag === 'week' && v.ctx === ctx, '');
+    edVoceAnteprima(box, 'Settimana', { pag: 'week', ctx: ctx, sett: 0 }, v.pag === 'week' && v.ctx === ctx, '',
+      ctx + ':week:0', pv => edAnteprimaSett(pv, f, 0));
   } else {
     f.settimane.forEach((w, i) => {
-      edVoceElenco(box, 'Settimana ' + (i + 1), { pag: 'week', ctx: ctx, sett: i },
-        v.pag === 'week' && v.ctx === ctx && v.sett === i, '');
+      edVoceAnteprima(box, 'Settimana ' + (i + 1), { pag: 'week', ctx: ctx, sett: i },
+        v.pag === 'week' && v.ctx === ctx && v.sett === i, '', ctx + ':week:' + i, pv => edAnteprimaSett(pv, f, i));
     });
   }
   /* la lista di tutti i giorni sta nella sua categoria: Every day */
   box.appendChild(el('p', 'ed-sub', 'Ogni giorno'));
-  edVoceElenco(box, nomeMattinaDi(f.obj) + (f.obj.mattinaVia ? ' (nascosta)' : ''), { pag: 'morning', ctx: ctx },
-    v.pag === 'morning' && v.ctx === ctx && !v.lista, f.obj.mattinaVia ? 'spenta' : '');
+  edVoceAnteprima(box, nomeMattinaDi(f.obj) + (f.obj.mattinaVia ? ' (nascosta)' : ''), { pag: 'morning', ctx: ctx },
+    v.pag === 'morning' && v.ctx === ctx && !v.lista, f.obj.mattinaVia ? 'spenta' : '',
+    ctx + ':morning', pv => edAnteprimaScheda(pv, f.schede[MORNING]));
   for (const a of f.obj.altre) {
-    edVoceElenco(box, (a.nome || 'Ogni giorno') + (a.via ? ' (nascosta)' : ''), { pag: 'morning', ctx: ctx, lista: a.id },
-      v.pag === 'morning' && v.ctx === ctx && v.lista === a.id, a.via ? 'spenta' : '');
+    edVoceAnteprima(box, (a.nome || 'Ogni giorno') + (a.via ? ' (nascosta)' : ''), { pag: 'morning', ctx: ctx, lista: a.id },
+      v.pag === 'morning' && v.ctx === ctx && v.lista === a.id, a.via ? 'spenta' : '',
+      ctx + ':ev:' + a.id, pv => edAnteprimaScheda(pv, f.schede[EV(a.id)]));
   }
   /* una lista nuova: nasce vuota, con il suo nome da scrivere */
   if (f.obj.altre.length < 10) {
@@ -188,8 +243,8 @@ function edVociFonte(box, ctx) {
   /* i workout nuovi non hanno un bottone: nascono scrivendoli in un giorno della settimana */
   box.appendChild(el('p', 'ed-sub', 'Workout'));
   for (const n of edWorkoutElenco(f)) {
-    edVoceElenco(box, n, { pag: 'workout', ctx: ctx, nome: n },
-      v.pag === 'workout' && v.ctx === ctx && v.nome === n, 'wk');
+    edVoceAnteprima(box, n, { pag: 'workout', ctx: ctx, nome: n },
+      v.pag === 'workout' && v.ctx === ctx && v.nome === n, 'wk', ctx + ':wk:' + n, pv => edAnteprimaScheda(pv, f.schede[n]));
   }
 }
 
