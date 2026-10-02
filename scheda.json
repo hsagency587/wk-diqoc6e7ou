@@ -627,7 +627,8 @@
   "mattinaQuando": {
     "modo": "giorni",
     "giorni": [
-      1
+      1,
+      4
     ]
   },
   "altre": [
