@@ -2655,6 +2655,9 @@
     },
     "roll upper - dorso, trapezzi, petto, spalle": {
       "p": "Full roll"
+    },
+    "push up col battito": {
+      "p": "Push up"
     }
   }
 }
