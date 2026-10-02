@@ -14,6 +14,13 @@ const BRANCH      = 'scheda';
 const FILE        = 'scheda.json';
 const API         = 'https://api.github.com/repos/' + REPO;
 const FILE_API    = API + '/contents/' + FILE;
+/* La bozza: chi ha il token legge e scrive qui, il Sifu non la vede mai.
+   Pubblica copia la bozza su scheda.json in un colpo solo. */
+const BOZZA_API   = API + '/contents/bozza.json';
+const fileApi     = () => token ? BOZZA_API : FILE_API;
+let shaPubblicato;
+let pubblicando = false;
+let pubblicaErr = '';
 
 /* La copia che comanda sta nel telefono: ogni tocco e' istantaneo e resta qui
    anche se non si salva. Salva la manda su GitHub in un commit solo. */
@@ -2633,6 +2640,7 @@ function paintSalva() {
     /* con un errore il bottone dice solo Riprova: il perche' sta nella riga sotto */
     b.textContent = salvando ? 'Salvo…' : salvaErr ? 'Riprova' : 'Salva';
   }
+  paintPubblica();
 }
 
 function paintSync(msg, err) {
@@ -2645,11 +2653,73 @@ function paintSync(msg, err) {
   }
 }
 
-const leggi = () => fetch(FILE_API + '?ref=' + BRANCH, { headers: ghHeaders(), cache: 'no-store' });
+const leggi = () => fetch(fileApi() + '?ref=' + BRANCH, { headers: ghHeaders(), cache: 'no-store' });
+
+/* La sha del file pubblicato (null: mai pubblicato, undefined: non si sa).
+   La bozza copiata cosi' com'e' ha la stessa sha: uguali = pubblicato. */
+
+async function leggiPubblicato() {
+  if (!token) return;
+  try {
+    const r = await fetch(FILE_API + '?ref=' + BRANCH, { headers: ghHeaders(), cache: 'no-store' });
+    if (r.status === 404) shaPubblicato = null;
+    else if (r.ok) shaPubblicato = (await r.json()).sha || undefined;
+  } catch (e) { /* si riprova al prossimo giro */ }
+  paintPubblica();
+}
+
+function paintPubblica() {
+  const b = $('edPubblica');
+  if (!b) return;
+  b.hidden = !token;
+  const fatto = !tstore.dirty && !!tstore.sha && shaPubblicato === tstore.sha;
+  b.disabled = pubblicando || salvando || fatto || shaPubblicato === undefined;
+  b.classList.toggle('err', !!pubblicaErr);
+  b.classList.toggle('fatto', fatto);
+  b.textContent = pubblicando ? 'Pubblico…' : pubblicaErr ? 'Riprova a pubblicare' : fatto ? 'Pubblicato ✓' : 'Pubblica';
+}
+
+/* La bozza diventa quella che vede il Sifu: prima si salva, poi il file
+   della bozza si copia byte per byte su scheda.json. */
+async function pubblica() {
+  if (pubblicando || !token) return;
+  pubblicando = true; pubblicaErr = ''; paintPubblica();
+  const esci = err => {
+    pubblicando = false; pubblicaErr = err || '';
+    paintPubblica();
+    paintSync(err ? 'pubblicazione non riuscita: ' + err : 'pubblicato alle ' + fmtTime.format(new Date()), !!err);
+  };
+  clearTimeout(autoT);
+  while (salvando) await new Promise(ok => setTimeout(ok, 200));
+  if (tstore.dirty) await pushTasks();
+  while (salvando) await new Promise(ok => setTimeout(ok, 200));
+  if (tstore.dirty || salvaErr) return esci('prima va salvato');
+  try {
+    const b = await fetch(BOZZA_API + '?ref=' + BRANCH, { headers: ghHeaders(), cache: 'no-store' });
+    if (!b.ok) return esci('bozza non letta (' + b.status + ')');
+    const bozza = await b.json();
+    const p = await fetch(FILE_API + '?ref=' + BRANCH, { headers: ghHeaders(), cache: 'no-store' });
+    if (!p.ok && p.status !== 404) return esci('errore ' + p.status);
+    const pub = p.ok ? await p.json() : null;
+    const payload = { message: 'pubblica', content: (bozza.content || '').replace(/\s/g, ''), branch: BRANCH };
+    if (pub && pub.sha) payload.sha = pub.sha;
+    const r = await fetch(FILE_API, {
+      method: 'PUT',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, ghHeaders()),
+      body: JSON.stringify(payload)
+    });
+    if (!r.ok) return esci(r.status === 409 ? 'conflitto, riprova' : 'errore ' + r.status);
+    let j = null;
+    try { j = await r.json(); } catch (e) { /* niente */ }
+    shaPubblicato = (j && j.content && j.content.sha) || bozza.sha;
+  } catch (e) { return esci('niente rete'); }
+  esci('');
+}
 
 /* Il file dal branch. Senza token si legge lo stesso. Se il telefono ha
    modifiche non salvate, le due versioni si uniscono (vedi unisci). */
-async function pullTasks() {
+async function pullTasks(opts) {
+  opts = opts || {};
   let r;
   try { r = await leggi(); } catch (e) { paintSync('senza rete: uso la copia di questo telefono'); return; }
   let tokenKo = false;
@@ -2659,6 +2729,11 @@ async function pullTasks() {
       r = await fetch(FILE_API + '?ref=' + BRANCH, { cache: 'no-store', headers: { Accept: 'application/vnd.github+json' } });
     } catch (e) { paintSync('token rifiutato', true); return; }
   }
+  /* la prima volta la bozza non c'e': nasce dal file pubblicato */
+  if (r.status === 404 && token && !tokenKo && !opts.bozza) {
+    if (await creaBozza()) return pullTasks({ bozza: true });
+  }
+  if (token && !tokenKo) leggiPubblicato();
   /* "in sync" non si scrive: quando e' tutto a posto la riga resta vuota, e
      parla solo quando c'e' qualcosa da dire */
   const fine = msg => {
@@ -2734,6 +2809,24 @@ async function pullTasks() {
   controllaSorprese();
 }
 
+/* La bozza copia il file pubblicato, cosi' com'e'. Se nemmeno quello c'e',
+   la bozza nascera' al primo salvataggio. */
+async function creaBozza() {
+  try {
+    const p = await fetch(FILE_API + '?ref=' + BRANCH, { headers: ghHeaders(), cache: 'no-store' });
+    if (!p.ok) return false;
+    const pub = await p.json();
+    const r = await fetch(BOZZA_API, {
+      method: 'PUT',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, ghHeaders()),
+      body: JSON.stringify({ message: 'bozza: copia del pubblicato', content: (pub.content || '').replace(/\s/g, ''), branch: BRANCH })
+    });
+    return r.ok || r.status === 422;       /* 422: c'e' gia' */
+  } catch (e) {
+    return false;
+  }
+}
+
 /* Il branch del file non c'e' ancora: lo si crea da main. Serve una volta
    sola, al primo salvataggio. Il token basta: e' il permesso Contents. */
 async function creaBranch() {
@@ -2800,7 +2893,7 @@ async function pushTasks(opts) {
 
   let r;
   try {
-    r = await fetch(FILE_API, {
+    r = await fetch(fileApi(), {
       method: 'PUT',
       headers: Object.assign({ 'Content-Type': 'application/json' }, ghHeaders()),
       body: body,

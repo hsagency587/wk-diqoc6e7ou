@@ -90,6 +90,10 @@ $('edSalva').addEventListener('click', () => {
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   if (tstore.dirty) pushTasks(); else codaVideo();
 });
+$('edPubblica').addEventListener('click', () => {
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  pubblica();
+});
 
 /* Il tasto indietro del telefono: dalla pagina all'elenco, dall'elenco fuori. */
 $('edIndietro').addEventListener('click', () => history.back());
