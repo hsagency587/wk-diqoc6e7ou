@@ -1435,6 +1435,674 @@
         }
       ],
       "nomeFine": false
+    },
+    {
+      "id": "pmurbezcabkfm",
+      "nome": "Sabato",
+      "dal": "2026-10-03",
+      "al": "2026-10-03",
+      "settimane": [
+        {
+          "workout": {
+            "0": [
+              "__morning"
+            ],
+            "1": [
+              "CALI"
+            ],
+            "2": [
+              "SPRINT + CALI E CORE"
+            ],
+            "3": [
+              "CALI + CORE"
+            ],
+            "4": [
+              "FASCIA FULL"
+            ],
+            "5": [
+              "CORE + STRETCH"
+            ],
+            "6": [
+              "__morning"
+            ]
+          },
+          "conti": {
+            "0": 1,
+            "1": 1,
+            "2": 1,
+            "3": 1,
+            "4": 1,
+            "5": 1,
+            "6": 1
+          }
+        }
+      ],
+      "schede": {
+        "__morning": {
+          "es": [
+            [
+              "Hyperarch cervical rotation",
+              "1'",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Single arm shrug",
+              "1' + 1'",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Overheard rotation",
+              "1'",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Lunge arm swing",
+              "1'",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Lunge alternating arm swing",
+              "1'",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Relax. Rotation hop",
+              "1'",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Stand altern. Arm swing",
+              "1'",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Stand trunk rotation",
+              "1'",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Deep split lunge extencion",
+              "1'",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Body patting",
+              "1'30\"",
+              [],
+              "",
+              ""
+            ]
+          ],
+          "rec": ""
+        },
+        "CALI": {
+          "es": [
+            [
+              "Verticale schiena muro + tentativi",
+              "5’",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Tentativi liberi",
+              "10’",
+              [],
+              "",
+              ""
+            ],
+            [
+              "pull up 90° con fermo in attivazione",
+              "3x3/5",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Fermo 3” in chiusura e negativa lenta",
+              "3x3/5",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Australian pull up zavorrati (zaino)",
+              "5x10",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Australian liberi",
+              "2x20",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Candela",
+              "",
+              [
+                "Tabata 30”-10”"
+              ],
+              "",
+              ""
+            ],
+            [
+              "Barchetta",
+              "",
+              [
+                "Tabata 30”-10”"
+              ],
+              "",
+              ""
+            ],
+            [
+              "Reverse plank braccia tese",
+              "",
+              [
+                "Tabata 30”-10”"
+              ],
+              "",
+              ""
+            ]
+          ],
+          "rec": "1 Min"
+        },
+        "SPRINT + CALI E CORE": {
+          "es": [
+            [
+              "Towel curl",
+              "2’ + 2’",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Marble swing",
+              "2’ + 2’",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Gait cycle x corsa",
+              "2’ + 2’",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Sprint",
+              "4/6 x 15” rec 1’30”",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Glute bridge one leg pump",
+              "",
+              [
+                "Tabata 45”-15”"
+              ],
+              "",
+              ""
+            ],
+            [
+              "Clamshell con loop",
+              "",
+              [
+                "Tabata 45”-15”"
+              ],
+              "",
+              ""
+            ],
+            [
+              "Side plank gambe staccate",
+              "",
+              [
+                "Tabata 45”-15”"
+              ],
+              "",
+              ""
+            ]
+          ],
+          "rec": "1’"
+        },
+        "CALI + CORE": {
+          "es": [
+            [
+              "Riscaldamento wingchun",
+              "",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Verticale schiena muro (solo tenuta)",
+              "2 x 15/20\"",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Pseudo HSPU",
+              "3x3/5",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Approccio anelli (→ dip anelli)",
+              "5 x 15/20” (→ 5 x 3-5)",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Push up col battito",
+              "3 x 10",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Push up zavorrati",
+              "7 x 10",
+              [],
+              "",
+              ""
+            ],
+            [
+              "EMOM 10min alternando push up e plank",
+              "10/30\"",
+              [
+                "EMOM"
+              ],
+              "",
+              ""
+            ]
+          ],
+          "rec": "1’",
+          "tipi": {
+            "[\"EMOM\"]": {
+              "t": "emom",
+              "m": 10,
+              "a": []
+            }
+          }
+        },
+        "FASCIA FULL": {
+          "es": [
+            [
+              "Towel curl",
+              "2’ + 2’",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Marble swing",
+              "2’ + 2’",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Gait cycle",
+              "2’ + 2’",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Hyperharc hop",
+              "3’",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Hand curl",
+              "2’",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Push hands",
+              "2’",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Wall bounce",
+              "2’",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Hyperarch wall sit",
+              "2’",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Standign leg stretch",
+              "2 volte gamba 1’",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Crescent walk",
+              "3’",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Bit toe press",
+              "2’ + 2’",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Dorsiflextoewalking",
+              "3’",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Heel raise with marble",
+              "1’ + 1’",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Bear walk",
+              "4’",
+              [],
+              "",
+              ""
+            ],
+            [
+              "HFT lounge",
+              "2’ + 2’",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Towel sweep",
+              "3’ + 3’",
+              [],
+              "",
+              ""
+            ]
+          ],
+          "rec": ""
+        },
+        "CORE + STRETCH": {
+          "es": [
+            [
+              "Hand curl",
+              "2’",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Push hands",
+              "2’",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Wall bounce",
+              "2’",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Turkish get up",
+              "2x braccio 6 rep 5-15kg",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Plank one arm",
+              "30” x 3 alternando le braccia",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Suitcase carry",
+              "20kg",
+              [
+                "Tabata 45”/15”"
+              ],
+              "",
+              ""
+            ],
+            [
+              "Starfish side plank",
+              "",
+              [
+                "Tabata 45”/15”"
+              ],
+              "",
+              ""
+            ],
+            [
+              "Russian twist",
+              "",
+              [
+                "Tabata 45”/15”"
+              ],
+              "",
+              ""
+            ],
+            [
+              "Glute bridge one leg",
+              "",
+              [
+                "Tabata 45”/15”"
+              ],
+              "",
+              ""
+            ],
+            [
+              "Superman",
+              "",
+              [
+                "Tabata 45”/15”"
+              ],
+              "",
+              ""
+            ],
+            [
+              "PANINO",
+              "",
+              [
+                "Stretching"
+              ],
+              "",
+              ""
+            ],
+            [
+              "MOBILITAZIONE ANCHE",
+              "",
+              [
+                "Stretching"
+              ],
+              "",
+              ""
+            ],
+            [
+              "TOMMY",
+              "",
+              [
+                "Stretching"
+              ],
+              "",
+              ""
+            ],
+            [
+              "SCOSCIATE",
+              "",
+              [
+                "Stretching"
+              ],
+              "",
+              ""
+            ],
+            [
+              "ALLUNGA IL BUSTO",
+              "",
+              [
+                "Stretching"
+              ],
+              "",
+              ""
+            ],
+            [
+              "QUADRICIPITI",
+              "",
+              [
+                "Stretching"
+              ],
+              "",
+              ""
+            ],
+            [
+              "ALLUNGO GLUTEO",
+              "",
+              [
+                "Stretching"
+              ],
+              "",
+              ""
+            ]
+          ],
+          "rec": "1’",
+          "tipi": {
+            "[\"Tabata 45”/15”\"]": {
+              "t": "tabata",
+              "l": 45,
+              "r": 15,
+              "g": 0,
+              "lati": {
+                "starfish side plank": 2,
+                "suitcase carry": 2,
+                "glute bridge one leg": 2
+              }
+            }
+          }
+        },
+        "__ev_ob9a36t01": {
+          "es": [
+            [
+              "Roll piedi",
+              "1' + 1'",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Roll polpacci",
+              "1' + 1'",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Roll quadricipiti",
+              "1' + 1'",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Roll glutei",
+              "1' + 1'",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Roll basso schiena",
+              "1' + 1'",
+              [],
+              "",
+              ""
+            ],
+            [
+              "Roll upper - dorso, trapezzi, petto, spalle",
+              "5'",
+              [],
+              "",
+              ""
+            ]
+          ],
+          "rec": ""
+        }
+      },
+      "mattina": "Morning Routine",
+      "mattinaVia": false,
+      "mattinaQuando": {
+        "modo": "giorni",
+        "giorni": [
+          1,
+          3,
+          5
+        ]
+      },
+      "altre": [
+        {
+          "id": "ob9a36t01",
+          "nome": "Full Roll",
+          "via": false,
+          "quando": {
+            "modo": "giorni",
+            "giorni": [
+              0,
+              2,
+              4,
+              6
+            ]
+          }
+        }
+      ],
+      "nomeFine": false
     }
   ],
   "libreria": [
