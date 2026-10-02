@@ -173,15 +173,28 @@ function validSchede(w) {
    uno al minuto a turno; 2,1 = due minuti il primo e uno il secondo). Un
    gruppo che non c'e' piu' nelle righe perde il suo tipo. */
 const intra = (x, min, max, def) => { const n = Math.round(+x); return n >= min && n <= max ? n : def; };
+/* lati: per esercizio (nome scritto piccolo) quanti lati ha, se piu' di
+   uno: il timer gli da' un intervallo per lato, uno dopo l'altro. */
+function validLati(o) {
+  const out = {};
+  if (o && typeof o === 'object' && !Array.isArray(o)) {
+    for (const k of Object.keys(o).slice(0, 40)) { const n = intra(o[k], 1, 4, 1); if (n > 1) out[normEs(k)] = n; }
+  }
+  return Object.keys(out).length ? out : undefined;
+}
 function validTipo(x) {
   if (!x || typeof x !== 'object') return null;
-  if (x.t === 'tabata') return { t: 'tabata', l: intra(x.l, 1, 600, 20), r: intra(x.r, 0, 600, 10), g: intra(x.g, 0, 99, 0) };
+  let t = null;
+  if (x.t === 'tabata') t = { t: 'tabata', l: intra(x.l, 1, 600, 20), r: intra(x.r, 0, 600, 10), g: intra(x.g, 0, 99, 0) };
   if (x.t === 'emom') {
     const a = (Array.isArray(x.a) ? x.a : []).slice(0, 20).map(n => intra(n, 1, 10, 1));
-    return { t: 'emom', m: intra(x.m, 0, 180, 0), a: a };
+    t = { t: 'emom', m: intra(x.m, 0, 180, 0), a: a };
   }
-  return null;
+  const lati = t && validLati(x.lati);
+  if (lati) t.lati = lati;
+  return t;
 }
+const latiDi = (t, nome) => (t && t.lati && t.lati[normEs(nome)]) || 1;
 function validTipi(t, es) {
   if (!t || typeof t !== 'object' || Array.isArray(t)) return null;
   const out = {};
@@ -1360,9 +1373,16 @@ function pianoTimer(sc, r) {
 
   const kt = tg ? -1 : g.findIndex(x => /tabata/i.test(x));
   if ((tg && tg.tipo.t === 'tabata') || kt >= 0) {
-    const via = tg ? tg.via : g.slice(0, kt + 1), es = nomi(via), t = tg ? null : tempiIn(g[kt]);
+    const via = tg ? tg.via : g.slice(0, kt + 1), t = tg ? null : tempiIn(g[kt]);
     const lav = tg ? tg.tipo.l : t[0] || 20, rec = tg ? tg.tipo.r : (t.length > 1 ? t[1] : 10);
-    const giri = tg ? tg.tipo.g : giriIn(g[kt]), n = es.length;
+    const giri = tg ? tg.tipo.g : giriIn(g[kt]);
+    /* un esercizio con piu' lati ha un intervallo per lato */
+    const passi = [];
+    for (const x of nomi(via)) {
+      const L = latiDi(tg && tg.tipo, x);
+      for (let q = 1; q <= L; q++) passi.push(x + (L > 1 ? ' · lato ' + q + ' di ' + L : ''));
+    }
+    const es = passi, n = es.length;
     if (!n) return null;
     return { sequenza: true, fase: i => {
       const passo = Math.floor(i / 2), pausa = i % 2 === 1;
@@ -1379,7 +1399,12 @@ function pianoTimer(sc, r) {
   if (tg && tg.tipo.t === 'emom') {
     /* ogni esercizio per i suoi minuti di fila, poi il prossimo, a giro */
     const es = nomi(tg.via), min = tg.tipo.m, turno = [];
-    es.forEach((x, j) => { for (let q = 0; q < (tg.tipo.a[j] || 1); q++) turno.push(x); });
+    es.forEach((x, j) => {
+      const L = latiDi(tg.tipo, x);
+      for (let lato = 1; lato <= L; lato++) {
+        for (let q = 0; q < (tg.tipo.a[j] || 1); q++) turno.push(x + (L > 1 ? ' · lato ' + lato + ' di ' + L : ''));
+      }
+    });
     if (!turno.length) return null;
     return { sequenza: es.length > 1, fase: i => {
       if (min && i >= min) return null;
@@ -2294,7 +2319,8 @@ function disegnaTipo(sc, via) {
     }
   }
   $('gTimerNota').hidden = !t;
-  if (t) $('gTimerNota').textContent = es.length ? riassuntoTipo(t, es.length) : 'Spunta qui sotto gli esercizi: il timer li usa in questo ordine.';
+  const passi = es.reduce((n, r) => n + latiDi(t, r[0]), 0);
+  if (t) $('gTimerNota').textContent = es.length ? riassuntoTipo(t, passi) : 'Spunta qui sotto gli esercizi: il timer li usa in questo ordine.';
 }
 
 function tipoCambia(fa) {

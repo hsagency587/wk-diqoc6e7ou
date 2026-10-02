@@ -557,6 +557,24 @@ function edCercaPadre(k, attuale, scegli, vuoto) {
 
 /* --- gli esercizi: la parte comune a FIRST 15' e ai workout -------------- */
 
+/* Il gruppo Tabata o EMOM di una riga, col suo tipo. Un gruppo che e'
+   Tabata o EMOM solo di nome riceve il suo tipo (dal nome) se `crea`. */
+function edTipoRiga(sc, r, crea) {
+  const tg = tipoDi(sc, r);
+  if (tg) return tg;
+  const g = r[2] || [];
+  for (let d = g.length; d > 0; d--) {
+    const dal = tipoDalNome(g[d - 1]);
+    if (!dal) continue;
+    const via = g.slice(0, d);
+    if (!crea) return { via: via, tipo: dal };
+    if (!sc.tipi) sc.tipi = {};
+    sc.tipi[JSON.stringify(via)] = dal;
+    return { via: via, tipo: dal };
+  }
+  return null;
+}
+
 /* L'ultima riga tolta da un workout, per poterla rimettere. */
 let edTolto = null;
 
@@ -661,7 +679,26 @@ function edEsercizi(box, ctx, nomeScheda, sc) {
     es.appendChild(riga);
 
     /* il gruppo in cui sta, se ci sta: si legge, si cambia dal bottone Groups */
-    if ((r[2] || []).length) es.appendChild(el('p', 'ed-es-grp', 'in ' + r[2].join(' › ')));
+    if ((r[2] || []).length) {
+      const gl = el('div', 'ed-es-grp-riga');
+      gl.appendChild(el('p', 'ed-es-grp', 'in ' + r[2].join(' › ')));
+      /* in un Tabata o un EMOM: quanti lati ha l'esercizio. Il timer gli da'
+         un intervallo per lato */
+      const tl = edTipoRiga(sc, r);
+      if (tl && r[0]) {
+        const L = latiDi(tl.tipo, r[0]);
+        const bl = edBottone(gl, L > 1 ? '↔ ' + L + ' lati' : '1 lato', 'ed-lati' + (L > 1 ? ' on' : ''), () => {
+          const t = edTipoRiga(sc, r, true).tipo;
+          const k = normEs(r[0]);
+          t.lati = Object.assign({}, t.lati || {});
+          if (L > 1) delete t.lati[k]; else t.lati[k] = 2;
+          if (!Object.keys(t.lati).length) delete t.lati;
+          edCambio(false); edPagina();
+        });
+        bl.setAttribute('aria-label', 'Lati di ' + r[0] + ': tocca per cambiare');
+      }
+      es.appendChild(gl);
+    }
     const kr = edNorm(r[0]);
     if (kr && edChiedi.has(kr)) es.appendChild(edDomanda(kr, r[0], sc));
 

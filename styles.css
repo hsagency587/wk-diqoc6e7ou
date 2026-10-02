@@ -1048,3 +1048,9 @@ body.ed-aperto{overflow:hidden}
 .prepbanda.evento{border-left-width:5px;background:rgba(61,220,132,.16)}
 .prepbanda-evento{margin:2px 0 0;font-size:24px;font-weight:800;color:var(--text);line-height:1.2}
 .tab-w .tabc.evento{grid-column:2 / -1;color:var(--accent);font-weight:800;white-space:normal}
+
+/* sotto un esercizio di un Tabata o di un EMOM: il gruppo e i lati */
+.ed-es-grp-riga{display:flex;align-items:center;justify-content:space-between;gap:var(--s2);padding-right:var(--s2)}
+.ed-es-grp-riga .ed-es-grp{margin-bottom:var(--s1)}
+.ed-lati{min-height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--line);font-size:14px;font-weight:700;color:var(--text-2);margin:0 0 var(--s1)}
+.ed-lati.on{border-color:var(--accent);color:var(--accent)}
