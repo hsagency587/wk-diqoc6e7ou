@@ -401,7 +401,7 @@ function edPagSettimana(box, ctx, si) {
   const w = f.settimane[Math.min(si, f.settimane.length - 1)];
   edDove(box, ctx);
   if (f.base) {
-    edTitolo(box, 'Settimana', 'Il piano che si ripete ogni settimana. Con − e + scegli quanti workout ha ogni giorno; 0 è un giorno di riposo.');
+    edTitolo(box, 'Settimana', '');
   } else {
     const inizio = piuGiorni(lunedi(daChiave(f.prep.dal)), 7 * si);
     const fine = piuGiorni(inizio, 6);
@@ -419,7 +419,6 @@ function edPagSettimana(box, ctx, si) {
   const EVERY = 'Ogni giorno';
   for (const n of [EVERY].concat(edWorkout(f))) { const o = el('option'); o.value = n; lista.appendChild(o); }
   box.appendChild(lista);
-  box.appendChild(el('p', 'ed-sotto', 'Scegli "' + EVERY + "\" in un giorno: nell'app quel giorno si vede \"" + nomeEvery + '".'));
 
   /* In una preparazione la prima e l'ultima settimana possono essere a meta':
      i giorni prima dell'inizio e dopo la fine restano al piano di sempre, e
@@ -565,7 +564,7 @@ function edTipoRiga(sc, r, crea) {
   const g = r[2] || [];
   for (let d = g.length; d > 0; d--) {
     const dal = tipoDalNome(g[d - 1]);
-    if (!dal) continue;
+    if (!dal || dal.t !== 'tabata') continue;      /* l'EMOM c'e' solo se il gruppo e' di tipo EMOM */
     const via = g.slice(0, d);
     if (!crea) return { via: via, tipo: dal };
     if (!sc.tipi) sc.tipi = {};
@@ -824,7 +823,7 @@ function edPannelloVideo(box, tutti, aggiungi, posto) {
   const ok = el('button', 'schbtn ed-ok', 'Aggiungi');
   ok.type = 'button'; ok.disabled = true;
   const conta = () => { ok.textContent = scelti.size ? 'Aggiungi ' + scelti.size + (scelti.size === 1 ? ' video' : ' video') : 'Aggiungi'; ok.disabled = !scelti.size; };
-  box.appendChild(el('p', 'ed-sotto', 'Spunta i video da aggiungere' + (posto < 6 ? " (c'è posto per " + posto + ' ancora)' : '') + '.'));
+  if (posto < 6) box.appendChild(el('p', 'ed-sotto', "C'è posto per " + posto + ' video ancora.'));
   const az = el('div', 'ed-video-tasti');
   ok.addEventListener('click', () => aggiungi([...scelti]));
   az.appendChild(ok);
@@ -1110,7 +1109,7 @@ function edPagMattina(box, ctx, listaId) {
   };
   edDove(box, ctx);
   box.appendChild(el('p', 'ed-sez-pag ed-cat', 'OGNI GIORNO'));
-  edTitolo(box, L.nome(), "Una lista fissa, sopra i workout, nei giorni che scegli qui sotto. Togli la spunta a \"Mostrala nell'app\" per nasconderla: quello che è scritto resta.");
+  edTitolo(box, L.nome(), '');
   const l = el('label', 'ed-spunta');
   const c = el('input', 'schsel');
   c.type = 'checkbox';
@@ -1390,7 +1389,7 @@ function edGruppiBottone(box, ctx, nome) {
 function edPagNuovo(box, ctx) {
   const f = edFonte(ctx);
   edDove(box, ctx);
-  edTitolo(box, 'Nuovo workout', 'Dagli un nome, poi scrivilo nei giorni, in Settimana.');
+  edTitolo(box, 'Nuovo workout', '');
   const errore = el('p', 'nota err');
   errore.hidden = true;
   const inp = edCampo(box, 'Nome', '', { max: 60, ph: 'es. CALI' }, () => {});
@@ -1440,7 +1439,7 @@ function edNuovaPrep(nome, dal, al) {
 }
 
 function edPagNuovaPrep(box) {
-  edTitolo(box, 'Aggiungi preparazione', "Scegli le date: la preparazione parte come copia del piano, poi cambi quello che cambia. In quei giorni l'app mostra la preparazione; il giorno dopo la fine torna da solo il piano.");
+  edTitolo(box, 'Aggiungi preparazione', '');
   const k0 = chiaveData(today());
   const nome = edCampo(box, 'Nome (facoltativo)', '', { max: 50, ph: 'es. Esame di novembre' }, () => {});
   const dal = edCampo(box, 'Dal', k0, { type: 'date' }, () => {});
@@ -1487,7 +1486,6 @@ function edPagPrep(box, id) {
   lf.appendChild(cf);
   lf.appendChild(el('span', null, 'L\'ultimo giorno (' + dataCorta(p.al) + ') mostra il nome "' + nomePrep(p) + '"'));
   box.appendChild(lf);
-  box.appendChild(el('p', 'ed-sotto', 'Nella settimana quel giorno si legge il nome; quel giorno, in cima alla pagina, si legge OGGI e il nome. Gli allenamenti del giorno restano.'));
   function cambiaDate() {
     const msg = edDateOk(dal.value, al.value, p.id);
     if (msg) { errore.textContent = msg; errore.hidden = false; dal.value = p.dal; al.value = p.al; return; }
@@ -1583,13 +1581,12 @@ async function eggRiduci(f) {
 }
 
 function edPagEgg(box) {
-  edTitolo(box, 'Easter egg', "Cose divertenti, solo nel giorno che scegli. Ogni telefono vede ognuna una volta sola: la prima volta che apre l'app quel giorno.");
+  edTitolo(box, 'Easter egg', '');
   const oggi = chiaveData(today());
   const tutte = tstore.sorprese;
 
   /* --- le immagini --- */
   box.appendChild(el('p', 'ed-sez-pag', 'IMMAGINE DEL GIORNO'));
-  box.appendChild(el('p', 'ed-sotto', 'A tutto schermo, prima di tutto il resto. Si chiude toccandola.'));
   tutte.forEach((x, i) => {
     if (x.tipo !== 'img') return;
     const r = el('div', 'egg-riga');
@@ -1640,7 +1637,6 @@ function edPagEgg(box) {
 
   /* --- il suono del timer --- */
   box.appendChild(el('p', 'ed-sez-pag', 'SUONO DEL TIMER'));
-  box.appendChild(el('p', 'ed-sotto', 'In quel giorno, il primo scatto del timer suona il tuo audio al posto della campanella. Una volta sola: poi torna la campanella.'));
   let prova = null;
   tutte.forEach((x, i) => {
     if (x.tipo !== 'suono') return;
@@ -1697,7 +1693,6 @@ function edPagEgg(box) {
 
   /* --- le postille --- */
   box.appendChild(el('p', 'ed-sez-pag', 'NOTE'));
-  box.appendChild(el('p', 'ed-sotto', "Una nota colorata dove vuoi. Sparisce al primo tocco, scorrendo, o chiudendo l'app."));
   const posti = eggPosti();
   tutte.forEach((x, i) => {
     if (x.tipo !== 'nota') return;
@@ -1909,7 +1904,7 @@ let edLibCerca = '';
 let edLibMsg = '';
 function edPagLibreria(box) {
   const tutti = edLibreria();
-  edTitolo(box, 'Libreria esercizi', 'Ogni esercizio scritto nel piano e nelle preparazioni, una volta sola, più quelli che aggiungi qui. Quando scrivi uno di questi nomi in un workout, descrizione e video arrivano da soli.');
+  edTitolo(box, 'Libreria esercizi', '');
   /* un esercizio nuovo, solo in libreria: il nome, poi video e descrizione */
   const nuovo = el('div', 'ed-lib-nuovo');
   const nomeN = el('input', 'campo');
@@ -1988,7 +1983,7 @@ function edPagLibreria(box) {
   function barraSel() {
     const b = el('div', 'ed-lib-sel');
     const n = edLibSel.size;
-    b.appendChild(el('p', 'ed-sotto', n ? n + ' selezionati' : 'Tocca gli esercizi per selezionarli.'));
+    b.appendChild(el('p', 'ed-sotto', n + ' selezionati'));
     if (!n) return b;
     const scelti = tutti.filter(x => edLibSel.has(x.k));
     const az = el('div', 'ed-lib-nuovo');
@@ -2054,7 +2049,6 @@ function edPagLibreria(box) {
           edCambio(false); edPagina();
         });
         c.appendChild(nomeC);
-        if (x.posti > 1) c.appendChild(el('p', 'ed-lib-nota', 'Si vede in tutti i ' + x.posti + ' posti dove è scritto.'));
         /* la postilla: il padre, da correggere qui */
         const meta = el('div', 'ed-lib-meta');
         const lp = el('div', 'ed-lib-postilla', 'Variante di ');

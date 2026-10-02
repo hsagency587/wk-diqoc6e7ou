@@ -1361,8 +1361,9 @@ const detto = t => t.t === 'tabata'
 
 /* Il piano del timer per una riga della scheda, o null se non ci sono tempi.
    `fase(i)` dice la fase numero i: { pausa, sec, nome, info }, o null alla fine.
-   Un gruppo col suo tipo (Tabata, EMOM) comanda; senza, i tempi si leggono
-   dal nome, come prima. */
+   Un gruppo col suo tipo (Tabata, EMOM) comanda. Senza tipo, un Tabata si
+   riconosce ancora dal nome; un EMOM no: c'e' solo se il gruppo e' di tipo
+   EMOM. */
 let tPiano = null;
 function pianoTimer(sc, r) {
   if (!r) return null;
@@ -1410,18 +1411,6 @@ function pianoTimer(sc, r) {
       if (min && i >= min) return null;
       const poi = es.length > 1 && !(min && i + 1 >= min) ? '  ·  poi: ' + turno[(i + 1) % turno.length] : '';
       return { sec: 60, nome: turno[i % turno.length], info: 'Minuto ' + (i + 1) + (min ? ' di ' + min : '') + poi };
-    } };
-  }
-
-  const ke = g.findIndex(x => /emom/i.test(x));
-  if (!tg && (ke >= 0 || /emom/i.test(r[0] + ' ' + r[1]))) {
-    const testo = ke >= 0 ? g[ke] : r[0] + ' ' + r[1];
-    const m = testo.match(/emom\s*(?:x\s*|di\s*)?(\d{1,3})(?!\d|\s*["”″\/])/i) || testo.match(/(\d{1,3})\s*(?:min|['’′])/i);
-    const min = m ? +m[1] : 0;
-    const es = ke >= 0 ? nomi(g.slice(0, ke + 1)) : [r[0]];
-    return { sequenza: false, fase: i => {
-      if (min && i >= min) return null;
-      return { sec: 60, nome: es[i % es.length] || '', info: 'Minuto ' + (i + 1) + (min ? ' di ' + min : '') };
     } };
   }
 
