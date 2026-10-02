@@ -1079,3 +1079,7 @@ body.ed-aperto{overflow:hidden}
 /* copia e incolla di un gruppo */
 .chip.gcopia{background:var(--blu);border-color:var(--blu);color:#fff;font-weight:800}
 .ed-incolla{border-color:var(--blu);color:var(--blu)}
+
+/* la tendina delle preparazioni finite */
+.ed-voce.ed-finite{color:var(--muted);font-size:15px;font-weight:700}
+.ed-finite-box{padding-left:var(--s2)}

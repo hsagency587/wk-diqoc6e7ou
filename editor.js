@@ -256,6 +256,7 @@ function edVociFonte(box, ctx) {
    pennino porta alla pagina per modificarla. */
 let edPrepAperte = new Set();
 let edPrepUltima = null;
+let edFiniteAperte = false;
 
 function edElenco() {
   const nav = $('edNav');
@@ -275,7 +276,7 @@ function edElenco() {
   const kOggi = chiaveData(today());
   /* una preparazione appena raggiunta (anche appena creata) si apre da sola */
   if (edVista.ctx !== edPrepUltima) { edPrepUltima = edVista.ctx; if (edVista.ctx !== 'base') edPrepAperte.add(edVista.ctx); }
-  for (const p of tstore.prep) {
+  const vocePrep = (nav, p) => {
     const stato = p.al < kOggi ? ' fatta' : (p.dal <= kOggi ? ' incorso' : '');
     const aperta = edPrepAperte.has(p.id);
     const riga = el('div', 'ed-riga');
@@ -304,8 +305,24 @@ function edElenco() {
       edVociFonte(g, p.id);
       nav.appendChild(g);
     }
-  }
+  };
+  /* quelle gia' finite stanno in una tendina, chiusa: non occupano spazio */
+  const finite = tstore.prep.filter(p => p.al < kOggi);
+  for (const p of tstore.prep) if (!(p.al < kOggi)) vocePrep(nav, p);
   nav.appendChild(edVoce('+ Aggiungi preparazione', { pag: 'newprep', ctx: 'base' }, edVista.pag === 'newprep', 'piu'));
+  if (finite.length) {
+    if (finite.some(p => p.id === edVista.ctx)) edFiniteAperte = true;
+    const t = el('button', 'ed-voce ed-finite', (edFiniteAperte ? '▾ ' : '▸ ') + 'Finite (' + finite.length + ')');
+    t.type = 'button';
+    t.setAttribute('aria-expanded', edFiniteAperte ? 'true' : 'false');
+    t.addEventListener('click', () => { edFiniteAperte = !edFiniteAperte; edElenco(); });
+    nav.appendChild(t);
+    if (edFiniteAperte) {
+      const box = el('div', 'ed-finite-box');
+      for (const p of finite) vocePrep(box, p);
+      nav.appendChild(box);
+    }
+  }
   /* in fondo, le sorprese: una voce come le altre */
   nav.appendChild(el('p', 'ed-sez', 'EXTRA'));
   nav.appendChild(edVoce('Easter egg', { pag: 'egg', ctx: 'base' }, edVista.pag === 'egg', ''));
