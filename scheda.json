@@ -289,7 +289,7 @@
           "EMOM 10min alternando push up e plank",
           "10/30\"",
           [
-            "EMOM 10 min"
+            "EMOM"
           ],
           "",
           ""
@@ -297,7 +297,7 @@
       ],
       "rec": "1’",
       "tipi": {
-        "[\"EMOM 10 min\"]": {
+        "[\"EMOM\"]": {
           "t": "emom",
           "m": 10,
           "a": []
@@ -928,7 +928,7 @@
               "EMOM 10min alternando push up e plank",
               "10/15’",
               [
-                "EMOM 10 min"
+                "EMOM"
               ],
               "",
               ""
@@ -936,7 +936,7 @@
           ],
           "rec": "1’",
           "tipi": {
-            "[\"EMOM 10 min\"]": {
+            "[\"EMOM\"]": {
               "t": "emom",
               "m": 10,
               "a": []
@@ -1233,7 +1233,7 @@
               "EMOM 10min alternando push up e plank",
               "10 / 20-30”",
               [
-                "EMOM 10 min"
+                "EMOM"
               ],
               "",
               ""
@@ -1276,7 +1276,7 @@
           ],
           "rec": "1 Min",
           "tipi": {
-            "[\"EMOM 10 min\"]": {
+            "[\"EMOM\"]": {
               "t": "emom",
               "m": 10,
               "a": []
