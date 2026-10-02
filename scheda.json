@@ -2092,13 +2092,7 @@
           "nome": "Full Roll",
           "via": false,
           "quando": {
-            "modo": "giorni",
-            "giorni": [
-              0,
-              2,
-              4,
-              6
-            ]
+            "modo": "sempre"
           }
         }
       ],
