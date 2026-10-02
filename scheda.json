@@ -642,8 +642,8 @@
         "giorni": [
           0,
           2,
-          4,
-          6
+          3,
+          5
         ]
       }
     }
@@ -2062,6 +2062,74 @@
               "Roll upper - dorso, trapezzi, petto, spalle",
               "5'",
               [],
+              "",
+              ""
+            ]
+          ],
+          "rec": ""
+        },
+        "STRETCH": {
+          "es": [
+            [
+              "PANINO",
+              "",
+              [
+                "Stretching"
+              ],
+              "",
+              ""
+            ],
+            [
+              "MOBILITAZIONE ANCHE",
+              "",
+              [
+                "Stretching"
+              ],
+              "",
+              ""
+            ],
+            [
+              "TOMMY",
+              "",
+              [
+                "Stretching"
+              ],
+              "",
+              ""
+            ],
+            [
+              "SCOSCIATE",
+              "",
+              [
+                "Stretching"
+              ],
+              "",
+              ""
+            ],
+            [
+              "ALLUNGA IL BUSTO",
+              "",
+              [
+                "Stretching"
+              ],
+              "",
+              ""
+            ],
+            [
+              "QUADRICIPITI",
+              "",
+              [
+                "Stretching"
+              ],
+              "",
+              ""
+            ],
+            [
+              "ALLUNGO GLUTEO",
+              "",
+              [
+                "Stretching"
+              ],
               "",
               ""
             ]
