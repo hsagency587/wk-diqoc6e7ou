@@ -792,8 +792,28 @@ function edPannelloVideo(box, tutti, aggiungi, posto) {
   ok.addEventListener('click', () => aggiungi([...scelti]));
   az.appendChild(ok);
   box.appendChild(az);
+  /* tanti video: si cercano per nome dell'esercizio che li usa */
+  const cerca = el('input', 'campo ed-lib-cerca');
+  cerca.type = 'search'; cerca.placeholder = 'Cerca fra i video…';
+  cerca.setAttribute('aria-label', 'Cerca fra i video');
+  box.appendChild(cerca);
+  const nessuno = el('p', 'ed-sotto', 'Nessun video con questo nome.');
+  nessuno.hidden = true;
+  box.appendChild(nessuno);
+  const righe = [];
+  cerca.addEventListener('input', () => {
+    const q = edNorm(cerca.value);
+    let n = 0;
+    for (const { r, x } of righe) {
+      const va = !q || edNorm(x.es.join(' ') + ' ' + x.nome).indexOf(q) >= 0 || scelti.has(x.nome);
+      r.hidden = !va;
+      if (va) n++;
+    }
+    nessuno.hidden = n > 0;
+  });
   for (const x of tutti) {
     const r = el('div', 'ed-vpick-uno');
+    righe.push({ r: r, x: x });
     const lab = el('label', 'ed-vpick-eti');
     const c = el('input'); c.type = 'checkbox';
     c.addEventListener('change', () => {
@@ -852,6 +872,11 @@ function edNotaRiga(r, L) {
   /* descrizione e video si scrivono anche da qui, ma vanno nella libreria:
      valgono per questo esercizio in tutti i workout */
   if (n) {
+    /* la scheda intera in libreria, a un tocco */
+    const vai = el('div', 'ed-nota-lib');
+    vai.appendChild(el('span', 'ed-nota-cosa', 'Scheda in libreria'));
+    edBottone(vai, '✎ Vai alla libreria', 'ed-nota-vai', () => edApriInLibreria(n));
+    box.appendChild(vai);
     box.appendChild(el('p', 'ed-eti', 'Descrizione e video: vanno in libreria, valgono in tutti i workout'));
     const fin = [r[0], '', [], (L && L[3]) || '', (L && L[4]) || ''];
     box.appendChild(edDescrizione(fin, () => {
