@@ -246,11 +246,9 @@ body{overflow-x:clip}
 }
 .grpbox .grpbox .grpeti{right:18px}
 .grpbox .grpbox .grpbox .grpeti{right:24px}
-/* nelle schede l'etichetta sta a sinistra, fra i nomi: non copre la colonna
-   delle quantita' */
-.tab-i .grpeti{right:auto;left:14px;max-width:70%}
-.tab-i .grpbox .grpbox .grpeti{right:auto;left:20px}
-.tab-i .grpbox .grpbox .grpbox .grpeti{right:auto;left:26px}
+/* nelle schede l'etichetta sta fra i nomi, a un quinto della riga: non
+   copre la colonna delle quantita' */
+.tab-i .grpeti,.tab-i .grpbox .grpeti,.tab-i .grpbox .grpbox .grpeti{right:auto;left:22%;max-width:70%}
 .schapri .grpeti{background:var(--surface-2);cursor:pointer;height:22px;top:-11px}
 .schapri .grpeti:active{background:var(--accent);color:var(--bg)}
 
