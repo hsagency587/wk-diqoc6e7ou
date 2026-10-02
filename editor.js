@@ -1300,7 +1300,7 @@ let edCalMese = null;           /* il primo del mese mostrato dal calendario */
 function edQuando(box, q) {
   box.appendChild(el('p', 'ed-sez-pag', 'QUANDO'));
   const modi = [['sempre', 'Ogni giorno'], ['giorni', 'Giorni della settimana'], ['ogni', 'Ogni N giorni'], ['ciclo', 'Ritmo personalizzato'], ['date', 'Date precise']];
-  const chips = el('div', 'chips');
+  const chips = el('div', 'chips ed-modi');
   for (const [m, n] of modi) {
     const b = el('button', 'chip' + (q.modo === m ? ' sel' : ''), n);
     b.type = 'button';
@@ -1468,8 +1468,8 @@ function edCiclo(box, q) {
       edCambio(false); edPagina();
     });
     r.appendChild(n);
-    r.appendChild(el('span', 'ed-ciclo-eti', Math.abs(x) === 1 ? 'day' : 'days'));
-    const si = el('button', 'chip' + (x > 0 ? ' sel' : ''), 'yes');
+    r.appendChild(el('span', 'ed-ciclo-eti', Math.abs(x) === 1 ? 'giorno' : 'giorni'));
+    const si = el('button', 'chip' + (x > 0 ? ' sel' : ''), 'sì');
     si.type = 'button';
     si.addEventListener('click', () => { q.passi[i] = Math.abs(x); edCambio(false); edPagina(); });
     const no = el('button', 'chip' + (x < 0 ? ' sel' : ''), 'no');

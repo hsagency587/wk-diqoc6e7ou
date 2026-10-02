@@ -996,7 +996,7 @@ body.ed-aperto{overflow:hidden}
 .ed-ciclo{display:grid;gap:6px;margin-top:var(--s2)}
 .ed-ciclo-passo{display:flex;align-items:center;gap:6px}
 .ed-ciclo-n{flex:0 0 64px;text-align:center}
-.ed-ciclo-eti{flex:0 0 34px;font-size:14px;color:var(--muted)}
+.ed-ciclo-eti{flex:0 0 50px;font-size:14px;color:var(--muted)}
 .ed-ciclo-passo .chip{min-height:36px;padding:0 var(--s2);font-size:15px}
 
 /* ---------- scegliere fra i video gia' caricati ---------- */
@@ -1107,3 +1107,11 @@ body.ed-aperto{overflow:hidden}
 
 /* Pubblica grande quanto Chiudi */
 .ed .salva.pubblica{min-height:36px;padding:0 10px;font-size:15px;font-weight:600;border:1px solid transparent;border-radius:var(--radius)}
+
+/* la frequenza di una lista: meno aria fra le scelte */
+.ed-modi{gap:6px}
+.ed-modi .chip{min-height:36px;padding:0 12px;font-size:15px}
+.ed-giorni-sett{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-top:6px;max-width:420px}
+.ed-giorni-sett .chip{min-height:38px;padding:0;font-size:15px}
+.ed-ogni{gap:var(--s2);margin-top:6px}
+.ed-ciclo{margin-top:6px}
