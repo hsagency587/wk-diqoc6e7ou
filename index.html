@@ -110,12 +110,14 @@
 
     <!-- Il collegamento ricevuto: se l'app non mostra la propria scheda (per
          esempio il collegamento si e' aperto in un altro browser), si incolla qui. -->
-    <p class="commento-lab">Il tuo collegamento</p>
-    <div class="incolla">
-      <input class="campo" id="collInput" type="text" autocomplete="off" placeholder="il collegamento ricevuto" aria-label="Il collegamento ricevuto">
-      <button type="button" class="btn" id="collIncolla">Incolla</button>
+    <div id="collBox" hidden>
+      <p class="commento-lab">Il tuo collegamento</p>
+      <div class="incolla">
+        <input class="campo" id="collInput" type="text" autocomplete="off" placeholder="il collegamento ricevuto" aria-label="Il collegamento ricevuto">
+        <button type="button" class="btn" id="collIncolla">Incolla</button>
+      </div>
+      <p class="nota">Se la tua scheda non compare, incolla qui il collegamento che hai ricevuto e premi Salva.</p>
     </div>
-    <p class="nota">Se la tua scheda non compare, incolla qui il collegamento che hai ricevuto e premi Salva.</p>
 
     <!-- Token e chiave stanno chiusi in una tendina: servono una volta sola, e
          chi usa l'app per allenarsi non li deve vedere. -->

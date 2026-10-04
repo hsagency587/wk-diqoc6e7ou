@@ -2844,6 +2844,10 @@ let miaNuova = '';
 
 function openImpostazioni() {
   $('sviluppo').open = false;        /* si riapre sempre chiusa */
+  /* il collegamento si incolla solo dove non c'e' ancora una chiave: chi ha
+     la sua scheda non deve poterla cambiare, e chi scrive ha la sua chiave */
+  $('collBox').hidden = !!token || !!leggiChiave(PERSONA_KEY);
+  $('collInput').value = '';
   $('tokenInput').value = token;
   $('miaInput').value = mia ? mia.k : '';
   miaNuova = '';
