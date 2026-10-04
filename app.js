@@ -971,7 +971,9 @@ function disegnaW() {
   if (!pAnt) postille(box, 'every');
   paintMorning(box, oggi, kOggi);
   if (!pAnt) postille(box, 'oggi');
-  paintOggi(box, oggi, kOggi, t0.getDay(), pAnt ? 'ALLENAMENTI DI ' + GIORNI_IT[t0.getDay()].toUpperCase() + ' ' + t0.getDate() : 'ALLENAMENTI DI OGGI');
+  /* chi si allena ha "Allenamento di oggi" in testata: qui non si ripete */
+  paintOggi(box, oggi, kOggi, t0.getDay(), pAnt ? 'ALLENAMENTI DI ' + GIORNI_IT[t0.getDay()].toUpperCase() + ' ' + t0.getDate()
+                                                : editore() ? 'ALLENAMENTI DI OGGI' : '');
 
   /* la tendina della programmazione: in anteprima resta aperta, si guarda
      proprio quella */
@@ -1208,7 +1210,7 @@ function paintMorning(box, pi, k) {
 }
 
 /* Quello che si fa oggi, senza aprire niente: le schede del giorno, solo se
-   hanno degli esercizi scritti. */
+   hanno degli esercizi scritti. Senza titolo, niente scritta sopra. */
 function paintOggi(box, pi, k, g, titolo) {
   let capo = false;
   for (const nome of workoutDelGiorno(pi, g)) {
@@ -1218,7 +1220,8 @@ function paintOggi(box, pi, k, g, titolo) {
     if (eLista(nome)) {
       const scm = pi.schede[nome];
       if (!scm || !scm.es.length || listeDelGiorno(pi, k).some(l => l.chiave === nome)) continue;
-      if (!capo) { box.appendChild(el('p', 'grp', titolo || 'ALLENAMENTI DI OGGI')); capo = true; }
+      if (!capo && titolo) box.appendChild(el('p', 'grp', titolo));
+      capo = true;
       const tm = tabScheda(nomeLista(pi, nome) || 'Every day', scm);
       tm.classList.add('tab-oggi');
       box.appendChild(righeScheda(tm, { es: scm.es, rec: '', tipi: scm.tipi }, pi.src, nome));
@@ -1226,7 +1229,8 @@ function paintOggi(box, pi, k, g, titolo) {
     }
     const sc = pi.schede[nome];
     if (!sc || (!sc.es.length && !sc.rec)) continue;
-    if (!capo) { box.appendChild(el('p', 'grp', titolo || 'ALLENAMENTI DI OGGI')); capo = true; }
+    if (!capo && titolo) box.appendChild(el('p', 'grp', titolo));
+    capo = true;
     if (!anteprima) postille(box, 'w:' + nome);
     const t = tabScheda(nome, sc);
     t.classList.add('tab-oggi');
@@ -3846,10 +3850,12 @@ function paintTutto() {
   paintSync();
 }
 
-/* Il bottone in testata: il nome della persona aperta. Solo per chi scrive. */
+/* Il bottone in testata: il nome della persona aperta. Solo per chi scrive,
+   e per chi scrive la testata diventa la barra che resta in alto. */
 function paintPersone() {
   const b = $('persBtn');
   b.hidden = !editore();
+  $('top').classList.toggle('admin', editore());
   const p = personaCorrente();
   b.textContent = (p ? p.nome : 'Persone') + ' ▾';
   if (dlgPers.open) disegnaPersone();

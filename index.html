@@ -29,18 +29,21 @@
 </head>
 <body>
 
-<!-- La testata: il nome, lo stato del file online, Salva quando serve,
-     il bottone per scrivere il piano e le impostazioni. -->
-<header class="top">
+<!-- La testata. Per chi si allena: "Allenamento di oggi" e le impostazioni,
+     in cima alla pagina, e scorre via con il resto. Per chi scrive: una barra
+     che resta in alto, senza titolo, con a sinistra lo stato del file online
+     e dei caricamenti, Salva quando serve, la persona aperta, l'editor e le
+     impostazioni. -->
+<header class="top" id="top">
   <div class="bar">
-    <h1 class="titolo">Workout</h1>
+    <h1 class="titolo">Allenamento di oggi</h1>
+    <p class="sync" id="sync"></p>
     <button type="button" class="salva" id="salva" hidden>Salva</button>
     <!-- solo per chi scrive: la persona aperta, e il menu per cambiarla -->
     <button type="button" class="schbtn persbtn" id="persBtn" hidden>Persone ▾</button>
     <button type="button" class="schbtn wedit" id="wMod" hidden>Editor</button>
     <button type="button" class="menu" id="impostazioniBtn" aria-label="Impostazioni">⚙</button>
   </div>
-  <p class="sync" id="sync"></p>
 </header>
 
 <main class="pagina" id="wlist"></main>

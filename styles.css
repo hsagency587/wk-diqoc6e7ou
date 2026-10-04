@@ -60,14 +60,16 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 
 /* ---------- testata ---------- */
 
+/* per chi si allena sta in cima alla pagina e scorre via; per chi scrive
+   (.admin) resta in alto */
 .top{
-  position:sticky;top:0;z-index:5;
   background:var(--bg);
   border-bottom:1px solid var(--line);
   padding:var(--s2) var(--s3) var(--s1);
   padding-top:calc(var(--s2) + env(safe-area-inset-top));
 }
-.bar{display:flex;align-items:center;gap:var(--s2);max-width:720px;margin:0 auto}
+.top.admin{position:sticky;top:0;z-index:5}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:0 var(--s2);max-width:720px;margin:0 auto}
 .titolo{flex:1;min-width:0;margin:0;font-size:24px;font-weight:700;letter-spacing:-.01em}
 .menu{
   flex:0 0 auto;width:48px;height:48px;
@@ -90,12 +92,23 @@ body{overflow-x:clip}
 .salva.pubblica{background:var(--blu);color:#fff}
 .salva.pubblica.fatto{background:none;color:var(--muted);font-weight:600;opacity:1}
 .salva.pubblica.err{background:var(--danger)}
+/* per chi si allena: la riga sotto il titolo, solo quando dice qualcosa */
 .sync{
-  max-width:720px;margin:2px auto 0;min-height:1.2em;
+  order:1;flex:0 0 100%;
+  margin:2px 0 0;min-height:1.2em;
   font-size:14px;color:var(--muted);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
+.top:not(.admin) .sync:empty{display:none}
 .sync.err{color:var(--danger)}
+/* per chi scrive: niente titolo, le scritte stanno a sinistra dei bottoni,
+   su tre righe al massimo, alte quanto i bottoni */
+.top.admin .titolo{display:none}
+.top.admin .sync{
+  order:0;flex:1 1 0;min-width:0;margin:0;
+  font-size:13px;line-height:1.25;
+  white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;
+}
 
 .pagina{
   max-width:720px;margin:0 auto;
@@ -514,6 +527,8 @@ body{overflow-x:clip}
     max-height:calc(100vh - 110px);overflow-y:auto;
     scrollbar-width:thin;
   }
+  /* chi si allena non ha la barra in alto: la colonna si ferma in cima */
+  .top:not(.admin) ~ .pagina .col-sx{top:var(--s4);max-height:calc(100vh - 2 * var(--s4))}
   .col .tab,.col .schapri,.col .wconta,.col .lpiu{margin-left:0;margin-right:0}
   .col .lpiu{width:100%}
   .col .grp,.col .grpcli{padding-left:0;padding-right:0}
