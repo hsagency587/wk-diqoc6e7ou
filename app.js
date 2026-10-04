@@ -44,7 +44,7 @@ const MIA_KEY     = 'wk-mia-v1';          /* { k, f }: la mia chiave, apre l'ele
 const MIO_KEY     = 'wk-mio-v1';          /* l'elenco e la libreria, copia nel telefono */
 const SCELTA_KEY  = 'wk-scelta-v1';       /* la persona scelta nel menu */
 const CODA_KEY    = 'wk-coda-v1';         /* i video da mandare: [{ f, n }] */
-const CARICATI_KEY = 'wk-caricati-v3';    /* { codice: [video gia' online e leggeri] } */
+const CARICATI_KEY = 'wk-caricati-v3';   /* { codice: [video gia' online e leggeri] } */
 /* come si guarda lo schermo: sta nel telefono, non nel file */
 const VISTA_KEY   = 'wk-vista-v1';
 
@@ -2852,7 +2852,7 @@ function openImpostazioni() {
   miaNuova = '';
   const s = $('tokenStato');
   s.className = 'nota';
-  s.textContent = token ? 'Token inserito.' : 'Nessun token: le schede si leggono ma non si salvano.';
+  s.textContent = '';
   paintMia();
   dlgImp.showModal();
 }
@@ -2862,8 +2862,7 @@ function paintMia() {
   c.className = 'nota' + (miaKo && !miaNuova ? ' err' : '');
   c.textContent = miaNuova ? 'Chiave nuova: scrivila sul foglio, poi premi Salva.'
                 : miaKo    ? 'Questa chiave non apre nessun elenco.'
-                : mia      ? 'Chiave inserita.'
-                :            'Nessuna chiave: senza, non vedi le persone.';
+                :            '';
   $('miaCrea').hidden = !!$('miaInput').value.trim();
 }
 $('miaInput').addEventListener('input', () => { miaNuova = ''; paintMia(); });
