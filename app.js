@@ -2854,6 +2854,7 @@ function openImpostazioni() {
   s.className = 'nota';
   s.textContent = '';
   paintMia();
+  if (!mia) guardaElenco();
   dlgImp.showModal();
 }
 
@@ -2863,9 +2864,29 @@ function paintMia() {
   c.textContent = miaNuova ? 'Chiave nuova: scrivila sul foglio, poi premi Salva.'
                 : miaKo    ? 'Questa chiave non apre nessun elenco.'
                 :            '';
-  $('miaCrea').hidden = !!$('miaInput').value.trim();
+  /* "Crea la mia chiave" serve una volta sola: solo a chi ha il token, senza
+     una chiave scritta, e se online un elenco non c'e' ancora */
+  $('miaCrea').hidden = !$('tokenInput').value.trim() || !!$('miaInput').value.trim() || elencoOnline !== false;
 }
 $('miaInput').addEventListener('input', () => { miaNuova = ''; paintMia(); });
+$('tokenInput').addEventListener('input', paintMia);
+
+/* C'e' gia' un elenco online? null: non si sa ancora. Si guarda una volta,
+   aprendo le impostazioni; la lettura non ha bisogno del token. */
+let elencoOnline = null;
+async function guardaElenco() {
+  if (elencoOnline !== null) return;
+  try {
+    const r = await fetch(API + '/contents/persone?ref=' + BRANCH, { headers: { Accept: 'application/vnd.github+json' }, cache: 'no-store' });
+    if (r.status === 404) elencoOnline = false;
+    else if (r.ok) {
+      const l = await r.json();
+      const nomi = Array.isArray(l) ? l.map(x => x.name) : [];
+      elencoOnline = nomi.indexOf(SEGNO_ELENCO) >= 0 || nomi.filter(n => /\.json$/.test(n) && !/-bozza\.json$/.test(n)).length >= 2;
+    }
+  } catch (e) { /* si riprova la prossima volta */ }
+  paintMia();
+}
 $('miaCrea').addEventListener('click', () => {
   miaNuova = nuovaChiave();
   $('miaInput').value = miaNuova;
@@ -3338,6 +3359,7 @@ async function cambiaMia(k, nuova) {
     scriviChiave(MIA_KEY, mia);
     saveMio();
     scriviFile(SEGNO_ELENCO_FILE, 'ok\n', null, 'elenco pronto').catch(() => {});
+    elencoOnline = true;
     return;
   }
   scriviChiave(MIA_KEY, mia);
