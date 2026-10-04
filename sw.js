@@ -4,7 +4,7 @@
    l'app nel telefono. */
 
 /* Il numero della cache: si alza quando un telefono resta indietro. */
-const CACHE = 'wk-v81';
+const CACHE = 'wk-v82';
 
 const SHELL = [
   './',
@@ -39,8 +39,11 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
+  /* no-cache: si chiede sempre al server se il file e' cambiato. Senza, il
+     telefono teneva per 10 minuti la copia vecchia (max-age di GitHub Pages)
+     e gli aggiornamenti arrivavano in ritardo. */
   e.respondWith(
-    fetch(req)
+    fetch(req, { cache: 'no-cache' })
       .then(res => {
         if (res && res.ok) {
           const copy = res.clone();
