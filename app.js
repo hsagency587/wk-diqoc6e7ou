@@ -44,7 +44,7 @@ const MIA_KEY     = 'wk-mia-v1';          /* { k, f }: la mia chiave, apre l'ele
 const MIO_KEY     = 'wk-mio-v1';          /* l'elenco e la libreria, copia nel telefono */
 const SCELTA_KEY  = 'wk-scelta-v1';       /* la persona scelta nel menu */
 const CODA_KEY    = 'wk-coda-v1';         /* i video da mandare: [{ f, n }] */
-const CARICATI_KEY = 'wk-caricati-v1';    /* { codice: [video gia' online] } */
+const CARICATI_KEY = 'wk-caricati-v2';    /* { codice: [video gia' online e leggeri] } */
 /* come si guarda lo schermo: sta nel telefono, non nel file */
 const VISTA_KEY   = 'wk-vista-v1';
 
@@ -929,7 +929,7 @@ function disegnaW() {
     if (ev) celle.push({ t: x.pi.prep.nome, cls: 'evento' });
     else for (let i = 0; i < n; i++) {
       if (i >= quanti) celle.push({ t: '', cls: 'fuori' });
-      else if (x.w[i] === MORNING) celle.push({ t: nomeMattinaDi(x.pi), cls: 'every' });
+      else if (eLista(x.w[i])) celle.push({ t: nomeLista(x.pi, x.w[i]) || '—', cls: 'every' });
       else celle.push({ t: x.w[i] || '—', cls: x.w[i] ? '' : 'vuota' });
     }
     const cls = [x.k === kOggi ? 'oggi' : '', x.pi.prep ? 'inprep' : ''].filter(Boolean).join(' ');
@@ -961,7 +961,7 @@ function disegnaW() {
 function allenamentiDi(pi) {
   const out = [];
   for (const g of SETTIMANA) {
-    for (const v of workoutDelGiorno(pi, g)) if (v && v !== MORNING && out.indexOf(v) < 0) out.push(v);
+    for (const v of workoutDelGiorno(pi, g)) if (v && !eLista(v) && out.indexOf(v) < 0) out.push(v);
   }
   return out;
 }
@@ -1133,6 +1133,10 @@ Pila.prototype.vai = function (g) {
    recupero. Nel file sta sotto una chiave fissa, che non cambia mai; il nome
    che si legge sta a parte e si riscrive quando si vuole. */
 const MORNING = '__morning';
+/* Un posto della settimana puo' tenere una lista Every day invece di un
+   workout: la prima (MORNING) o una delle altre (EV e il suo id). */
+const eLista = v => typeof v === 'string' && v.indexOf('__') === 0;
+function nomeLista(pi, k) { const l = listeDi(pi).find(x => x.chiave === k); return l ? l.nome : ''; }
 const nomeMattinaDi = pi => (pi && pi.mattina) || MATTINA_BASE;
 
 /* Se una lista Every day si vede in una data. */
@@ -1180,13 +1184,13 @@ function paintOggi(box, pi, k, g, titolo) {
     if (!nome) continue;
     /* un giorno con la lista di tutti i giorni: se il box in alto e' spento,
        la lista compare qui; se e' acceso c'e' gia' */
-    if (nome === MORNING) {
-      const scm = pi.schede[MORNING];
-      if (!scm || !scm.es.length || listeDelGiorno(pi, k).some(l => l.chiave === MORNING)) continue;
+    if (eLista(nome)) {
+      const scm = pi.schede[nome];
+      if (!scm || !scm.es.length || listeDelGiorno(pi, k).some(l => l.chiave === nome)) continue;
       if (!capo) { box.appendChild(el('p', 'grp', titolo || 'ALLENAMENTI DI OGGI')); capo = true; }
-      const tm = tabScheda(nomeMattinaDi(pi), scm);
+      const tm = tabScheda(nomeLista(pi, nome) || 'Every day', scm);
       tm.classList.add('tab-oggi');
-      box.appendChild(righeScheda(tm, { es: scm.es, rec: '', tipi: scm.tipi }, pi.src, MORNING));
+      box.appendChild(righeScheda(tm, { es: scm.es, rec: '', tipi: scm.tipi }, pi.src, nome));
       continue;
     }
     const sc = pi.schede[nome];
@@ -1935,6 +1939,27 @@ async function vGet(n) {
     });
   } catch (e) { return null; }
 }
+/* I nomi dei video nel telefono, e un video tolto. */
+async function vNomi() {
+  try {
+    const d = await apriDb();
+    return await new Promise(ok => {
+      const q = d.transaction('v').objectStore('v').getAllKeys();
+      q.onsuccess = () => ok((q.result || []).map(String));
+      q.onerror = () => ok([]);
+    });
+  } catch (e) { return []; }
+}
+async function vVia(n) {
+  try {
+    const d = await apriDb();
+    await new Promise(ok => {
+      const t = d.transaction('v', 'readwrite');
+      t.objectStore('v').delete(n);
+      t.oncomplete = t.onerror = ok;
+    });
+  } catch (e) { /* resta */ }
+}
 async function vPut(n, blob) {
   const d = await apriDb();
   await new Promise((ok, ko) => {
@@ -2023,24 +2048,31 @@ function chiaveDi(f) {
 
 /* C'e' gia' online? Se un caricamento e' arrivato ma il telefono non ha fatto
    in tempo a segnarlo, non lo si rimanda. */
+/* Torna quanto pesa online, o -1 se non c'e'. */
 async function videoOnline(percorso) {
   try {
     const r = await fetch(API + '/contents/' + percorso + '?ref=' + BRANCH, { method: 'GET', headers: ghHeaders(), cache: 'no-store' });
-    return r.status === 200;
-  } catch (e) { return false; }
+    if (r.status !== 200) return -1;
+    try { return +(await r.json()).size || 0; } catch (e) { return 0; }
+  } catch (e) { return -1; }
 }
 
 /* Un video verso la cartella di qualcuno: lo si prende dal telefono, o da
    dove sta online, lo si chiude con la sua chiave e lo si manda. Torna true
    se e' online, 'perso' se non c'e' modo di mandarlo, false per riprovare. */
-async function caricaVideo(x, avanza) {
+async function caricaVideo(x, avanza, dice) {
   try {
     const pass = chiaveDi(x.f);
     if (!pass) return 'perso';                /* persona tolta dall'elenco */
     const percorso = cartellaDi(x.f) + x.n;
-    if (await videoOnline(percorso)) return true;
-    const blob = (await vGet(x.n)) || (await prendiVideo(x.n));
-    if (!blob) return 'perso';                /* non c'e' da nessuna parte */
+    /* gia' online: va bene, a meno che sia uno di quelli pesanti di prima */
+    const online = await videoOnline(percorso);
+    if (online >= 0 && (!eVideo(x.n) || online <= LEGGERO_SOGLIA)) return true;
+    let blob = (await vGet(x.n)) || (await prendiVideo(x.n));
+    if (!blob) return online >= 0 ? true : 'perso';   /* non c'e' da nessuna parte */
+    blob = await alleggerisci(x.n, blob, dice);
+    /* online c'era gia' e non si e' alleggerito: si lascia quello */
+    if (online >= 0 && blob.size > online * 0.85) return true;
     const corpo = await corpoBlob(new Blob([await cifraByte(await blob.arrayBuffer(), pass)]));
     /* il file va su una volta sola; poi si prova ad attaccarlo al branch */
     let sha = null;
@@ -2139,8 +2171,26 @@ async function scaricaVideo() {
   if (scaricando || !fidCorrente) return;
   scaricando = true;
   try {
+    const servono = videoDiPersona();
     /* le immagini delle sorprese arrivano prima del loro giorno */
-    for (const n of videoDiPersona()) if (!(await vGet(n))) await prendiVideo(n);
+    for (const n of servono) {
+      const b = await vGet(n);
+      if (!b) { await prendiVideo(n); continue; }
+      /* un video pesante di prima, che online e' diventato leggero: si
+         prende quello nuovo, e il telefono si libera */
+      if (eVideo(n) && b.size > LEGGERO_SOGLIA && !leggeri.has(n)) {
+        try {
+          const r = await fetch(RAW + cartellaDi(fidCorrente) + n, { method: 'HEAD', cache: 'no-store' });
+          const online = +r.headers.get('Content-Length') || 0;
+          if (r.ok && online && online < b.size * 0.85) await prendiVideo(n);
+          if (r.ok && online) segnaLeggero(n);
+        } catch (e) { /* si riprova la prossima volta */ }
+      }
+    }
+    /* chi legge e basta tiene nel telefono solo i video che gli servono */
+    if (!editore() && servono.size) {
+      for (const n of await vNomi()) if (!servono.has(n)) await vVia(n);
+    }
   } finally {
     scaricando = false;
   }
@@ -2232,8 +2282,15 @@ if (orizzontale.addEventListener) orizzontale.addEventListener('change', ruota);
    sopra il limite, una seconda piu' piccola. Se il browser non ce la fa, il
    video resta com'e'. */
 const MEDIABUNNY = 'https://cdn.jsdelivr.net/npm/mediabunny@1.60.0/+esm';
-const PASSATE_VIDEO = [{ lato: 1280, bit: 1500000, audio: 96000 },
-                       { lato: 854,  bit: 700000,  audio: 64000 }];
+/* Quanto pesa un video: un esercizio si guarda su un telefono, e 540p (960
+   sul lato lungo) a 30 fotogrammi basta e avanza. H.264 dentro MP4 perche'
+   e' l'unico che si vede su tutti i telefoni, iPhone compresi. Audio mono e
+   leggero: in un esercizio conta poco. Viene circa 5 MB al minuto. Se il
+   video resta comunque grosso (oltre LEGGERO_MAX), una seconda passata piu'
+   piccola. */
+const PASSATE_VIDEO = [{ lato: 960, bit: 650000, audio: 48000 },
+                       { lato: 640, bit: 350000, audio: 32000 }];
+const LEGGERO_MAX = 20 * 1024 * 1024;
 
 async function comprimiVideo(f, avanza) {
   if (!('VideoEncoder' in window)) return null;
@@ -2250,21 +2307,43 @@ async function comprimiVideo(f, avanza) {
         input: input, output: output,
         video: t => {
           const w = t.displayWidth, h = t.displayHeight;
-          const o = { bitrate: p.bit };
+          const o = { codec: 'avc', bitrate: p.bit, frameRate: 30, keyFrameInterval: 2, forceTranscode: true };
           if (Math.max(w, h) > p.lato) { if (w >= h) o.width = p.lato; else o.height = p.lato; }
           return o;
         },
-        audio: { bitrate: p.audio }
+        audio: { numberOfChannels: 1, bitrate: p.audio, forceTranscode: true }
       });
-      if (!conv.isValid) break;
+      /* senza la parte video non e' piu' un video: si lascia com'era */
+      if (!conv.isValid || conv.discardedTracks.some(d => d.track.type === 'video')) break;
       conv.onProgress = x => { if (avanza) avanza((i + x) / (i + 1)); };
       await conv.execute();
       const b = new Blob([target.buffer], { type: 'video/mp4' });
       if (!migliore || b.size < migliore.size) migliore = b;
-      if (b.size <= VIDEO_MAX) break;
+      if (b.size <= LEGGERO_MAX) break;
     } catch (e) { break; }
   }
   return migliore;
+}
+
+/* I video gia' caricati prima, ancora pesanti: si alleggeriscono una volta,
+   quando vanno nella cartella di qualcuno. La copia nel telefono diventa
+   quella leggera. Chi e' gia' stato provato non si riprova. */
+const LEGGERI_KEY = 'wk-leggeri-v1';
+const LEGGERO_SOGLIA = 3 * 1024 * 1024;
+const leggeri = (() => { try { const v = JSON.parse(localStorage.getItem(LEGGERI_KEY) || '[]'); return new Set(Array.isArray(v) ? v : []); } catch (e) { return new Set(); } })();
+function segnaLeggero(nome) {
+  leggeri.add(nome);
+  try { localStorage.setItem(LEGGERI_KEY, JSON.stringify([...leggeri].slice(-2000))); } catch (e) { /* niente */ }
+}
+const eVideo = n => /\.(mp4|webm|mov|m4v)$/.test(n);
+async function alleggerisci(nome, blob, dice) {
+  if (!eVideo(nome) || blob.size <= LEGGERO_SOGLIA || leggeri.has(nome)) return blob;
+  const piccolo = await comprimiVideo(blob, x => { if (dice) dice('comprimo… ' + Math.min(99, Math.round(x * 100)) + '%'); });
+  segnaLeggero(nome);
+  if (!piccolo || piccolo.size > blob.size * 0.85) return blob;
+  const nuovo = new Blob([piccolo], { type: tipoVideo(nome) });
+  try { await vPut(nome, nuovo); } catch (e) { /* resta quello di prima nel telefono */ }
+  return nuovo;
 }
 
 async function tieniVideo(f, avanza) {
@@ -2275,6 +2354,7 @@ async function tieniVideo(f, avanza) {
   }
   const est = (f.name.match(/\.(mp4|webm|mov|m4v)$/i) || [0, 'mp4'])[1].toLowerCase();
   const nome = 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8) + '.' + est;
+  segnaLeggero(nome);                       /* gia' compresso qui: non si rifa' */
   try {
     await vPut(nome, new Blob([f], { type: tipoVideo(nome) }));
   } catch (e) {
@@ -3121,6 +3201,9 @@ async function leggiVecchio(percorso) {
 }
 
 const nuovoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+/* il segno che il passaggio e' finito: un file con dentro solo "ok" */
+const SEGNO_ELENCO = '.fatto';
+const SEGNO_ELENCO_FILE = 'persone/' + SEGNO_ELENCO;
 
 /* La prima volta, con una chiave mia appena creata: l'elenco nasce qui. Il
    vecchio diventa la prima persona: la sua bozza diventa la sua bozza, il
@@ -3129,10 +3212,19 @@ const nuovoId = () => Date.now().toString(36) + Math.random().toString(36).slice
    un elenco non si rifa': vuol dire che la mia chiave e' un'altra, quella
    sul foglio. */
 async function creaElenco() {
+  /* c'e' gia' un elenco se c'e' il segno che il passaggio e' finito, o se i
+     file pubblicati sono almeno due (il mio e quello della prima persona). I
+     pezzi rimasti a meta' da un passaggio interrotto non contano: non hanno
+     nessuna chiave salvata che li apra. */
   let r;
   try { r = await leggiFile('persone'); } catch (e) { return 'niente rete'; }
-  if (r.ok) return 'online c\'è già un elenco: scrivi la chiave che hai sul foglio';
-  if (r.status !== 404) return r.status === 401 ? 'token rifiutato' : 'GitHub: errore ' + r.status;
+  if (r.ok) {
+    let nomi = [];
+    try { const l = await r.json(); nomi = Array.isArray(l) ? l.map(x => x.name) : []; } catch (e) { /* niente */ }
+    if (nomi.indexOf(SEGNO_ELENCO) >= 0 || nomi.filter(n => /\.json$/.test(n) && !/-bozza\.json$/.test(n)).length >= 2) {
+      return 'online c\'è già un elenco: scrivi la chiave che hai sul foglio';
+    }
+  } else if (r.status !== 404) return r.status === 401 ? 'token rifiutato' : 'GitHub: errore ' + r.status;
   let pub, boz;
   try {
     pub = await leggiVecchio(fileDi(VECCHIO));
@@ -3143,6 +3235,7 @@ async function creaElenco() {
   if (qui.dirty) boz = inForma(qui);
   const prima = boz || pub;
   mio = inFormaMio({ f: mia.f });
+  mio.salvato = '';                   /* nuovo: va online anche se e' vuoto */
   if (!prima) { apriPersona('', ''); saveMio(); return ''; }
   const k = nuovaChiave();
   const p = { id: nuovoId(), nome: 'Sifu', chiave: k, f: await codiceDi(k) };
@@ -3178,22 +3271,37 @@ async function cambiaMia(k, nuova) {
     return;
   }
   mia = { k: k, f: await codiceDi(k) };
+  if (nuova) {
+    /* la chiave nuova resta nel telefono solo quando l'elenco e' online:
+       se il passaggio si interrompe, si rifa' da capo con una chiave nuova */
+    const prima = leggiChiave(MIA_KEY);
+    const fallito = err => {
+      /* si torna com'era prima: con la chiave di prima, se c'era */
+      mia = prima; mio = null;
+      apriPersona('', '');
+      if (mia && token) {
+        const m = readStore(MIO_KEY);
+        mio = inFormaMio(m.f === mia.f ? m : { f: mia.f });
+        scegliIniziale();
+        pullTasks();
+      } else apriSenzaElenco();
+      paintTutto();
+      paintSync(err, true);
+    };
+    paintSync('preparo l\'elenco…');
+    const err = await creaElenco();
+    if (err) return fallito(err);
+    paintTutto();
+    await pushTasks();
+    if (!mio || !mio.sha) return fallito('l\'elenco non è arrivato online: ' + (salvaErr || 'riprova') + '. Crea di nuovo la chiave.');
+    scriviChiave(MIA_KEY, mia);
+    saveMio();
+    scriviFile(SEGNO_ELENCO_FILE, 'ok\n', null, 'elenco pronto').catch(() => {});
+    return;
+  }
   scriviChiave(MIA_KEY, mia);
   const m = readStore(MIO_KEY);
   mio = inFormaMio(m.f === mia.f ? m : { f: mia.f });
-  if (nuova) {
-    paintSync('preparo l\'elenco…');
-    const err = await creaElenco();
-    if (err) {
-      mia = null; mio = null; scriviChiave(MIA_KEY, null);
-      apriSenzaElenco();
-      paintSync(err, true);
-      return;
-    }
-    paintTutto();
-    await pushTasks();
-    return;
-  }
   apriPersona('', '');
   await pullMio();
   scegliIniziale();
@@ -3539,12 +3647,20 @@ function segnaCaricato(f, n) {
 }
 
 /* Quello che deve stare online adesso, nella cartella della persona aperta e
-   nella mia: entra in coda quello che non risulta gia' caricato. */
+   nella mia: entra in coda quello che non risulta gia' caricato. Nella mia
+   cartella vanno solo i video della libreria che non stanno gia' nella
+   cartella di qualcuno: da li' li ritrova anche un altro mio dispositivo
+   (vedi fontiVideo). Cosi' ogni video non si carica due volte. */
 function aggiornaCoda() {
   if (!editore()) return;
   const servono = [];
-  if (scrive()) servono.push({ f: fidCorrente, nomi: videoDiPersona() });
-  if (mia) servono.push({ f: mia.f, nomi: videoDiLibreria() });
+  const diPersona = scrive() ? videoDiPersona() : new Set();
+  if (scrive()) servono.push({ f: fidCorrente, nomi: diPersona });
+  if (mia) {
+    const altrove = new Set(diPersona);
+    for (const p of mio.persone) for (const n of caricati[p.f] || []) altrove.add(n);
+    servono.push({ f: mia.f, nomi: new Set([...videoDiLibreria()].filter(n => !altrove.has(n))) });
+  }
   for (const s of servono) {
     const gia = new Set(caricati[s.f] || []);
     coda = coda.filter(x => x.f !== s.f || s.nomi.has(x.n));
@@ -3570,7 +3686,7 @@ async function codaVideo() {
       const x = lista[i];
       const riga = 'carico il video ' + (i + 1) + ' di ' + lista.length;
       paintSync(riga + '… tieni l\'app aperta');
-      const esito = await caricaVideo(x, p => paintSync(riga + '… ' + Math.round(p * 100) + '%'));
+      const esito = await caricaVideo(x, p => paintSync(riga + '… ' + Math.round(p * 100) + '%'), t => paintSync(riga + ': ' + t));
       if (!esito) continue;
       if (esito === true) segnaCaricato(x.f, x.n);
       coda = coda.filter(y => !(y.f === x.f && y.n === x.n));

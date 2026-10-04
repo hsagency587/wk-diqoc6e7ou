@@ -40,7 +40,7 @@ function edWorkout(f) {
   const out = [];
   for (const w of f.settimane) {
     for (const g of SETTIMANA) {
-      for (const v of (w.workout[g] || []).slice(0, w.conti[g] || 0)) if (v && v !== MORNING && out.indexOf(v) < 0) out.push(v);
+      for (const v of (w.workout[g] || []).slice(0, w.conti[g] || 0)) if (v && !eLista(v) && out.indexOf(v) < 0) out.push(v);
     }
   }
   for (const k of Object.keys(f.schede)) if (k.indexOf('__') !== 0 && out.indexOf(k) < 0) out.push(k);
@@ -189,7 +189,7 @@ function edAnteprimaSett(pv, f, si) {
   SETTIMANA.forEach((g, pos) => {
     const k = lun ? chiaveData(piuGiorni(lun, pos)) : null;
     if (k && (k < f.prep.dal || k > f.prep.al)) return;
-    const nomi = (w.workout[g] || []).slice(0, w.conti[g] || 0).map(x => x === MORNING ? nomeMattinaDi(f.obj) : x).filter(Boolean);
+    const nomi = (w.workout[g] || []).slice(0, w.conti[g] || 0).map(x => eLista(x) ? nomeLista(f.obj, x) : x).filter(Boolean);
     const l = el('div', 'ed-ant-riga');
     l.appendChild(el('span', 'ed-ant-giorno', GIORNI2[g] + (k ? ' ' + daChiave(k).getDate() : '')));
     l.appendChild(el('span', 'ed-ant-nome', nomi.length ? nomi.join(' + ') : 'Riposo'));
@@ -207,7 +207,7 @@ function edWorkoutElenco(f) {
     SETTIMANA.forEach((g, pos) => {
       const k = chiaveData(piuGiorni(lun, pos));
       if (k < f.prep.dal || k > f.prep.al) return;
-      for (const v of (w.workout[g] || []).slice(0, w.conti[g] || 0)) if (v && v !== MORNING && out.indexOf(v) < 0) out.push(v);
+      for (const v of (w.workout[g] || []).slice(0, w.conti[g] || 0)) if (v && !eLista(v) && out.indexOf(v) < 0) out.push(v);
     });
   });
   return out;
@@ -444,15 +444,18 @@ function edPagSettimana(box, ctx, si) {
       (ultima && f.settimane.length < settimaneDel(f.prep) ? ' · si ripete fino alla fine della preparazione' : ''));
   }
 
-  /* i nomi gia' usati, da scegliere mentre si scrive */
-  const lista = el('datalist');
-  lista.id = 'edNomi';
-  /* in cima la lista di tutti i giorni: scelta in un giorno, quel giorno
-     porta il suo nome */
-  const nomeEvery = nomeMattinaDi(f.obj);
-  const EVERY = 'Ogni giorno';
-  for (const n of [EVERY].concat(edWorkout(f))) { const o = el('option'); o.value = n; lista.appendChild(o); }
-  box.appendChild(lista);
+  /* In un giorno va un workout o una lista Every day: si scelgono dalla
+     tendina sotto il campo, prima le liste e poi i workout gia' scritti. Una
+     lista si riconosce dal nome; il giorno tiene la sua chiave, cosi' se la
+     lista cambia nome il giorno la segue. "Ogni giorno" vale la prima. */
+  const liste = listeDi(f.obj);
+  const voci = () => liste.map(l => l.nome).concat(edWorkout(f).filter(n => !liste.some(l => edNorm(l.nome) === edNorm(n))));
+  const listaDi = t => {
+    const b = edNorm(t);
+    if (!b) return null;
+    return liste.find(l => edNorm(l.nome) === b) ||
+           (['ogni giorno', 'every day', 'everyday'].indexOf(b) >= 0 ? liste[0] : null);
+  };
 
   /* In una preparazione la prima e l'ultima settimana possono essere a meta':
      i giorni prima dell'inizio e dopo la fine restano al piano di sempre, e
@@ -485,28 +488,33 @@ function edPagSettimana(box, ctx, si) {
       const inp = el('input', 'campo');
       inp.type = 'text';
       inp.maxLength = 60;
-      inp.setAttribute('list', 'edNomi');
       inp.placeholder = ORDINALI[i] + ' workout';
       const val = (w.workout[g] || [])[i] || '';
-      inp.value = val === MORNING ? EVERY : val;
-      if (val === MORNING) inp.classList.add('every');
-      inp.addEventListener('change', () => {
+      inp.value = eLista(val) ? nomeLista(f.obj, val) : val;
+      inp.classList.toggle('every', eLista(val));
+      const salva = () => {
         const r = (w.workout[g] || []).slice();
         while (r.length <= i) r.push('');
         let scritto = inp.value.slice(0, 60).trim();
-        const basso = scritto.toLowerCase();
-        /* un workout che c'e' gia', scritto con maiuscole diverse, e' quello:
-           niente workout fantasma */
-        const esiste = edWorkout(f).find(n => n.toLowerCase() === basso);
-        if (esiste) { scritto = esiste; inp.value = esiste; }
-        r[i] = scritto && (basso === EVERY.toLowerCase() || basso === 'every day' || basso === 'everyday' || basso === nomeEvery.toLowerCase()) ? MORNING : scritto;
-        if (r[i] === MORNING) inp.value = EVERY;
+        const l = listaDi(scritto);
+        if (l) {
+          r[i] = l.chiave;
+          inp.value = l.nome;
+        } else {
+          /* un workout che c'e' gia', scritto con maiuscole diverse, e'
+             quello: niente workout fantasma */
+          const esiste = edWorkout(f).find(n => edNorm(n) === edNorm(scritto));
+          if (esiste) { scritto = esiste; inp.value = esiste; }
+          r[i] = scritto;
+        }
+        if (r[i] === ((w.workout[g] || [])[i] || '')) { inp.classList.toggle('every', !!l); return; }
         while (r.length && !r[r.length - 1]) r.pop();
         if (r.length) w.workout[g] = r; else delete w.workout[g];
-        inp.classList.toggle('every', r[i] === MORNING);
+        inp.classList.toggle('every', !!l);
         edCambio(true);
-      });
-      campi.appendChild(inp);
+      };
+      inp.addEventListener('change', salva);
+      campi.appendChild(edTendina(inp, voci, v => { inp.value = v; inp.blur(); salva(); }, { subito: true }));
     }
     riga.appendChild(campi);
     box.appendChild(riga);
@@ -1291,6 +1299,16 @@ function edPagMattina(box, ctx, listaId) {
     edConferma(az, 'Cancella questa lista', () => {
       o.altre = o.altre.filter(x => x !== a);
       delete f.schede[L.chiave];
+      /* tolta anche dai giorni della Settimana in cui era scritta */
+      for (const w of f.settimane) {
+        for (const g of SETTIMANA) {
+          const r = w.workout[g];
+          if (!r) continue;
+          for (let i = 0; i < r.length; i++) if (r[i] === L.chiave) r[i] = '';
+          while (r.length && !r[r.length - 1]) r.pop();
+          if (!r.length) delete w.workout[g];
+        }
+      }
       edVista = { pag: 'morning', ctx: ctx };
       edCambio(true);
       edRidisegna();
@@ -1406,17 +1424,24 @@ function edSettimanaLista(box, f, chiave) {
   SETTIMANA.forEach((g, pos) => {
     const k = chiaveData(piuGiorni(lun, pos));
     const fuori = !f.base && (k < f.prep.dal || k > f.prep.al);
-    const liste = fuori ? [] : listeDi(f.obj).filter(l => !l.via && quandoVale(l.quando, k));
+    /* la lista c'e' quel giorno se "Quando" lo dice, o se e' scritta in uno
+       dei posti della Settimana */
+    const wg = fuori ? null : f.settimane[f.base ? 0 : settimanaDi(f.prep, k)];
+    const nelGiorno = wg ? (wg.workout[g] || []).slice(0, wg.conti[g] || 0) : [];
+    const liste = fuori ? [] : listeDi(f.obj).filter(l => !l.via && (quandoVale(l.quando, k) || nelGiorno.indexOf(l.chiave) >= 0));
     const qui = liste.some(l => l.chiave === chiave);
     const riga = el('div', 'ed-sl-riga' + (qui ? ' qui' : '') + (fuori ? ' fuori' : '') + (k === oggi ? ' oggi' : ''));
     riga.appendChild(el('span', 'ed-sl-giorno', GIORNI2[g] + ' ' + daChiave(k).getDate()));
     const corpo = el('div', 'ed-sl-corpo');
     if (fuori) corpo.appendChild(el('span', 'ed-sl-wk', 'fuori dalla preparazione'));
     else {
-      const w = f.settimane[f.base ? 0 : settimanaDi(f.prep, k)];
-      const nomi = (w.workout[g] || []).slice(0, w.conti[g] || 0).map(x => x === MORNING ? nomeMattinaDi(f.obj) : x).filter(Boolean);
+      /* i workout del giorno; le liste messe nella Settimana stanno con le altre */
+      const nomi = nelGiorno.filter(x => x && !eLista(x));
       corpo.appendChild(el('span', 'ed-sl-wk', nomi.length ? nomi.join(' + ') : 'Riposo'));
-      for (const l of liste) corpo.appendChild(el('span', 'ed-sl-lista' + (l.chiave === chiave ? ' on' : ''), l.nome));
+      for (const l of liste) {
+        const aMano = nelGiorno.indexOf(l.chiave) >= 0;
+        corpo.appendChild(el('span', 'ed-sl-lista' + (l.chiave === chiave ? ' on' : ''), l.nome + (aMano ? ' · nella settimana' : '')));
+      }
     }
     riga.appendChild(corpo);
     tab.appendChild(riga);
@@ -1775,14 +1800,15 @@ function eggPosti() {
   return posti;
 }
 
-/* Una foto ridotta prima di tenerla: 1600 pixel bastano per uno schermo. */
+/* Una foto ridotta prima di tenerla: 1280 pixel bastano per uno schermo di telefono. JPEG e non
+   WebP: l'iPhone non sa scrivere WebP, e ne uscirebbe un PNG molto piu' pesante. */
 async function eggRiduci(f) {
   const bm = await createImageBitmap(f);
-  const k = Math.min(1, 1600 / Math.max(bm.width, bm.height));
+  const k = Math.min(1, 1280 / Math.max(bm.width, bm.height));
   const c = document.createElement('canvas');
   c.width = Math.round(bm.width * k); c.height = Math.round(bm.height * k);
   c.getContext('2d').drawImage(bm, 0, 0, c.width, c.height);
-  return await new Promise(ok => c.toBlob(ok, 'image/jpeg', 0.85));
+  return await new Promise(ok => c.toBlob(ok, 'image/jpeg', 0.8));
 }
 
 function edPagEgg(box) {
