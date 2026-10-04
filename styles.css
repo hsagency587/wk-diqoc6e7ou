@@ -1135,3 +1135,10 @@ body.ed-aperto{overflow:hidden}
 .pers-chiave,.chiavecampo{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.06em}
 .pers-chiave{margin:var(--s1) 0 0;font-size:20px;color:var(--text);user-select:all}
 #persone .wrow{padding:0}
+
+/* il collegamento da incollare: campo largo, bottoni accanto */
+.incolla{display:flex;gap:var(--s2);align-items:center;margin-top:var(--s3)}
+.incolla .campo{flex:1;min-width:0}
+.incolla .btn{flex:0 0 auto;padding:0 var(--s3)}
+.avviso-home{margin:0 0 var(--s3);padding:var(--s2) var(--s3);border:1px solid var(--accent);border-radius:var(--radius);color:var(--text)}
+#wlist .incolla,#wlist .incolla + .nota{margin-left:var(--s4);margin-right:var(--s4)}

@@ -835,7 +835,30 @@ function disegnaW() {
       editore()       ? 'Ancora nessuna persona. Tocca "Persone" in alto per aggiungerne una.'
       : token && !mia ? 'Per scrivere le schede serve la tua chiave: ⚙ Impostazioni → Sviluppatore.'
       : token         ? 'Controlla la tua chiave in ⚙ Impostazioni → Sviluppatore.'
-      :                 'Per vedere la tua scheda apri il collegamento che hai ricevuto.'));
+      :                 'Per vedere la tua scheda apri il collegamento che hai ricevuto, oppure copialo e incollalo qui.'));
+    /* chi si allena e non ha ancora la chiave: il collegamento si incolla */
+    if (!token) {
+      const riga = el('div', 'incolla');
+      const inp = el('input', 'campo');
+      inp.type = 'text'; inp.autocomplete = 'off'; inp.placeholder = 'il collegamento ricevuto';
+      inp.setAttribute('aria-label', 'Il collegamento ricevuto');
+      const err = el('p', 'nota err', 'Non è il collegamento giusto: copialo di nuovo dal messaggio.');
+      err.hidden = true;
+      const apri = async () => { err.hidden = await usaCollegamento(inp.value); };
+      const incolla = el('button', 'btn', 'Incolla');
+      incolla.type = 'button';
+      incolla.addEventListener('click', async () => {
+        try { inp.value = await navigator.clipboard.readText(); } catch (e) { inp.focus(); return; }
+        apri();
+      });
+      const vai = el('button', 'btn btn-ok', 'Apri');
+      vai.type = 'button';
+      vai.addEventListener('click', apri);
+      inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); apri(); } });
+      riga.appendChild(inp); riga.appendChild(incolla); riga.appendChild(vai);
+      box.appendChild(riga);
+      box.appendChild(err);
+    }
     pagina.appendChild(box);
     return;
   }
@@ -868,6 +891,11 @@ function disegnaW() {
   }
   pagina.appendChild(box);
   pagina.appendChild(dx);
+
+  /* su iPhone, aperta dal collegamento in Safari: come tenerla sul telefono */
+  if (suIphone() && !installata() && !token && fidCorrente !== VECCHIO) {
+    box.appendChild(el('p', 'nota avviso-home', 'Per averla sempre a portata di mano: tocca Condividi (il quadrato con la freccia) e poi «Aggiungi alla schermata Home». Poi aprila da lì.'));
+  }
 
   /* in anteprima: la barra per tornare indietro */
   if (pAnt) {
@@ -2865,7 +2893,15 @@ $('temaScelta').addEventListener('click', ev => {
 });
 paintTema();
 
+$('collIncolla').addEventListener('click', async () => {
+  try { $('collInput').value = await navigator.clipboard.readText(); } catch (e) { $('collInput').focus(); }
+});
+
 $('impostazioniForm').addEventListener('submit', async () => {
+  /* un collegamento incollato: da qui si legge la scheda di quella chiave */
+  const coll = $('collInput').value.trim();
+  $('collInput').value = '';
+  if (coll && !(await usaCollegamento(coll))) paintSync('il collegamento incollato non è giusto: copialo di nuovo dal messaggio', true);
   token = $('tokenInput').value.trim();
   try {
     if (token) localStorage.setItem(TOKEN_KEY, token);
@@ -3322,8 +3358,29 @@ async function cambiaMia(k, nuova) {
    vecchio, finche' c'e'. */
 function apriSenzaElenco() {
   const p = leggiChiave(PERSONA_KEY);
-  if (p) apriPersona(p.k, p.f);
-  else apriPersona(chiaveVecchia(), VECCHIO);
+  if (p) { apriPersona(p.k, p.f); return; }
+  /* il vecchio lo vede solo chi lo aveva gia' in questo telefono: un
+     telefono nuovo, senza chiave, chiede il collegamento */
+  const v = readStore(STORE_KEY);
+  if (v.sha || (v.schede && Object.keys(v.schede).length)) apriPersona(chiaveVecchia(), VECCHIO);
+  else apriPersona('', '');
+}
+
+/* L'app aperta dall'icona sulla schermata Home, non da una scheda del
+   browser. Su iPhone l'icona ha una memoria sua, separata da Safari. */
+const installata = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const suIphone = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+/* Una chiave presa da un collegamento incollato, o scritta a mano. */
+async function usaCollegamento(testo) {
+  const m = String(testo || '').match(/[#&]k=([A-Za-z0-9-]+)/);
+  const k = pulisciChiave(m ? m[1] : testo);
+  if (!k) return false;
+  scriviChiave(PERSONA_KEY, { k: k, f: await codiceDi(k) });
+  apriSenzaElenco();
+  paintTutto();
+  pullTasks();
+  return true;
 }
 
 /* La persona da aprire: l'ultima scelta, o la prima dell'elenco. Se e' gia'
@@ -3829,8 +3886,8 @@ async function cambiaPersona(p) {
    SMS, mail); dove non c'e', il messaggio si copia. */
 async function invia(p) {
   const link = location.origin + location.pathname + '#k=' + p.chiave;
-  const testo = 'Ciao ' + p.nome + ', questa è la tua scheda di allenamento. Apri il collegamento; ' +
-                'poi, dal menu del browser, scegli "Aggiungi a schermata Home".';
+  const testo = 'Ciao ' + p.nome + ', questa è la tua scheda di allenamento. Apri il collegamento (su iPhone con Safari); ' +
+                'poi aggiungila alla schermata Home: dal menu del browser, o su iPhone da Condividi.';
   if (navigator.share) {
     try { await navigator.share({ title: 'Workout', text: testo, url: link }); return; }
     catch (e) { if (e && e.name === 'AbortError') return; }
@@ -3927,7 +3984,10 @@ setInterval(() => {
 async function avvia() {
   const h = location.hash.match(/[#&]k=([A-Za-z0-9-]+)/);
   if (h) {
-    history.replaceState(history.state, '', location.pathname + location.search);
+    /* dall'icona la chiave si toglie dall'indirizzo; nel browser resta, cosi'
+       "Aggiungi alla schermata Home" la porta con se' nell'icona (su iPhone
+       l'icona non vede la memoria di Safari) */
+    if (installata()) history.replaceState(history.state, '', location.pathname + location.search);
     const k = pulisciChiave(h[1]);
     if (k) scriviChiave(PERSONA_KEY, { k: k, f: await codiceDi(k) });
   }
