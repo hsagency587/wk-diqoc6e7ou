@@ -35,6 +35,8 @@
   <div class="bar">
     <h1 class="titolo">Workout</h1>
     <button type="button" class="salva" id="salva" hidden>Salva</button>
+    <!-- solo per chi scrive: la persona aperta, e il menu per cambiarla -->
+    <button type="button" class="schbtn persbtn" id="persBtn" hidden>Persone ▾</button>
     <button type="button" class="schbtn wedit" id="wMod" hidden>Editor</button>
     <button type="button" class="menu" id="impostazioniBtn" aria-label="Impostazioni">⚙</button>
   </div>
@@ -113,19 +115,40 @@
       <div class="sviluppo-corpo">
       <label class="commento-lab" for="tokenInput">GitHub token</label>
       <input class="campo" id="tokenInput" type="password" autocomplete="off" placeholder="github_pat_…">
-      <p class="nota">Fine-grained, limitato a questo repository, permesso <b>Contents</b> in lettura e scrittura. Serve per salvare il piano; per leggerlo non serve.</p>
+      <p class="nota">Fine-grained, limitato a questo repository, permesso <b>Contents</b> in lettura e scrittura. Serve per salvare le schede; per leggerle non serve.</p>
       <p class="nota" id="tokenStato"></p>
 
-      <label class="commento-lab" for="chiaveInput">Chiave dei dati</label>
-      <input class="campo" id="chiaveInput" type="password" autocomplete="off" placeholder="una parola che sai solo tu">
-      <p class="nota">Facoltativa. Con una chiave il piano viaggia cifrato: chi trova il file online non legge niente. Ogni telefono che apre il piano ha bisogno della stessa chiave. Se la lasci vuota, il piano resta in chiaro.</p>
-      <p class="nota" id="chiaveStato"></p>
+      <label class="commento-lab" for="miaInput">La tua chiave</label>
+      <input class="campo chiavecampo" id="miaInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="xxxx-xxxx-xxxx-xxxx">
+      <button type="button" class="btn btn-largo" id="miaCrea">Crea la mia chiave</button>
+      <p class="nota">Apre l'elenco delle persone e la libreria. Si crea una volta sola, sul primo dispositivo: scrivila sul foglio. Sugli altri tuoi dispositivi scrivi la stessa.</p>
+      <p class="nota" id="miaStato"></p>
       </div>
     </details>
 
     <div class="chiusura-btn">
       <button type="button" class="btn" id="tokenAnnulla">Annulla</button>
       <button type="submit" class="btn btn-ok" value="ok">Salva</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Le persone: chi tiene le schede sceglie qui di chi si vede e si scrive
+     il piano, ne aggiunge di nuove e manda a ognuna il suo collegamento. -->
+<dialog class="chiusura" id="persone" aria-labelledby="personeTit">
+  <form method="dialog" class="chiusura-box" id="personeForm">
+    <h2 class="chiusura-tit" id="personeTit">Persone</h2>
+    <div class="pers-lista" id="persLista"></div>
+
+    <p class="commento-lab">Nuova persona</p>
+    <div class="wrow">
+      <input class="wcampo" id="persNome" type="text" maxlength="40" autocomplete="off" placeholder="nome">
+      <button type="button" class="schbtn" id="persAggiungi">aggiungi</button>
+    </div>
+    <p class="nota" id="persNota"></p>
+
+    <div class="chiusura-btn">
+      <button type="submit" class="btn btn-ok" value="ok">Chiudi</button>
     </div>
   </form>
 </dialog>

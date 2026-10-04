@@ -1115,3 +1115,23 @@ body.ed-aperto{overflow:hidden}
 .ed-giorni-sett .chip{min-height:38px;padding:0;font-size:15px}
 .ed-ogni{gap:var(--s2);margin-top:6px}
 .ed-ciclo{margin-top:6px}
+
+/* ---------- le persone ---------- */
+
+/* in testata: il nome della persona aperta, corto se e' lungo */
+.persbtn{margin-left:0;flex:0 1 auto;min-width:0;max-width:34vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pers-lista{display:flex;flex-direction:column;gap:var(--s2);margin-bottom:var(--s4)}
+.pers-riga{display:flex;align-items:center;gap:var(--s2)}
+.pers-riga .schbtn{margin-left:0;flex:0 0 auto}
+.pers-nome{
+  flex:1;min-width:0;min-height:44px;padding:0 var(--s3);text-align:left;
+  border:1px solid var(--line);border-radius:var(--radius);
+  background:var(--surface-2);color:var(--text);font:inherit;font-size:18px;font-weight:600;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;
+}
+.pers-riga.sel .pers-nome{border-color:var(--accent);color:var(--accent)}
+.pers-dett{padding:var(--s2) var(--s3) var(--s3);border-left:2px solid var(--line);margin-left:var(--s2)}
+.pers-dett .campo{margin-top:var(--s1)}
+.pers-chiave,.chiavecampo{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.06em}
+.pers-chiave{margin:var(--s1) 0 0;font-size:20px;color:var(--text);user-select:all}
+#persone .wrow{padding:0}

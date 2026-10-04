@@ -6,27 +6,45 @@
    piano, e con i siti dei video che si mettono nelle descrizioni.
    ========================================================================= */
 
-/* Dove sta il file del piano. Il repository e' quello dell'app; il file vive
-   su un branch suo, "scheda", cosi' ogni salvataggio non rifa' il sito. Se il
-   branch non c'e' ancora, il primo Salva lo crea. */
+/* Dove stanno i file. Il repository e' quello dell'app; i file vivono su un
+   branch suo, "scheda", cosi' ogni salvataggio non rifa' il sito. Se il
+   branch non c'e' ancora, il primo Salva lo crea.
+   Ogni persona ha i suoi file, cifrati con la sua chiave: quello pubblicato,
+   che legge lei, la bozza, che scrive chi tiene le schede, e una cartella per
+   i video. Il nome dei file si ricava dalla chiave: nel repository non
+   compare nessun nome. Anche l'elenco delle persone e la libreria sono un
+   file cosi', cifrato con la mia chiave.
+   Il "vecchio" e' il piano di quando la persona era una sola (scheda.json,
+   bozza.json, video/): chi non ha ancora una chiave continua a leggere quello. */
 const REPO        = 'hsagency587/wk-diqoc6e7ou';
 const BRANCH      = 'scheda';
-const FILE        = 'scheda.json';
 const API         = 'https://api.github.com/repos/' + REPO;
-const FILE_API    = API + '/contents/' + FILE;
-/* La bozza: chi ha il token legge e scrive qui, il Sifu non la vede mai.
-   Pubblica copia la bozza su scheda.json in un colpo solo. */
-const BOZZA_API   = API + '/contents/bozza.json';
-const fileApi     = () => token ? BOZZA_API : FILE_API;
+const RAW         = 'https://raw.githubusercontent.com/' + REPO + '/' + BRANCH + '/';
+const VECCHIO     = 'vecchio';
+const fileDi      = f => f === VECCHIO ? 'scheda.json' : 'persone/' + f + '.json';
+const bozzaDi     = f => f === VECCHIO ? 'bozza.json' : 'persone/' + f + '-bozza.json';
+const cartellaDi  = f => f === VECCHIO ? 'video/' : 'persone/' + f + '/video/';
+/* La bozza: chi scrive legge e scrive qui, chi si allena non la vede mai.
+   Pubblica copia la bozza sul file pubblicato in un colpo solo. */
+const pubApi      = () => API + '/contents/' + fileDi(fidCorrente);
+const bozzaApi    = () => API + '/contents/' + bozzaDi(fidCorrente);
+const fileApi     = () => scrive() ? bozzaApi() : pubApi();
 let shaPubblicato;
 let pubblicando = false;
 let pubblicaErr = '';
 
 /* La copia che comanda sta nel telefono: ogni tocco e' istantaneo e resta qui
-   anche se non si salva. Salva la manda su GitHub in un commit solo. */
+   anche se non si salva. Salva la manda su GitHub in un commit solo. Ogni
+   persona ha la sua copia, sotto STORE_KEY + ':' + il codice dei suoi file. */
 const STORE_KEY   = 'wk-store-v1';        /* { workout, schede, sha, known, dirty, stamp } */
 const TOKEN_KEY   = 'wk-token-v1';
-const CHIAVE_KEY  = 'wk-chiave-v1';
+const CHIAVE_KEY  = 'wk-chiave-v1';       /* la Data key di prima: apre solo il vecchio */
+const PERSONA_KEY = 'wk-persona-v1';      /* { k, f }: la chiave arrivata col collegamento */
+const MIA_KEY     = 'wk-mia-v1';          /* { k, f }: la mia chiave, apre l'elenco */
+const MIO_KEY     = 'wk-mio-v1';          /* l'elenco e la libreria, copia nel telefono */
+const SCELTA_KEY  = 'wk-scelta-v1';       /* la persona scelta nel menu */
+const CODA_KEY    = 'wk-coda-v1';         /* i video da mandare: [{ f, n }] */
+const CARICATI_KEY = 'wk-caricati-v1';    /* { codice: [video gia' online] } */
 /* come si guarda lo schermo: sta nel telefono, non nel file */
 const VISTA_KEY   = 'wk-vista-v1';
 
@@ -261,7 +279,7 @@ function indiceEs() {
     if (lib) x.lib = true;
     m.set(n, x);
   };
-  for (const r of tstore.libreria || []) metti(r, true);
+  for (const r of libro().libreria || []) metti(r, true);
   for (const o of [tstore].concat(tstore.prep || [])) {
     for (const k of Object.keys(o.schede || {})) for (const r of o.schede[k].es) metti(r);
   }
@@ -469,33 +487,155 @@ let notaUnione = '';
 const dettoUnione = n => n > 0 ? 'unito con l\'altro telefono · ' + n + (n === 1 ? ' punto cambiato da tutti e due: tenuto questo' : ' punti cambiati da tutti e due: tenuti questi')
                               : 'unito con le modifiche dell\'altro telefono';
 
+/* ------------------------------------------------------- le chiavi ---- */
+
+/* Una chiave: 16 caratteri a caso in quattro gruppi, fatta per essere
+   scritta su un foglio. Niente caratteri che si confondono: niente 0 e o,
+   niente 1, l e i. */
+const ALFABETO = 'abcdefghjkmnpqrstuvwxyz23456789';
+function nuovaChiave() {
+  let s = '';
+  while (s.length < 16) {
+    for (const x of crypto.getRandomValues(new Uint8Array(32))) {
+      if (x < 248 && s.length < 16) s += ALFABETO[x % 31];      /* 248 = 31 x 8: tutte uguali */
+    }
+  }
+  return s.match(/.{4}/g).join('-');
+}
+/* Una chiave scritta a mano: maiuscole, spazi e trattini non contano. */
+function pulisciChiave(t) {
+  const s = String(t || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (s.length !== 16 || [...s].some(c => ALFABETO.indexOf(c) < 0)) return '';
+  return s.match(/.{4}/g).join('-');
+}
+const chiaveOk = k => typeof k === 'string' && !!k && pulisciChiave(k) === k;
+const codiceOk = f => typeof f === 'string' && /^[0-9a-f]{16}$/.test(f);
+
+/* Il codice dei file di una chiave: un calcolo che va solo in un senso. */
+async function codiceDi(k) {
+  const h = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('wk-persona:' + k)));
+  return [...h.slice(0, 8)].map(b => (b < 16 ? '0' : '') + b.toString(16)).join('');
+}
+
+function leggiChiave(key) {
+  try {
+    const v = JSON.parse(localStorage.getItem(key) || 'null');
+    if (v && chiaveOk(v.k) && codiceOk(v.f)) return { k: v.k, f: v.f };
+  } catch (e) { /* niente */ }
+  return null;
+}
+function scriviChiave(key, v) {
+  try {
+    if (v) localStorage.setItem(key, JSON.stringify(v));
+    else localStorage.removeItem(key);
+  } catch (e) { /* resta in memoria */ }
+}
+/* la Data key di prima, se c'era: apre solo il vecchio */
+function chiaveVecchia() {
+  try { return localStorage.getItem(CHIAVE_KEY) || ''; } catch (e) { return ''; }
+}
+
 /* ------------------------------------------------------- lo stato ---- */
 
-let tstore = readStore(STORE_KEY);
-if (!Array.isArray(tstore.known)) tstore.known = [];
-tstore.workout = validWorkout(tstore.workout);
-tstore.schede  = validSchede(tstore.schede);
-tstore.slot    = validSlot(tstore.slot);
-tstore.mattina = validMattina(tstore.mattina);
-tstore.conti   = validConti(tstore.conti, tstore.slot);
-tstore.prep    = validPrep(tstore.prep);
-/* la scheda del mattino si puo' togliere: nascosta per tutti, sta nel file */
-tstore.mattinaVia = !!tstore.mattinaVia;
-tstore.mattinaQuando = validQuando(tstore.mattinaQuando);
-tstore.altre = validAltre(tstore.altre);
-/* le sorprese restano come sono scritte: si ripuliscono solo quando si salva */
-if (!Array.isArray(tstore.sorprese)) tstore.sorprese = [];
-if (!Array.isArray(tstore.libreria)) tstore.libreria = [];
-tstore.esercizi = validEsercizi(tstore.esercizi);
-tstore.dirty   = !!tstore.dirty;
-/* i video scelti in questo telefono e non ancora arrivati su GitHub */
-if (!Array.isArray(tstore.daCaricare)) tstore.daCaricare = [];
+/* Un piano letto dal telefono, rimesso in forma. */
+function inForma(v) {
+  const s = v && typeof v === 'object' ? v : {};
+  if (!Array.isArray(s.known)) s.known = [];
+  s.workout = validWorkout(s.workout);
+  s.schede  = validSchede(s.schede);
+  s.slot    = validSlot(s.slot);
+  s.mattina = validMattina(s.mattina);
+  s.conti   = validConti(s.conti, s.slot);
+  s.prep    = validPrep(s.prep);
+  /* la scheda del mattino si puo' togliere: nascosta per tutti, sta nel file */
+  s.mattinaVia = !!s.mattinaVia;
+  s.mattinaQuando = validQuando(s.mattinaQuando);
+  s.altre = validAltre(s.altre);
+  /* le sorprese restano come sono scritte: si ripuliscono solo quando si salva */
+  if (!Array.isArray(s.sorprese)) s.sorprese = [];
+  if (!Array.isArray(s.libreria)) s.libreria = [];
+  s.esercizi = validEsercizi(s.esercizi);
+  s.dirty = !!s.dirty;
+  return s;
+}
+
+/* L'elenco delle persone e la libreria: il mio file. Ogni persona ha un id,
+   un nome che vedo solo io, la sua chiave e il codice dei suoi file. */
+function validPersone(l) {
+  return (Array.isArray(l) ? l : []).map(x => {
+    if (!x || typeof x !== 'object' || typeof x.id !== 'string' || !chiaveOk(x.chiave) || !codiceOk(x.f)) return null;
+    return { id: x.id.slice(0, 20), nome: String(x.nome == null ? '' : x.nome).slice(0, 40).trim() || 'Senza nome',
+             chiave: x.chiave, f: x.f };
+  }).filter(Boolean);
+}
+const datiMio = m => ({ persone: validPersone(m.persone), libreria: validLibreria(m.libreria), esercizi: validEsercizi(m.esercizi) });
+const contenutoMio = m => JSON.stringify(datiMio(m));
+function inFormaMio(v) {
+  const m = v && typeof v === 'object' ? v : {};
+  m.persone = validPersone(m.persone);
+  if (!Array.isArray(m.libreria)) m.libreria = [];
+  m.esercizi = validEsercizi(m.esercizi);
+  if (!Array.isArray(m.known)) m.known = [];
+  /* il contenuto dell'ultima versione online: se e' diverso, c'e' da salvare.
+     Un elenco appena aperto, ancora vuoto, non ha niente da salvare. */
+  if (typeof m.salvato !== 'string') m.salvato = contenutoMio(m);
+  return m;
+}
 
 let token = '';
 try { token = localStorage.getItem(TOKEN_KEY) || ''; } catch (e) { /* niente token */ }
+/* La mia chiave e, quando e' letto, il mio file: solo su chi scrive. */
+let mia = leggiChiave(MIA_KEY);
+let mio = null;
+/* la mia chiave non ha aperto nessun elenco */
+let miaKo = false;
+/* La persona di cui si vede il piano: la sua chiave, il codice dei suoi
+   file, e la sua copia nel telefono. */
 let chiave = '';
+let fidCorrente = '';
+let storeKey = '';
 let chiaveKo = false;
-try { chiave = localStorage.getItem(CHIAVE_KEY) || ''; } catch (e) { /* niente chiave */ }
+let tstore = inForma({});
+
+/* Dove stanno libreria ed esercizi: chi ha l'elenco usa i suoi, uguali per
+   tutte le persone; chi legge e basta ha la parte arrivata col suo file. */
+const libro = () => mio || tstore;
+
+/* La parte della libreria che va nel file di una persona: gli esercizi che
+   compaiono nel suo piano e nelle sue preparazioni. Varianti e categorie
+   servono solo all'editor: restano nel mio file. Torna true se e' cambiato. */
+function nomiUsati(s) {
+  const n = new Set();
+  for (const o of [s].concat(s.prep || [])) {
+    for (const k of Object.keys(o.schede || {})) for (const r of o.schede[k].es) if (r[0]) n.add(normEs(r[0]));
+  }
+  return n;
+}
+function allineaLib() {
+  if (!mio || !fidCorrente) return false;
+  const usati = nomiUsati(tstore);
+  const sub = JSON.parse(JSON.stringify(validLibreria(mio.libreria).filter(r => usati.has(normEs(r[0])))));
+  const J = JSON.stringify;
+  if (J(sub) === J(validLibreria(tstore.libreria)) && !Object.keys(tstore.esercizi || {}).length) return false;
+  tstore.libreria = sub;
+  tstore.esercizi = {};
+  return true;
+}
+
+const mioCambiato = () => !!mio && contenutoMio(mio) !== mio.salvato;
+const personaCorrente = () => mio ? mio.persone.find(p => p.f === fidCorrente) || null : null;
+
+/* Apre il piano di una persona: da qui in poi tutto parla di lei. Il vecchio
+   tiene la copia di sempre, sotto STORE_KEY. */
+function apriPersona(k, f) {
+  chiave = k || '';
+  fidCorrente = f || '';
+  storeKey = !f ? '' : f === VECCHIO ? STORE_KEY : STORE_KEY + ':' + f;
+  chiaveKo = false;
+  shaPubblicato = undefined;
+  pubblicaErr = '';
+  tstore = inForma(storeKey ? readStore(storeKey) : {});
+}
 
 /* mw: i campi del piano aperti; sch: la tendina WORKOUTS aperta;
    cal: la tendina della programmazione aperta;
@@ -512,40 +652,41 @@ let mostra = (() => {
 function salvaMostra() {
   try { localStorage.setItem(VISTA_KEY, JSON.stringify(mostra)); } catch (e) {}
 }
-/* Chi ha il token scrive, chi non ce l'ha legge e basta. Cosi' la stessa app
-   serve a due persone: chi tiene il piano lo scrive dal PC, chi si allena lo
-   legge dal telefono, e gli arriva aggiornato. Senza token non si vede nessun
+/* Chi ha il token e la sua chiave scrive, gli altri leggono e basta. Cosi'
+   la stessa app serve a tutti: chi tiene i piani li scrive, chi si allena
+   legge il suo, e gli arriva aggiornato. Senza token non si vede nessun
    bottone per scrivere: una modifica fatta li' non si potrebbe salvare, e
-   bloccherebbe gli aggiornamenti che arrivano da GitHub. */
-const scrive = () => !!token;
+   bloccherebbe gli aggiornamenti che arrivano da GitHub. Una chiave mia che
+   non apre nessun elenco non fa scrivere niente: si creerebbe un elenco
+   nuovo, accanto a quello vero. */
+const editore = () => !!token && !!mio && !miaKo;
+const scrive = () => editore() && !!fidCorrente && fidCorrente !== VECCHIO;
 const modifica = () => scrive() && mostra.mw;
 
 /* Ogni scrittura nel telefono lascia l'ora: se un'altra copia dell'app aperta
    ha scritto dopo, e' quella la buona. */
 function saveLocal() {
+  if (!storeKey) return;
   tstore.stamp = Date.now();
-  writeStore(STORE_KEY, tstore);
+  writeStore(storeKey, tstore);
+}
+function saveMio() {
+  if (!mio) return;
+  mio.stamp = Date.now();
+  writeStore(MIO_KEY, mio);
 }
 
 function ripescaLocale() {
-  const v = readStore(STORE_KEY);
-  if (!(v.stamp > (tstore.stamp || 0))) return false;
-  tstore = v;
-  if (!Array.isArray(tstore.known)) tstore.known = [];
-  tstore.workout = validWorkout(tstore.workout);
-  tstore.schede  = validSchede(tstore.schede);
-  tstore.slot    = validSlot(tstore.slot);
-  tstore.mattina = validMattina(tstore.mattina);
-  tstore.conti   = validConti(tstore.conti, tstore.slot);
-  tstore.prep    = validPrep(tstore.prep);
-  tstore.mattinaVia = !!tstore.mattinaVia;
-  tstore.mattinaQuando = validQuando(tstore.mattinaQuando);
-  tstore.altre = validAltre(tstore.altre);
-  if (!Array.isArray(tstore.sorprese)) tstore.sorprese = [];
-  if (!Array.isArray(tstore.libreria)) tstore.libreria = [];
-  tstore.esercizi = validEsercizi(tstore.esercizi);
-  if (!Array.isArray(tstore.daCaricare)) tstore.daCaricare = [];
-  return true;
+  let preso = false;
+  if (mio) {
+    const m = readStore(MIO_KEY);
+    if (m.stamp > (mio.stamp || 0) && m.f === mio.f) { mio = inFormaMio(m); preso = true; }
+  }
+  if (storeKey) {
+    const v = readStore(storeKey);
+    if (v.stamp > (tstore.stamp || 0)) { tstore = inForma(v); preso = true; }
+  }
+  return preso;
 }
 
 function sincronizzaLocale() {
@@ -556,10 +697,15 @@ function sincronizzaLocale() {
   return true;
 }
 
-/* Ogni modifica passa di qui: si segna, e compare Salva. */
+/* Ogni modifica passa di qui: si segna, e compare Salva. Una modifica alla
+   libreria cambia anche il mio file, e la parte che va nel file della
+   persona aperta. */
 function touch() {
+  if (!scrive()) return;
+  allineaLib();
   tstore.dirty = true;
   saveLocal();
+  saveMio();
   paintSalva();
   paintSync();
   autoSalva();
@@ -570,10 +716,10 @@ function touch() {
 let autoT = null;
 function autoSalva() {
   clearTimeout(autoT);
-  if (!token) return;
+  if (!editore()) return;
   autoT = setTimeout(() => {
     if (salvando) { autoSalva(); return; }
-    if (tstore.dirty && !salvaErr) pushTasks();
+    if (daSalvare() && !salvaErr) pushTasks();
   }, 2500);
 }
 
@@ -682,6 +828,17 @@ const AVVISO_GIORNI = 2;
 function disegnaW() {
   const pagina = $('wlist');
   pagina.textContent = '';
+  /* nessuna persona aperta: si dice cosa fare */
+  if (!fidCorrente) {
+    const box = el('section', 'col col-sx');
+    box.appendChild(el('p', 'vuoto',
+      editore()       ? 'Ancora nessuna persona. Tocca "Persone" in alto per aggiungerne una.'
+      : token && !mia ? 'Per scrivere le schede serve la tua chiave: ⚙ Impostazioni → Sviluppatore.'
+      : token         ? 'Controlla la tua chiave in ⚙ Impostazioni → Sviluppatore.'
+      :                 'Per vedere la tua scheda apri il collegamento che hai ricevuto.'));
+    pagina.appendChild(box);
+    return;
+  }
   const vero = today();
   const pAnt = anteprima ? tstore.prep.find(x => x.id === anteprima) : null;
   if (!pAnt) anteprima = null;
@@ -1745,11 +1902,14 @@ $('tmrPausa').addEventListener('click', () => {
    parte per GitHub, nella cartella video/ del branch del piano. Gli altri
    telefoni lo scaricano appena leggono il piano e lo tengono per sempre: in
    palestra si guarda anche senza rete. Non si cancella mai niente, ne' qui ne'
-   su GitHub: i video sono pochi. */
+   su GitHub: i video sono pochi.
+   Ogni persona ha i suoi video nella sua cartella, chiusi con la sua chiave;
+   i video della libreria stanno anche nella mia. Nel telefono invece un video
+   sta una volta sola, sotto il suo nome, che e' a caso e non si ripete. */
 
 /* Oltre questa misura GitHub rischia di rifiutare il file. */
 const VIDEO_MAX = 60 * 1024 * 1024;
-const RAW_VIDEO = 'https://raw.githubusercontent.com/' + REPO + '/' + BRANCH + '/video/';
+/* i video stanno nella cartella di chi li deve vedere: vedi cartellaDi */
 const TIPI_AUDIO = { mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', ogg: 'audio/ogg', wav: 'audio/wav' };
 const tipoVideo = n => /\.webm$/.test(n) ? 'video/webm' : /\.jpg$/.test(n) ? 'image/jpeg'
                      : TIPI_AUDIO[n.split('.').pop()] || 'video/mp4';
@@ -1785,25 +1945,25 @@ async function vPut(n, blob) {
   });
 }
 
-/* Con la Data key anche i video partono chiusi: davanti al pacchetto c'e' una
-   firma, cosi' chi lo apre sa che va decifrato. */
+/* Anche i video partono chiusi, con la chiave di chi li riceve: davanti al
+   pacchetto c'e' una firma, cosi' chi lo apre sa che va decifrato. */
 const FIRMA = new TextEncoder().encode('WKENC1');
-async function cifraByte(buf) {
+async function cifraByte(buf, pass) {
   const u = new Uint8Array(buf);
-  if (!chiave) return u;
+  if (!pass) return u;
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const iv   = crypto.getRandomValues(new Uint8Array(12));
-  const k    = await derivaChiave(chiave, salt);
+  const k    = await derivaChiave(pass, salt);
   const ct   = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, k, u));
   const out  = new Uint8Array(FIRMA.length + 28 + ct.length);
   out.set(FIRMA, 0); out.set(salt, 6); out.set(iv, 22); out.set(ct, 34);
   return out;
 }
-async function decifraByte(buf) {
+async function decifraByte(buf, pass) {
   const u = new Uint8Array(buf);
   if (u.length < 34 || !FIRMA.every((b, i) => u[i] === b)) return u;
-  if (!chiave) throw new Error('key missing');
-  const k = await derivaChiave(chiave, u.slice(6, 22));
+  if (!pass) throw new Error('key missing');
+  const k = await derivaChiave(pass, u.slice(6, 22));
   return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: u.slice(22, 34) }, k, u.slice(34)));
 }
 
@@ -1852,22 +2012,36 @@ function postaBlob(corpo, avanza) {
 
 const aspetta = ms => new Promise(r => setTimeout(r, ms));
 
+/* La chiave che apre una cartella: la mia, quella di una persona
+   dell'elenco, o quella della persona aperta in questo telefono. */
+function chiaveDi(f) {
+  if (mia && f === mia.f) return mia.k;
+  if (f === fidCorrente) return chiave;
+  const p = mio && mio.persone.find(x => x.f === f);
+  return p ? p.chiave : '';
+}
+
 /* C'e' gia' online? Se un caricamento e' arrivato ma il telefono non ha fatto
    in tempo a segnarlo, non lo si rimanda. */
-async function videoOnline(nome) {
+async function videoOnline(percorso) {
   try {
-    const r = await fetch(API + '/contents/video/' + nome + '?ref=' + BRANCH, { method: 'GET', headers: ghHeaders(), cache: 'no-store' });
+    const r = await fetch(API + '/contents/' + percorso + '?ref=' + BRANCH, { method: 'GET', headers: ghHeaders(), cache: 'no-store' });
     return r.status === 200;
   } catch (e) { return false; }
 }
 
-async function caricaVideo(nome, avanza) {
+/* Un video verso la cartella di qualcuno: lo si prende dal telefono, o da
+   dove sta online, lo si chiude con la sua chiave e lo si manda. Torna true
+   se e' online, 'perso' se non c'e' modo di mandarlo, false per riprovare. */
+async function caricaVideo(x, avanza) {
   try {
-    const blob = await vGet(nome);
-    if (!blob) return true;                   /* sparito dal telefono: niente da mandare */
-    if (await videoOnline(nome)) return true;
-    const dati = chiave ? new Blob([await cifraByte(await blob.arrayBuffer())]) : blob;
-    const corpo = await corpoBlob(dati);
+    const pass = chiaveDi(x.f);
+    if (!pass) return 'perso';                /* persona tolta dall'elenco */
+    const percorso = cartellaDi(x.f) + x.n;
+    if (await videoOnline(percorso)) return true;
+    const blob = (await vGet(x.n)) || (await prendiVideo(x.n));
+    if (!blob) return 'perso';                /* non c'e' da nessuna parte */
+    const corpo = await corpoBlob(new Blob([await cifraByte(await blob.arrayBuffer(), pass)]));
     /* il file va su una volta sola; poi si prova ad attaccarlo al branch */
     let sha = null;
     for (let t = 0; t < 3 && !sha; t++) {
@@ -1894,10 +2068,10 @@ async function caricaVideo(nome, avanza) {
         const albero0 = (await c0.json()).tree.sha;
         const tr = await fetch(API + '/git/trees', { method: 'POST', headers: H,
           body: JSON.stringify({ base_tree: albero0,
-            tree: [{ path: 'video/' + nome, mode: '100644', type: 'blob', sha: sha }] }) });
+            tree: [{ path: percorso, mode: '100644', type: 'blob', sha: sha }] }) });
         if (!tr.ok) continue;
         const cm = await fetch(API + '/git/commits', { method: 'POST', headers: H,
-          body: JSON.stringify({ message: 'video: ' + nome, tree: (await tr.json()).sha, parents: [base] }) });
+          body: JSON.stringify({ message: 'video: ' + x.n, tree: (await tr.json()).sha, parents: [base] }) });
         if (!cm.ok) continue;
         const up = await fetch(API + '/git/refs/heads/' + BRANCH, { method: 'PATCH', headers: H,
           body: JSON.stringify({ sha: (await cm.json()).sha }) });
@@ -1910,37 +2084,63 @@ async function caricaVideo(nome, avanza) {
   }
 }
 
+/* Dove si cerca un video online: prima nella cartella della persona aperta,
+   poi (per chi ha l'elenco) nella mia e in quelle di tutti, e alla fine
+   nella cartella di prima. */
+function fontiVideo() {
+  const out = [];
+  const metti = (f, k) => { if (f && !out.some(x => x.f === f)) out.push({ f: f, k: k }); };
+  metti(fidCorrente, chiave);
+  if (mio && mia) {
+    metti(mia.f, mia.k);
+    for (const p of mio.persone) metti(p.f, p.chiave);
+  }
+  metti(VECCHIO, chiaveVecchia());
+  return out.map(x => ({ url: RAW + cartellaDi(x.f), k: x.k }));
+}
+
 /* Un video da GitHub al telefono. Torna il file, o null. */
 async function prendiVideo(nome) {
-  try {
-    const r = await fetch(RAW_VIDEO + nome, { cache: 'no-store' });
-    if (!r.ok) return null;
-    const u = await decifraByte(await r.arrayBuffer());
-    const blob = new Blob([u], { type: tipoVideo(nome) });
-    await vPut(nome, blob);
-    return blob;
-  } catch (e) {
-    return null;
+  for (const x of fontiVideo()) {
+    try {
+      const r = await fetch(x.url + nome, { cache: 'no-store' });
+      if (!r.ok) continue;
+      const u = await decifraByte(await r.arrayBuffer(), x.k);
+      const blob = new Blob([u], { type: tipoVideo(nome) });
+      await vPut(nome, blob);
+      return blob;
+    } catch (e) { /* si prova la prossima */ }
   }
+  return null;
+}
+
+/* I video che servono alla persona aperta: il suo piano, le preparazioni, le
+   sorprese, e la parte di libreria che va nel suo file. */
+function videoDiPersona() {
+  const nomi = new Set();
+  for (const tutte of [tstore.schede].concat(tstore.prep.map(p => p.schede))) {
+    for (const k of Object.keys(tutte)) for (const r of tutte[k].es) for (const v of videiDi(r)) nomi.add(v);
+  }
+  for (const x of tstore.sorprese || []) for (const n of x ? [x.img, x.audio] : []) if (nomeVideoOk(n)) nomi.add(n);
+  for (const r of tstore.libreria || []) for (const v of videiDi(r)) nomi.add(v);
+  return nomi;
+}
+/* I video della libreria: stanno nella mia cartella. */
+function videoDiLibreria() {
+  const nomi = new Set();
+  if (mio) for (const r of mio.libreria) for (const v of videiDi(r)) nomi.add(v);
+  return nomi;
 }
 
 /* Tutti i video del piano che il telefono non ha ancora: si scaricano uno alla
    volta, in silenzio, appena il piano e' letto. */
 let scaricando = false;
 async function scaricaVideo() {
-  if (scaricando) return;
+  if (scaricando || !fidCorrente) return;
   scaricando = true;
   try {
-    const nomi = [];
-    /* i video del piano di sempre e di tutte le preparazioni */
-    for (const tutte of [tstore.schede].concat(tstore.prep.map(p => p.schede))) {
-      for (const k of Object.keys(tutte)) {
-        for (const r of tutte[k].es) for (const v of videiDi(r)) if (nomi.indexOf(v) < 0) nomi.push(v);
-      }
-    }
-    /* le immagini delle sorprese: arrivano prima del loro giorno */
-    for (const x of validSorprese(tstore.sorprese)) for (const f of [x.img, x.audio]) if (f && nomi.indexOf(f) < 0) nomi.push(f);
-    for (const n of nomi) if (!(await vGet(n))) await prendiVideo(n);
+    /* le immagini delle sorprese arrivano prima del loro giorno */
+    for (const n of videoDiPersona()) if (!(await vGet(n))) await prendiVideo(n);
   } finally {
     scaricando = false;
   }
@@ -2520,21 +2720,36 @@ dlgGrp.addEventListener('cancel', () => { grp = null; });
 /* ------------------------------------------------------ impostazioni ---- */
 
 const dlgImp = $('impostazioni');
+/* una chiave appena creata qui: al Salva diventa la mia, con l'elenco nuovo */
+let miaNuova = '';
 
 function openImpostazioni() {
   $('sviluppo').open = false;        /* si riapre sempre chiusa */
   $('tokenInput').value = token;
-  $('chiaveInput').value = chiave;
+  $('miaInput').value = mia ? mia.k : '';
+  miaNuova = '';
   const s = $('tokenStato');
   s.className = 'nota';
-  s.textContent = token ? 'Token inserito.' : 'Nessun token: il piano si legge ma non si salva.';
-  const c = $('chiaveStato');
-  c.className = 'nota';
-  c.textContent = chiaveKo ? 'L\'ultimo file non si è aperto: chiave mancante o sbagliata.'
-                : chiave   ? 'Chiave inserita.'
-                :            'Nessuna chiave: il piano viaggia in chiaro.';
+  s.textContent = token ? 'Token inserito.' : 'Nessun token: le schede si leggono ma non si salvano.';
+  paintMia();
   dlgImp.showModal();
 }
+
+function paintMia() {
+  const c = $('miaStato');
+  c.className = 'nota' + (miaKo && !miaNuova ? ' err' : '');
+  c.textContent = miaNuova ? 'Chiave nuova: scrivila sul foglio, poi premi Salva.'
+                : miaKo    ? 'Questa chiave non apre nessun elenco.'
+                : mia      ? 'Chiave inserita.'
+                :            'Nessuna chiave: senza, non vedi le persone.';
+  $('miaCrea').hidden = !!$('miaInput').value.trim();
+}
+$('miaInput').addEventListener('input', () => { miaNuova = ''; paintMia(); });
+$('miaCrea').addEventListener('click', () => {
+  miaNuova = nuovaChiave();
+  $('miaInput').value = miaNuova;
+  paintMia();
+});
 
 $('impostazioniBtn').addEventListener('click', openImpostazioni);
 
@@ -2559,26 +2774,22 @@ $('temaScelta').addEventListener('click', ev => {
 });
 paintTema();
 
-$('impostazioniForm').addEventListener('submit', () => {
-  const chiaveNuova = $('chiaveInput').value.trim() !== chiave;
+$('impostazioniForm').addEventListener('submit', async () => {
   token = $('tokenInput').value.trim();
-  chiave = $('chiaveInput').value.trim();
   try {
     if (token) localStorage.setItem(TOKEN_KEY, token);
     else localStorage.removeItem(TOKEN_KEY);
-    if (chiave) localStorage.setItem(CHIAVE_KEY, chiave);
-    else localStorage.removeItem(CHIAVE_KEY);
-  } catch (e) { /* restano solo in memoria */ }
-  chiaveKo = false;
+  } catch (e) { /* resta solo in memoria */ }
   salvaErr = '';
-  /* cambiare la chiave cambia il file online: va risalvato */
-  if (chiaveNuova && tstore.sha) touch();
+  const scritta = $('miaInput').value;
+  const k = pulisciChiave(scritta);
+  const nuova = !!k && k === miaNuova;
+  miaNuova = '';
+  if (scritta.trim() && !k) paintSync('la tua chiave non è scritta giusta: 16 lettere e numeri', true);
+  else if (k !== (mia ? mia.k : '') || (token && mia && !mio) || (!token && mio)) await cambiaMia(k, nuova);
+  paintTutto();
+  if (token && !syncErr) provaToken();
   pullTasks();
-  paintSalva();
-  paintEdit();
-  paintW();
-  if (token) provaToken();
-  else paintSync('');
 });
 $('tokenAnnulla').addEventListener('click', () => dlgImp.close());
 
@@ -2607,9 +2818,10 @@ function ghHeaders() {
 
 /* ----------------------------------------------------------- cifratura --- */
 
-/* Il repository e' pubblico: chi lo trova legge il piano. Con una chiave il
-   file diventa un pacchetto illeggibile — AES-GCM a 256 bit, chiave ricavata
-   dalla parola con PBKDF2. Senza chiave si scrive e si legge in chiaro. */
+/* Il repository e' pubblico: chi lo trova vede i file. Ogni file e' un
+   pacchetto illeggibile, chiuso con la chiave di chi lo deve leggere —
+   AES-GCM a 256 bit, chiave ricavata dalla parola con PBKDF2. Il vecchio
+   poteva essere in chiaro: si legge lo stesso. */
 
 const ITER = 150000;
 
@@ -2629,23 +2841,23 @@ async function derivaChiave(pass, salt) {
     base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
 }
 
-async function cifra(testo) {
-  if (!chiave) return testo;
+async function cifra(testo, pass) {
+  if (!pass) throw new Error('key missing');
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const iv   = crypto.getRandomValues(new Uint8Array(12));
-  const k    = await derivaChiave(chiave, salt);
+  const k    = await derivaChiave(pass, salt);
   const ct   = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, k,
                                            new TextEncoder().encode(testo));
   return JSON.stringify({ enc: 1, salt: bytesB64(salt), iv: bytesB64(iv),
                           ct: bytesB64(new Uint8Array(ct)) }, null, 2) + '\n';
 }
 
-async function decifra(testo) {
+async function decifra(testo, pass) {
   let p = null;
   try { p = JSON.parse(testo); } catch (e) { return testo; }
   if (!p || p.enc !== 1) return testo;
-  if (!chiave) throw new Error('key missing');
-  const k = await derivaChiave(chiave, b64Bytes(p.salt));
+  if (!pass) throw new Error('key missing');
+  const k = await derivaChiave(pass, b64Bytes(p.salt));
   const buf = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64Bytes(p.iv) },
                                           k, b64Bytes(p.ct));
   return new TextDecoder().decode(buf);
@@ -2684,15 +2896,18 @@ function allinea(sha, base) {
 const copiaFidata = sha => !!sha && tstore.shaBase === sha && !!tstore.base &&
   (tstore.dirty || contenuto(tstore) === JSON.stringify(tstore.base));
 
+/* C'e' da salvare: il piano della persona aperta, o il mio file. */
+const daSalvare = () => (tstore.dirty && scrive()) || mioCambiato();
+
 function paintSalva() {
   /* due bottoni, uno stato: in testata e nell'editor */
   /* il bottone serve anche per spingere i video rimasti in coda */
-  const coda = tstore.daCaricare.length && !caricandoVideo && token;
+  const inCoda = coda.length && !caricandoVideo && editore();
   for (const b of [$('salva'), $('edSalva')]) {
     if (!b) continue;
     /* si salva da solo: il bottone compare solo se qualcosa non e' andato
        (Riprova) o se ci sono video fermi in coda */
-    b.hidden = !((tstore.dirty && salvaErr) || coda);
+    b.hidden = !((daSalvare() && salvaErr) || inCoda);
     b.disabled = salvando;
     b.classList.toggle('err', !!salvaErr);
     /* con un errore il bottone dice solo Riprova: il perche' sta nella riga sotto */
@@ -2703,7 +2918,7 @@ function paintSalva() {
 
 function paintSync(msg, err) {
   if (msg !== undefined) { syncMsg = msg; syncErr = !!err; }
-  const t = syncErr ? syncMsg : tstore.dirty ? (salvando ? 'salvataggio…' : 'modifiche da salvare…') : syncMsg;
+  const t = syncErr ? syncMsg : daSalvare() ? (salvando ? 'salvataggio…' : 'modifiche da salvare…') : syncMsg;
   for (const s of [$('sync'), $('edStato')]) {
     if (!s) continue;
     s.textContent = t;
@@ -2711,15 +2926,18 @@ function paintSync(msg, err) {
   }
 }
 
+const leggiFile = percorso => fetch(API + '/contents/' + percorso + '?ref=' + BRANCH, { headers: ghHeaders(), cache: 'no-store' });
 const leggi = () => fetch(fileApi() + '?ref=' + BRANCH, { headers: ghHeaders(), cache: 'no-store' });
 
 /* La sha del file pubblicato (null: mai pubblicato, undefined: non si sa).
    La bozza copiata cosi' com'e' ha la stessa sha: uguali = pubblicato. */
 
 async function leggiPubblicato() {
-  if (!token) return;
+  if (!scrive()) return;
+  const f = fidCorrente;
   try {
-    const r = await fetch(FILE_API + '?ref=' + BRANCH, { headers: ghHeaders(), cache: 'no-store' });
+    const r = await fetch(pubApi() + '?ref=' + BRANCH, { headers: ghHeaders(), cache: 'no-store' });
+    if (f !== fidCorrente) return;
     if (r.status === 404) shaPubblicato = null;
     else if (r.ok) shaPubblicato = (await r.json()).sha || undefined;
   } catch (e) { /* si riprova al prossimo giro */ }
@@ -2729,7 +2947,7 @@ async function leggiPubblicato() {
 function paintPubblica() {
   const b = $('edPubblica');
   if (!b) return;
-  b.hidden = !token;
+  b.hidden = !scrive();
   const fatto = !tstore.dirty && !!tstore.sha && shaPubblicato === tstore.sha;
   b.disabled = pubblicando || salvando || fatto || shaPubblicato === undefined;
   b.classList.toggle('err', !!pubblicaErr);
@@ -2737,10 +2955,10 @@ function paintPubblica() {
   b.textContent = pubblicando ? 'Pubblico…' : pubblicaErr ? 'Riprova a pubblicare' : fatto ? 'Pubblicato ✓' : 'Pubblica';
 }
 
-/* La bozza diventa quella che vede il Sifu: prima si salva, poi il file
-   della bozza si copia byte per byte su scheda.json. */
+/* La bozza diventa quella che vede la persona: prima si salva, poi il file
+   della bozza si copia byte per byte sul suo file pubblicato. */
 async function pubblica() {
-  if (pubblicando || !token) return;
+  if (pubblicando || !scrive()) return;
   pubblicando = true; pubblicaErr = ''; paintPubblica();
   const esci = err => {
     pubblicando = false; pubblicaErr = err || '';
@@ -2749,19 +2967,20 @@ async function pubblica() {
   };
   clearTimeout(autoT);
   while (salvando) await new Promise(ok => setTimeout(ok, 200));
-  if (tstore.dirty) await pushTasks();
+  if (daSalvare()) await pushTasks();
   while (salvando) await new Promise(ok => setTimeout(ok, 200));
   if (tstore.dirty || salvaErr) return esci('prima va salvato');
+  const PUB = pubApi(), BOZ = bozzaApi();
   try {
-    const b = await fetch(BOZZA_API + '?ref=' + BRANCH, { headers: ghHeaders(), cache: 'no-store' });
+    const b = await fetch(BOZ + '?ref=' + BRANCH, { headers: ghHeaders(), cache: 'no-store' });
     if (!b.ok) return esci('bozza non letta (' + b.status + ')');
     const bozza = await b.json();
-    const p = await fetch(FILE_API + '?ref=' + BRANCH, { headers: ghHeaders(), cache: 'no-store' });
+    const p = await fetch(PUB + '?ref=' + BRANCH, { headers: ghHeaders(), cache: 'no-store' });
     if (!p.ok && p.status !== 404) return esci('errore ' + p.status);
     const pub = p.ok ? await p.json() : null;
     const payload = { message: 'pubblica', content: (bozza.content || '').replace(/\s/g, ''), branch: BRANCH };
     if (pub && pub.sha) payload.sha = pub.sha;
-    const r = await fetch(FILE_API, {
+    const r = await fetch(PUB, {
       method: 'PUT',
       headers: Object.assign({ 'Content-Type': 'application/json' }, ghHeaders()),
       body: JSON.stringify(payload)
@@ -2769,29 +2988,269 @@ async function pubblica() {
     if (!r.ok) return esci(r.status === 409 ? 'conflitto, riprova' : 'errore ' + r.status);
     let j = null;
     try { j = await r.json(); } catch (e) { /* niente */ }
-    shaPubblicato = (j && j.content && j.content.sha) || bozza.sha;
+    if (PUB === pubApi()) shaPubblicato = (j && j.content && j.content.sha) || bozza.sha;
   } catch (e) { return esci('niente rete'); }
   esci('');
 }
 
-/* Il file dal branch. Senza token si legge lo stesso. Se il telefono ha
-   modifiche non salvate, le due versioni si uniscono (vedi unisci). */
+/* --- il mio file: l'elenco e la libreria --- */
+
+/* Le persone nuove arrivate online da un altro mio dispositivo entrano
+   nell'elenco di questo, e cosi' gli esercizi nuovi; per il resto vince
+   quello che ho qui. */
+function unisciMio(data) {
+  for (const p of data.persone) if (!mio.persone.some(x => x.id === p.id)) mio.persone.push(p);
+  const gia = new Set(mio.libreria.map(r => normEs(r[0])));
+  for (const r of data.libreria) if (!gia.has(normEs(r[0]))) mio.libreria.push(r);
+  for (const k of Object.keys(data.esercizi)) if (!(k in mio.esercizi)) mio.esercizi[k] = data.esercizi[k];
+}
+
+async function pullMio() {
+  if (!editore() || !mia) return;
+  let r;
+  try { r = await leggiFile(fileDi(mia.f)); } catch (e) { return; }
+  if (r.status === 404) {
+    if (!mio.sha && !mio.persone.length) {
+      miaKo = true;
+      paintTutto();
+      paintSync('la tua chiave non apre nessun elenco: controllala in ⚙', true);
+    }
+    return;
+  }
+  if (!r.ok) return;
+  let j;
+  try { j = await r.json(); } catch (e) { return; }
+  if (!j || !j.sha || mio.known.indexOf(j.sha) >= 0) return;
+  let data;
+  try { data = datiMio(JSON.parse(await decifra(b64dec(j.content), mia.k))); }
+  catch (e) { miaKo = true; paintTutto(); paintSync('elenco: chiave sbagliata', true); return; }
+  if (mioCambiato()) unisciMio(data);
+  else { mio.persone = data.persone; mio.libreria = data.libreria; mio.esercizi = data.esercizi; }
+  mio.salvato = JSON.stringify(data);
+  mio.sha = j.sha;
+  mio.known = [j.sha].concat(mio.known).slice(0, 4);
+  saveMio();
+}
+
+/* Un file scritto sul branch, in un commit. */
+async function scriviFile(percorso, testo, sha, messaggio, keepalive) {
+  const payload = { message: messaggio, content: b64enc(testo), branch: BRANCH };
+  if (sha) payload.sha = sha;
+  const body = JSON.stringify(payload);
+  let r;
+  try {
+    r = await fetch(API + '/contents/' + percorso, {
+      method: 'PUT',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, ghHeaders()),
+      body: body,
+      keepalive: !!keepalive && body.length < 60000
+    });
+  } catch (e) {
+    return { rete: true };
+  }
+  let j = null;
+  try { j = await r.json(); } catch (e) { /* niente */ }
+  return { ok: r.ok, status: r.status, sha: j && j.content && j.content.sha, msg: (j && j.message) || '' };
+}
+
+/* Scrive, e sistema quello che puo' andare storto: manca il branch (si crea e
+   si riprova); online e' cambiato qualcosa nel frattempo (`conflitto` rilegge
+   e dice se e' gia' uguale, o con quale sha e quale testo riprovare). */
+async function scriviConRiprova(percorso, testo, sha, messaggio, keepalive, conflitto) {
+  const rete = () => { salvaRetry = true; return { errore: 'niente rete' }; };
+  let r = await scriviFile(percorso, testo, sha, messaggio, keepalive);
+  if (r.rete) return rete();
+  if (!r.ok && (r.status === 404 || (r.status === 422 && /branch/i.test(r.msg)))) {
+    if (!(await creaBranch())) return { errore: r.status === 404 ? 'repository non trovato' : 'branch mancante' };
+    r = await scriviFile(percorso, testo, sha, messaggio, keepalive);
+    if (r.rete) return rete();
+  }
+  if (!r.ok && (r.status === 409 || r.status === 422)) {
+    let c = null;
+    try { c = await conflitto(); } catch (e) { /* si cade nell'errore qui sotto */ }
+    if (!c) return { errore: 'conflitto online' };
+    if (c.uguale) return { sha: c.sha };
+    r = await scriviFile(percorso, c.testo || testo, c.sha, messaggio, keepalive);
+    if (r.rete) return rete();
+  }
+  if (!r.ok) {
+    salvaRetry = r.status >= 500;
+    return { errore: r.status === 401 ? 'token rifiutato'
+                   : r.status === 403 ? 'token senza permesso'
+                   : r.status === 404 ? 'repository non trovato'
+                   :                    'errore ' + r.status };
+  }
+  return { sha: r.sha };
+}
+
+/* Il mio file: l'elenco e la libreria, chiusi con la mia chiave. Torna
+   l'errore, o ''. */
+async function salvaMio(keepalive) {
+  const m = mio, k = mia.k, f = mia.f;
+  const testoDi = () => cifra(JSON.stringify(datiMio(m), null, 2) + '\n', k);
+  let scritto = contenutoMio(m);
+  let corpo;
+  try { corpo = await testoDi(); } catch (e) { return 'cifratura fallita'; }
+  const r = await scriviConRiprova(fileDi(f), corpo, m.sha, 'elenco', keepalive, async () => {
+    const cur = await leggiFile(fileDi(f));
+    if (cur.status === 404) return { sha: null };
+    if (!cur.ok) return null;
+    const j = await cur.json();
+    const data = datiMio(JSON.parse(await decifra(b64dec(j.content), k)));
+    if (m === mio) unisciMio(data);
+    scritto = contenutoMio(m);
+    if (scritto === JSON.stringify(data)) return { uguale: true, sha: j.sha };
+    return { sha: j.sha, testo: await testoDi() };
+  });
+  if (r.errore) return r.errore;
+  if (r.sha) { m.sha = r.sha; m.known = [r.sha].concat(m.known).slice(0, 4); }
+  m.salvato = scritto;
+  if (m === mio) saveMio();
+  return '';
+}
+
+/* --- il passaggio: dal vecchio alla prima persona --- */
+
+/* Un file del vecchio: il contenuto, o null se non c'e'. */
+async function leggiVecchio(percorso) {
+  const r = await leggiFile(percorso);
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error('GitHub: errore ' + r.status);
+  const j = await r.json();
+  return inForma(JSON.parse(await decifra(b64dec(j.content), chiaveVecchia())));
+}
+
+const nuovoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+/* La prima volta, con una chiave mia appena creata: l'elenco nasce qui. Il
+   vecchio diventa la prima persona: la sua bozza diventa la sua bozza, il
+   pubblicato il suo pubblicato, e la sua libreria (con varianti e
+   categorie) diventa la mia. Il vecchio resta dov'e'. Se online c'e' gia'
+   un elenco non si rifa': vuol dire che la mia chiave e' un'altra, quella
+   sul foglio. */
+async function creaElenco() {
+  let r;
+  try { r = await leggiFile('persone'); } catch (e) { return 'niente rete'; }
+  if (r.ok) return 'online c\'è già un elenco: scrivi la chiave che hai sul foglio';
+  if (r.status !== 404) return r.status === 401 ? 'token rifiutato' : 'GitHub: errore ' + r.status;
+  let pub, boz;
+  try {
+    pub = await leggiVecchio(fileDi(VECCHIO));
+    boz = await leggiVecchio(bozzaDi(VECCHIO));
+  } catch (e) { return 'il piano di prima non si legge: ' + e.message; }
+  /* modifiche fatte in questo telefono e mai salvate: sono le piu' nuove */
+  const qui = readStore(STORE_KEY);
+  if (qui.dirty) boz = inForma(qui);
+  const prima = boz || pub;
+  mio = inFormaMio({ f: mia.f });
+  if (!prima) { apriPersona('', ''); saveMio(); return ''; }
+  const k = nuovaChiave();
+  const p = { id: nuovoId(), nome: 'Sifu', chiave: k, f: await codiceDi(k) };
+  /* il pubblicato, com'era, chiuso con la sua chiave */
+  if (pub) {
+    let corpo;
+    try { corpo = await cifra(JSON.stringify(JSON.parse(contenuto(pub)), null, 2) + '\n', k); }
+    catch (e) { return 'cifratura fallita'; }
+    const w = await scriviConRiprova(fileDi(p.f), corpo, null, 'pubblica', false, async () => null);
+    if (w.errore) return 'il passaggio non è riuscito: ' + w.errore;
+  }
+  mio.persone.push(p);
+  mio.libreria = validLibreria(prima.libreria);
+  mio.esercizi = validEsercizi(prima.esercizi);
+  apriPersona(p.chiave, p.f);
+  tstore = inForma(Object.assign(JSON.parse(contenuto(prima)), { dirty: true }));
+  allineaLib();
+  saveLocal();
+  saveMio();
+  try { localStorage.setItem(SCELTA_KEY, p.id); } catch (e) {}
+  return '';
+}
+
+/* Cambia la mia chiave in questo dispositivo: vuota, nuova o scritta a mano. */
+async function cambiaMia(k, nuova) {
+  miaKo = false;
+  /* senza chiave, o senza token, niente elenco: si legge e basta */
+  if (!k || !token) {
+    mia = k ? { k: k, f: await codiceDi(k) } : null;
+    scriviChiave(MIA_KEY, mia);
+    mio = null;
+    apriSenzaElenco();
+    return;
+  }
+  mia = { k: k, f: await codiceDi(k) };
+  scriviChiave(MIA_KEY, mia);
+  const m = readStore(MIO_KEY);
+  mio = inFormaMio(m.f === mia.f ? m : { f: mia.f });
+  if (nuova) {
+    paintSync('preparo l\'elenco…');
+    const err = await creaElenco();
+    if (err) {
+      mia = null; mio = null; scriviChiave(MIA_KEY, null);
+      apriSenzaElenco();
+      paintSync(err, true);
+      return;
+    }
+    paintTutto();
+    await pushTasks();
+    return;
+  }
+  apriPersona('', '');
+  await pullMio();
+  scegliIniziale();
+}
+
+/* Chi non ha l'elenco apre la persona della sua chiave; senza chiave, il
+   vecchio, finche' c'e'. */
+function apriSenzaElenco() {
+  const p = leggiChiave(PERSONA_KEY);
+  if (p) apriPersona(p.k, p.f);
+  else apriPersona(chiaveVecchia(), VECCHIO);
+}
+
+/* La persona da aprire: l'ultima scelta, o la prima dell'elenco. Se e' gia'
+   aperta non si tocca. Aprendola, la sua parte di libreria si rimette in
+   pari con la mia. */
+function scegliIniziale() {
+  if (!mio) return;
+  let id = '';
+  try { id = localStorage.getItem(SCELTA_KEY) || ''; } catch (e) {}
+  const p = mio.persone.find(x => x.id === id) || mio.persone[0];
+  if (!p) { apriPersona('', ''); return; }
+  if (p.f !== fidCorrente) apriPersona(p.chiave, p.f);
+}
+
+/* --- il file della persona --- */
+
+/* Il file dal branch: per chi scrive la bozza della persona aperta, per gli
+   altri il suo file pubblicato. Senza token si legge lo stesso. Se il
+   telefono ha modifiche non salvate, le due versioni si uniscono (vedi
+   unisci). Prima, per chi ha l'elenco, l'elenco. */
 async function pullTasks(opts) {
   opts = opts || {};
+  if (editore()) {
+    await pullMio();
+    if (editore() && (!fidCorrente || !personaCorrente())) { scegliIniziale(); paintTutto(); }
+  }
+  if (!fidCorrente) {
+    if (!miaKo) paintSync('');
+    return;
+  }
+  const f = fidCorrente, pass = chiave;
   let r;
   try { r = await leggi(); } catch (e) { paintSync('senza rete: uso la copia di questo telefono'); return; }
   let tokenKo = false;
   if (r.status === 401 && token) {
     tokenKo = true;
     try {
-      r = await fetch(FILE_API + '?ref=' + BRANCH, { cache: 'no-store', headers: { Accept: 'application/vnd.github+json' } });
+      r = await fetch(pubApi() + '?ref=' + BRANCH, { cache: 'no-store', headers: { Accept: 'application/vnd.github+json' } });
     } catch (e) { paintSync('token rifiutato', true); return; }
   }
+  if (f !== fidCorrente) return;            /* nel frattempo si e' cambiata persona */
   /* la prima volta la bozza non c'e': nasce dal file pubblicato */
-  if (r.status === 404 && token && !tokenKo && !opts.bozza) {
+  if (r.status === 404 && scrive() && !tokenKo && !opts.bozza) {
     if (await creaBozza()) return pullTasks({ bozza: true });
   }
-  if (token && !tokenKo) leggiPubblicato();
+  if (scrive() && !tokenKo) leggiPubblicato();
   /* "in sync" non si scrive: quando e' tutto a posto la riga resta vuota, e
      parla solo quando c'e' qualcosa da dire */
   const fine = msg => {
@@ -2799,28 +3258,36 @@ async function pullTasks(opts) {
     paintSync(tokenKo ? 'token rifiutato' : msg, tokenKo);
   };
   /* chi legge e basta non ha niente da salvare: comanda sempre quello online */
-  if (!token && tstore.dirty) tstore.dirty = false;
-  if (r.status === 404) { fine(tstore.sha ? 'file non trovato online' : 'ancora nessun piano online'); return; }
+  if (!scrive() && tstore.dirty) tstore.dirty = false;
+  if (r.status === 404) {
+    fine(tstore.sha ? 'file non trovato online' : 'ancora nessun piano online');
+    if (scrive() && tstore.dirty) autoSalva();
+    return;
+  }
   if (!r.ok) { fine('GitHub: errore ' + r.status); return; }
 
   let j;
   try { j = await r.json(); } catch (e) { return; }
-  if (!j || !j.sha) return;
+  if (!j || !j.sha || f !== fidCorrente) return;
   if (copiaFidata(j.sha)) {
+    chiaveKo = false;
     fine(tstore.dirty ? '' : 'in sync');
-    if (tstore.dirty) autoSalva();       /* modifiche rimaste in sospeso: ripartono */
+    if (scrive() && allineaLib()) touch();   /* la libreria e' cambiata nel frattempo */
+    else if (tstore.dirty) autoSalva();       /* modifiche rimaste in sospeso: ripartono */
     scaricaVideo();
     return;
   }
 
   let data;
   try {
-    data = JSON.parse(await decifra(b64dec(j.content)));
+    data = JSON.parse(await decifra(b64dec(j.content), pass));
   } catch (e) {
     paintSync('piano cifrato: chiave mancante o sbagliata', true);
     chiaveKo = true;
     return;
   }
+  if (f !== fidCorrente) return;
+  chiaveKo = false;
   const remoto = { workout: validWorkout(data.workout), schede: validSchede(data.schede),
                    conti: validConti(data.conti, data.slot), mattina: validMattina(data.mattina),
                    mattinaVia: !!data.mattinaVia, prep: validPrep(data.prep),
@@ -2863,6 +3330,9 @@ async function pullTasks(opts) {
   saveLocal();
   paintW(); paintSalva();
   fine('sincronizzato alle ' + fmtTime.format(new Date()));
+  /* la libreria e' cambiata da quando la persona e' stata salvata: la sua
+     parte si rimette in pari, e parte da sola */
+  if (scrive() && allineaLib()) touch();
   scaricaVideo();
   controllaSorprese();
 }
@@ -2871,10 +3341,10 @@ async function pullTasks(opts) {
    la bozza nascera' al primo salvataggio. */
 async function creaBozza() {
   try {
-    const p = await fetch(FILE_API + '?ref=' + BRANCH, { headers: ghHeaders(), cache: 'no-store' });
+    const p = await fetch(pubApi() + '?ref=' + BRANCH, { headers: ghHeaders(), cache: 'no-store' });
     if (!p.ok) return false;
     const pub = await p.json();
-    const r = await fetch(BOZZA_API, {
+    const r = await fetch(bozzaApi(), {
       method: 'PUT',
       headers: Object.assign({ 'Content-Type': 'application/json' }, ghHeaders()),
       body: JSON.stringify({ message: 'bozza: copia del pubblicato', content: (pub.content || '').replace(/\s/g, ''), branch: BRANCH })
@@ -2903,15 +3373,33 @@ async function creaBranch() {
   }
 }
 
-/* Un commit solo, con tutto dentro. */
+/* Salva: prima il mio file, se e' cambiato, poi la bozza della persona
+   aperta, in un commit solo. */
 async function pushTasks(opts) {
   opts = opts || {};
-  if (!tstore.dirty || salvando) return;
-  if (!token) { salvaErr = 'token mancante'; paintSalva(); paintSync('token mancante: apri ⚙ Impostazioni', true); return; }
+  if (salvando) return;
+  if (!editore()) {
+    if (tstore.dirty && fidCorrente && fidCorrente !== VECCHIO) {
+      salvaErr = 'token mancante'; paintSalva(); paintSync('token o chiave mancante: apri ⚙ Impostazioni', true);
+    }
+    return;
+  }
+
+  if (mioCambiato()) {
+    salvando = true; salvaErr = ''; salvaRetry = false;
+    paintSalva(); paintSync();
+    let err = '';
+    try { err = await salvaMio(!!opts.keepalive); } finally { salvando = false; }
+    if (err) { salvaErr = err; paintSalva(); paintSync('elenco: ' + err, true); return; }
+    paintSalva();
+    if (!(tstore.dirty && scrive())) { paintSync('salvato alle ' + fmtTime.format(new Date())); if (!opts.keepalive) codaVideo(); return; }
+  }
+  if (!tstore.dirty || !scrive()) return;
 
   salvando = true; salvaErr = ''; salvaRetry = false;
   paintSalva(); paintSync();
 
+  const api = fileApi(), pass = chiave;
   const sent = contenuto(tstore);
   /* il file si scrive gia' ripulito: righe vuote e schede vuote restano fuori */
   const testo = JSON.stringify({ workout: validWorkout(tstore.workout), conti: tstore.conti,
@@ -2926,7 +3414,7 @@ async function pushTasks(opts) {
                                  esercizi: Object.keys(validEsercizi(tstore.esercizi)).length ? validEsercizi(tstore.esercizi) : undefined }, null, 2) + '\n';
   let corpo;
   try {
-    corpo = await cifra(testo);
+    corpo = await cifra(testo, pass);
   } catch (e) {
     salvando = false; salvaErr = 'cifratura fallita'; paintSalva();
     paintSync('cifratura fallita: controlla la chiave', true);
@@ -2951,7 +3439,7 @@ async function pushTasks(opts) {
 
   let r;
   try {
-    r = await fetch(fileApi(), {
+    r = await fetch(api, {
       method: 'PUT',
       headers: Object.assign({ 'Content-Type': 'application/json' }, ghHeaders()),
       body: body,
@@ -2961,6 +3449,7 @@ async function pushTasks(opts) {
     salvando = false; salvaErr = 'niente rete'; salvaRetry = true; paintSalva(); paintSync(); return;
   }
   salvando = false;
+  if (api !== fileApi()) return;          /* nel frattempo si e' cambiata persona */
 
   /* manca il branch: si crea e si riprova, una volta */
   if ((r.status === 404 || r.status === 422) && !opts.branch) {
@@ -2983,7 +3472,7 @@ async function pushTasks(opts) {
       if (cur.ok) {
         const j = await cur.json();
         let data = null;
-        try { data = JSON.parse(await decifra(b64dec(j.content))); } catch (e) { /* si riprova comunque */ }
+        try { data = JSON.parse(await decifra(b64dec(j.content), pass)); } catch (e) { /* si riprova comunque */ }
         if (data && contenuto(data) === sent) { salvato(j.sha); return; }
         /* online c'e' la versione di un altro telefono: si unisce, poi si
            salva il piano unito. La sha nuova serve per scrivere; il
@@ -2991,7 +3480,7 @@ async function pushTasks(opts) {
         tstore.sha = j.sha;
         if (data) {
           const n = uniscoConOnline(data, j.sha);
-          if (n >= 0) { saveLocal(); notaUnione = dettoUnione(n); }
+          if (n >= 0) { allineaLib(); saveLocal(); notaUnione = dettoUnione(n); }
         }
         return pushTasks(Object.assign({}, opts, { retry: true }));
       }
@@ -3022,77 +3511,264 @@ async function pushTasks(opts) {
   if (!opts.keepalive) codaVideo();
 }
 
-/* I video scelti da questo telefono partono per GitHub. Quelli che non ce la
-   fanno restano in lista: Save resta acceso, e si riprova. */
-/* La coda dei video: gira da sola, separata dal salvataggio del piano.
-   Parte appena un video e' pronto, all'apertura dell'app, quando torna la
-   rete o l'app torna davanti, e ogni minuto finche' resta qualcosa. Mentre
-   carica tiene lo schermo acceso. Un video tolto dal piano esce dalla coda. */
+/* I video partono per GitHub, ognuno verso la cartella di chi lo deve vedere.
+   Quelli che non ce la fanno restano in lista: Save resta acceso, e si
+   riprova. La coda gira da sola, separata dal salvataggio del piano. Parte
+   appena un video e' pronto, all'apertura dell'app, quando torna la rete o
+   l'app torna davanti, e ogni minuto finche' resta qualcosa. Mentre carica
+   tiene lo schermo acceso. Un video tolto dal piano esce dalla coda. */
 let caricandoVideo = false;
 let ritentaVideo = null;
 
-function nomiNelPiano() {
-  const nomi = new Set();
-  for (const tutte of [tstore.schede].concat(tstore.prep.map(p => p.schede))) {
-    for (const k of Object.keys(tutte)) for (const r of tutte[k].es) for (const v of videiDi(r)) nomi.add(v);
+let coda = (() => {
+  try {
+    const v = JSON.parse(localStorage.getItem(CODA_KEY) || '[]');
+    return Array.isArray(v) ? v.filter(x => x && codiceOk(x.f) && nomeVideoOk(x.n)) : [];
+  } catch (e) { return []; }
+})();
+function scriviCoda() {
+  try { localStorage.setItem(CODA_KEY, JSON.stringify(coda)); } catch (e) { /* resta in memoria */ }
+}
+/* I video gia' online, cartella per cartella: non si guardano ogni volta. */
+const caricati = readStore(CARICATI_KEY);
+function segnaCaricato(f, n) {
+  const a = Array.isArray(caricati[f]) ? caricati[f] : [];
+  if (a.indexOf(n) < 0) a.push(n);
+  caricati[f] = a;
+  writeStore(CARICATI_KEY, caricati);
+}
+
+/* Quello che deve stare online adesso, nella cartella della persona aperta e
+   nella mia: entra in coda quello che non risulta gia' caricato. */
+function aggiornaCoda() {
+  if (!editore()) return;
+  const servono = [];
+  if (scrive()) servono.push({ f: fidCorrente, nomi: videoDiPersona() });
+  if (mia) servono.push({ f: mia.f, nomi: videoDiLibreria() });
+  for (const s of servono) {
+    const gia = new Set(caricati[s.f] || []);
+    coda = coda.filter(x => x.f !== s.f || s.nomi.has(x.n));
+    for (const n of s.nomi) {
+      if (!gia.has(n) && !coda.some(x => x.f === s.f && x.n === n)) coda.push({ f: s.f, n: n });
+    }
   }
-  for (const x of tstore.sorprese || []) for (const f of x ? [x.img, x.audio] : []) if (f) nomi.add(f);
-  for (const r of tstore.libreria || []) for (const v of videiDi(r)) nomi.add(v);
-  return nomi;
+  scriviCoda();
 }
 
 async function codaVideo() {
-  if (caricandoVideo || !token || !tstore.daCaricare.length) return;
+  if (caricandoVideo || !editore()) return;
+  aggiornaCoda();
+  if (!coda.length) { paintSalva(); return; }
   clearTimeout(ritentaVideo);
   caricandoVideo = true;
   paintSalva();
   let luce = null;
   try { if (navigator.wakeLock) luce = await navigator.wakeLock.request('screen'); } catch (e) { /* niente */ }
   try {
-    const nel = nomiNelPiano();
-    tstore.daCaricare = tstore.daCaricare.filter(n => nel.has(n));
-    saveLocal();
-    const lista = tstore.daCaricare.slice();
+    const lista = coda.slice();
     for (let i = 0; i < lista.length; i++) {
+      const x = lista[i];
       const riga = 'carico il video ' + (i + 1) + ' di ' + lista.length;
       paintSync(riga + '… tieni l\'app aperta');
-      const ok = await caricaVideo(lista[i], x => paintSync(riga + '… ' + Math.round(x * 100) + '%'));
-      if (ok) {
-        tstore.daCaricare = tstore.daCaricare.filter(x => x !== lista[i]);
-        saveLocal();
-      }
+      const esito = await caricaVideo(x, p => paintSync(riga + '… ' + Math.round(p * 100) + '%'));
+      if (!esito) continue;
+      if (esito === true) segnaCaricato(x.f, x.n);
+      coda = coda.filter(y => !(y.f === x.f && y.n === x.n));
+      scriviCoda();
     }
   } finally {
     caricandoVideo = false;
     try { if (luce) await luce.release(); } catch (e) { /* niente */ }
   }
-  const n = tstore.daCaricare.length;
+  const n = coda.length;
   if (n) {
-    paintSync(n + (n === 1 ? ' video ancora da caricare' : ' video ancora da caricare') + ': riprovo fra un minuto', true);
+    paintSync(n + ' video ancora da caricare: riprovo fra un minuto', true);
     ritentaVideo = setTimeout(codaVideo, 60000);
-  } else if (!tstore.dirty) {
-    paintSync('video caricati alle ' + fmtTime.format(new Date()));
+  } else if (!daSalvare()) {
+    paintSync('video a posto alle ' + fmtTime.format(new Date()));
   }
   paintSalva();
 }
 
 /* Il salvagente: si chiama chiudendo l'app. */
 function salvagente() {
-  if (!tstore.dirty || !token || salvando) return;
+  if (!daSalvare() || !editore() || salvando) return;
   pushTasks({ keepalive: true });
 }
 
 function riprovaSalva() {
-  if (!(tstore.dirty && salvaRetry && !salvando && token)) return;
+  if (!(daSalvare() && salvaRetry && !salvando && editore())) return;
   sincronizzaLocale();
-  if (tstore.dirty && !salvando) pushTasks();
+  if (daSalvare() && !salvando) pushTasks();
 }
 
 $('salva').addEventListener('click', () => {
   /* un campo ancora col cursore dentro non ha ancora scritto: lo si chiude */
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-  if (tstore.dirty) pushTasks(); else codaVideo();
+  if (daSalvare()) pushTasks(); else codaVideo();
 });
+
+/* ------------------------------------------------------ le persone ---- */
+
+/* Ridisegna tutto quello che dipende da chi e' aperto. */
+function paintTutto() {
+  paintEdit();
+  paintPersone();
+  paintW();
+  paintSalva();
+  paintSync();
+}
+
+/* Il bottone in testata: il nome della persona aperta. Solo per chi scrive. */
+function paintPersone() {
+  const b = $('persBtn');
+  b.hidden = !editore();
+  const p = personaCorrente();
+  b.textContent = (p ? p.nome : 'Persone') + ' ▾';
+  if (dlgPers.open) disegnaPersone();
+}
+
+const dlgPers = $('persone');
+let persAperta = '';
+
+function disegnaPersone() {
+  const box = $('persLista');
+  box.textContent = '';
+  if (!mio) return;
+  if (!mio.persone.length) box.appendChild(el('p', 'vuoto', 'Ancora nessuna persona.'));
+  for (const p of mio.persone) {
+    const riga = el('div', 'pers-riga' + (p.f === fidCorrente ? ' sel' : ''));
+    const nome = el('button', 'pers-nome', p.nome);
+    nome.type = 'button';
+    nome.dataset.pscegli = p.id;
+    riga.appendChild(nome);
+    const inv = el('button', 'schbtn', 'Invia');
+    inv.type = 'button';
+    inv.dataset.pinvia = p.id;
+    riga.appendChild(inv);
+    const piu = el('button', 'schbtn pers-piu', persAperta === p.id ? '▴' : '⋯');
+    piu.type = 'button';
+    piu.dataset.papri = p.id;
+    piu.setAttribute('aria-label', 'Altro su ' + p.nome);
+    riga.appendChild(piu);
+    box.appendChild(riga);
+    if (persAperta !== p.id) continue;
+    const d = el('div', 'pers-dett');
+    const lab = el('label', 'commento-lab', 'Nome');
+    const n = el('input', 'campo');
+    n.type = 'text'; n.maxLength = 40; n.value = p.nome; n.autocomplete = 'off';
+    n.dataset.prinomina = p.id;
+    lab.appendChild(n);
+    d.appendChild(lab);
+    d.appendChild(el('p', 'commento-lab', 'Chiave'));
+    d.appendChild(el('p', 'pers-chiave', p.chiave));
+    d.appendChild(el('p', 'nota', 'È dentro il collegamento che le mandi. Il foglio basta con la tua: questa sta nell\'elenco.'));
+    const tog = el('button', 'btn btn-del btn-largo', 'Togli dall\'elenco');
+    tog.type = 'button';
+    tog.dataset.ptogli = p.id;
+    d.appendChild(tog);
+    box.appendChild(d);
+  }
+}
+
+$('persBtn').addEventListener('click', () => {
+  if (!editore()) return;
+  persAperta = '';
+  $('persNota').textContent = '';
+  disegnaPersone();
+  dlgPers.showModal();
+});
+
+/* Passare a un'altra persona: prima si salva quello che c'e' da salvare. */
+async function cambiaPersona(p) {
+  while (salvando) await aspetta(200);
+  if (daSalvare()) await pushTasks();
+  while (salvando) await aspetta(200);
+  apriPersona(p.chiave, p.f);
+  try { localStorage.setItem(SCELTA_KEY, p.id); } catch (e) {}
+  mostra.solo = '';
+  anteprima = null;
+  paintTutto();
+  pullTasks();
+}
+
+/* Il collegamento con la chiave dentro, dopo il #: quella parte non parte
+   mai verso nessun server. Sul telefono si apre la condivisione (WhatsApp,
+   SMS, mail); dove non c'e', il messaggio si copia. */
+async function invia(p) {
+  const link = location.origin + location.pathname + '#k=' + p.chiave;
+  const testo = 'Ciao ' + p.nome + ', questa è la tua scheda di allenamento. Apri il collegamento; ' +
+                'poi, dal menu del browser, scegli "Aggiungi a schermata Home".';
+  if (navigator.share) {
+    try { await navigator.share({ title: 'Workout', text: testo, url: link }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  try {
+    await navigator.clipboard.writeText(testo + '\n' + link);
+    $('persNota').textContent = 'Messaggio copiato: incollalo dove vuoi.';
+  } catch (e) {
+    $('persNota').textContent = link;
+  }
+}
+
+$('persLista').addEventListener('click', async ev => {
+  const b = ev.target.closest('button');
+  if (!b || !mio) return;
+  const trova = id => mio.persone.find(x => x.id === id);
+  if (b.dataset.pscegli) {
+    const p = trova(b.dataset.pscegli);
+    dlgPers.close();
+    if (p && p.f !== fidCorrente) await cambiaPersona(p);
+    return;
+  }
+  if (b.dataset.pinvia) { const p = trova(b.dataset.pinvia); if (p) invia(p); return; }
+  if (b.dataset.papri) { persAperta = persAperta === b.dataset.papri ? '' : b.dataset.papri; disegnaPersone(); return; }
+  if (b.dataset.ptogli) {
+    if (b.textContent !== 'Sicuro? Tocca di nuovo') { b.textContent = 'Sicuro? Tocca di nuovo'; return; }
+    /* il suo file resta online, chiuso: senza la chiave non lo apre nessuno */
+    mio.persone = mio.persone.filter(x => x.id !== b.dataset.ptogli);
+    persAperta = '';
+    saveMio();
+    if (!personaCorrente()) { scegliIniziale(); }
+    paintTutto();
+    disegnaPersone();
+    pushTasks();
+    pullTasks();
+  }
+});
+
+$('persLista').addEventListener('change', ev => {
+  const n = ev.target.closest('input[data-prinomina]');
+  if (!n || !mio) return;
+  const p = mio.persone.find(x => x.id === n.dataset.prinomina);
+  const v = n.value.slice(0, 40).trim();
+  if (!p || !v) { if (p) n.value = p.nome; return; }
+  p.nome = v;
+  saveMio();
+  paintTutto();
+  pushTasks();
+});
+
+/* Una persona nuova: la chiave la crea l'app. Nasce col piano vuoto, si
+   salva subito, e diventa quella aperta. */
+async function aggiungiPersona() {
+  const nome = $('persNome').value.slice(0, 40).trim();
+  if (!nome) { $('persNome').focus(); return; }
+  if (!editore()) return;
+  const k = nuovaChiave();
+  const p = { id: nuovoId(), nome: nome, chiave: k, f: await codiceDi(k) };
+  mio.persone.push(p);
+  saveMio();
+  $('persNome').value = '';
+  await cambiaPersona(p);
+  tstore.dirty = true;
+  saveLocal();
+  disegnaPersone();
+  $('persNota').textContent = nome + ' è pronta: prepara la scheda con Editor, premi Pubblica, poi tocca Invia.';
+  pushTasks();
+}
+$('persAggiungi').addEventListener('click', aggiungiPersona);
+$('persNome').addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); aggiungiPersona(); } });
 
 /* ---------------------------------------------------------- avviamento --- */
 
@@ -3112,11 +3788,30 @@ setInterval(() => {
   if (t !== giornoVisto) { giornoVisto = t; paintW(); }
 }, 60000);
 
-paintEdit();
-disegnaW();
-paintSalva();
-paintSync('');
-pullTasks();
+/* All'apertura. Prima la chiave arrivata col collegamento, se c'e': resta
+   nel telefono, e dall'indirizzo si toglie. Poi chi apre: chi ha token e
+   chiave mia vede l'elenco e apre l'ultima persona scelta; gli altri aprono
+   la persona della loro chiave, o il vecchio se una chiave non ce l'hanno. */
+async function avvia() {
+  const h = location.hash.match(/[#&]k=([A-Za-z0-9-]+)/);
+  if (h) {
+    history.replaceState(history.state, '', location.pathname + location.search);
+    const k = pulisciChiave(h[1]);
+    if (k) scriviChiave(PERSONA_KEY, { k: k, f: await codiceDi(k) });
+  }
+  if (token && mia) {
+    const m = readStore(MIO_KEY);
+    mio = inFormaMio(m.f === mia.f ? m : { f: mia.f });
+    scegliIniziale();
+  } else {
+    apriSenzaElenco();
+  }
+  paintTutto();
+  paintSync('');
+  await pullTasks();
+  codaVideo();
+}
+avvia();
 
 /* I video stanno nel telefono per sempre: si chiede al browser di non buttare
    mai i dati di questa app, nemmeno quando la memoria scarseggia. */
@@ -3127,7 +3822,7 @@ if (navigator.storage && navigator.storage.persist) navigator.storage.persist().
    Non piu' spesso: senza token GitHub concede 60 letture l'ora. */
 setInterval(() => {
   /* con l'editor aperto no: ridisegnerebbe sotto le dita di chi scrive */
-  if (document.visibilityState === 'visible' && !tstore.dirty && !salvando && $('ed').hidden) pullTasks();
+  if (document.visibilityState === 'visible' && !daSalvare() && !salvando && $('ed').hidden) pullTasks();
 }, 5 * 60 * 1000);
 
 /* Il tasto indietro (anche quello del telefono) chiude l'anteprima. */
