@@ -446,10 +446,12 @@ function edPagSettimana(box, ctx, si) {
 
   /* In un giorno va un workout o una lista Every day: si scelgono dalla
      tendina sotto il campo, prima le liste e poi i workout gia' scritti. Una
-     lista si riconosce dal nome; il giorno tiene la sua chiave, cosi' se la
+     lista si sceglie per nome, ma nel campo si legge solo "Ogni giorno": quale
+     sia lo dice la pagina della lista. Il giorno tiene la sua chiave, cosi' se la
      lista cambia nome il giorno la segue. "Ogni giorno" vale la prima. */
   const liste = listeDi(f.obj);
   const voci = () => liste.map(l => l.nome).concat(edWorkout(f).filter(n => !liste.some(l => edNorm(l.nome) === edNorm(n))));
+  const EVERY = 'Ogni giorno';
   const listaDi = t => {
     const b = edNorm(t);
     if (!b) return null;
@@ -490,16 +492,20 @@ function edPagSettimana(box, ctx, si) {
       inp.maxLength = 60;
       inp.placeholder = ORDINALI[i] + ' workout';
       const val = (w.workout[g] || [])[i] || '';
-      inp.value = eLista(val) ? nomeLista(f.obj, val) : val;
+      /* una lista si vede come "Ogni giorno": quale sia, lo dice la pagina della lista */
+      inp.value = eLista(val) ? EVERY : val;
       inp.classList.toggle('every', eLista(val));
       const salva = () => {
         const r = (w.workout[g] || []).slice();
         while (r.length <= i) r.push('');
         let scritto = inp.value.slice(0, 60).trim();
+        /* "Ogni giorno" su un posto che ha gia' una lista: resta quella */
+        const ora = (w.workout[g] || [])[i] || '';
+        if (eLista(ora) && edNorm(scritto) === edNorm(EVERY)) { inp.value = EVERY; inp.classList.add('every'); return; }
         const l = listaDi(scritto);
         if (l) {
           r[i] = l.chiave;
-          inp.value = l.nome;
+          inp.value = EVERY;
         } else {
           /* un workout che c'e' gia', scritto con maiuscole diverse, e'
              quello: niente workout fantasma */
@@ -514,7 +520,7 @@ function edPagSettimana(box, ctx, si) {
         edCambio(true);
       };
       inp.addEventListener('change', salva);
-      campi.appendChild(edTendina(inp, voci, v => { inp.value = v; inp.blur(); salva(); }, { subito: true }));
+      campi.appendChild(edTendina(inp, voci, v => { inp.value = v; inp.blur(); salva(); }));
     }
     riga.appendChild(campi);
     box.appendChild(riga);
@@ -1428,7 +1434,10 @@ function edSettimanaLista(box, f, chiave) {
        dei posti della Settimana */
     const wg = fuori ? null : f.settimane[f.base ? 0 : settimanaDi(f.prep, k)];
     const nelGiorno = wg ? (wg.workout[g] || []).slice(0, wg.conti[g] || 0) : [];
-    const liste = fuori ? [] : listeDi(f.obj).filter(l => !l.via && (quandoVale(l.quando, k) || nelGiorno.indexOf(l.chiave) >= 0));
+    /* prima le liste di "Quando", poi quelle scritte nei posti della Settimana */
+    const tutte = fuori ? [] : listeDi(f.obj).filter(l => !l.via);
+    const perQuando = tutte.filter(l => quandoVale(l.quando, k));
+    const liste = perQuando.concat(tutte.filter(l => perQuando.indexOf(l) < 0 && nelGiorno.indexOf(l.chiave) >= 0));
     const qui = liste.some(l => l.chiave === chiave);
     const riga = el('div', 'ed-sl-riga' + (qui ? ' qui' : '') + (fuori ? ' fuori' : '') + (k === oggi ? ' oggi' : ''));
     riga.appendChild(el('span', 'ed-sl-giorno', GIORNI2[g] + ' ' + daChiave(k).getDate()));
@@ -1439,8 +1448,7 @@ function edSettimanaLista(box, f, chiave) {
       const nomi = nelGiorno.filter(x => x && !eLista(x));
       corpo.appendChild(el('span', 'ed-sl-wk', nomi.length ? nomi.join(' + ') : 'Riposo'));
       for (const l of liste) {
-        const aMano = nelGiorno.indexOf(l.chiave) >= 0;
-        corpo.appendChild(el('span', 'ed-sl-lista' + (l.chiave === chiave ? ' on' : ''), l.nome + (aMano ? ' · nella settimana' : '')));
+        corpo.appendChild(el('span', 'ed-sl-lista' + (l.chiave === chiave ? ' on' : ''), l.nome));
       }
     }
     riga.appendChild(corpo);
