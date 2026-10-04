@@ -3919,10 +3919,11 @@ async function cambiaPersona(p) {
    SMS, mail); dove non c'e', il messaggio si copia. */
 async function invia(p) {
   const link = location.origin + location.pathname + '#k=' + p.chiave;
-  const testo = 'Ciao ' + p.nome + ', ecco la tua app di allenamento. Tocca il collegamento (su iPhone aprilo con Safari) ' +
-                'e segui le istruzioni che compaiono. Il collegamento è solo tuo: non condividerlo.';
+  /* le istruzioni stanno nell'app, nella prima schermata dopo il tocco */
+  const testo = 'Ciao ' + p.nome + ', ecco la tua app di allenamento: tocca il collegamento. È solo tuo, non condividerlo.';
   if (navigator.share) {
-    try { await navigator.share({ title: 'Workout', text: testo, url: link }); return; }
+    /* testo e collegamento insieme: alcune app, ricevendoli separati, tengono solo il collegamento */
+    try { await navigator.share({ title: 'Workout', text: testo + '\n' + link }); return; }
     catch (e) { if (e && e.name === 'AbortError') return; }
   }
   try {
