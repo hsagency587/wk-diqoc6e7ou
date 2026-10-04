@@ -44,7 +44,7 @@ const MIA_KEY     = 'wk-mia-v1';          /* { k, f }: la mia chiave, apre l'ele
 const MIO_KEY     = 'wk-mio-v1';          /* l'elenco e la libreria, copia nel telefono */
 const SCELTA_KEY  = 'wk-scelta-v1';       /* la persona scelta nel menu */
 const CODA_KEY    = 'wk-coda-v1';         /* i video da mandare: [{ f, n }] */
-const CARICATI_KEY = 'wk-caricati-v2';    /* { codice: [video gia' online e leggeri] } */
+const CARICATI_KEY = 'wk-caricati-v3';    /* { codice: [video gia' online e leggeri] } */
 /* come si guarda lo schermo: sta nel telefono, non nel file */
 const VISTA_KEY   = 'wk-vista-v1';
 
@@ -2068,6 +2068,9 @@ async function caricaVideo(x, avanza, dice) {
     /* gia' online: va bene, a meno che sia uno di quelli pesanti di prima */
     const online = await videoOnline(percorso);
     if (online >= 0 && (!eVideo(x.n) || online <= LEGGERO_SOGLIA)) return true;
+    /* pesante, ma questo browser non sa comprimere: lo fara' un altro
+       dispositivo; qui non si segna come fatto */
+    if (online >= 0 && senzaCompressione) return 'perso';
     let blob = (await vGet(x.n)) || (await prendiVideo(x.n));
     if (!blob) return online >= 0 ? true : 'perso';   /* non c'e' da nessuna parte */
     blob = await alleggerisci(x.n, blob, dice);
@@ -2292,10 +2295,13 @@ const PASSATE_VIDEO = [{ lato: 960, bit: 650000, audio: 48000 },
                        { lato: 640, bit: 350000, audio: 32000 }];
 const LEGGERO_MAX = 20 * 1024 * 1024;
 
+/* Questo browser non sa comprimere (niente strumenti video, o la libreria non
+   si scarica): i video restano come sono, e non si segnano come provati. */
+let senzaCompressione = !('VideoEncoder' in window);
 async function comprimiVideo(f, avanza) {
-  if (!('VideoEncoder' in window)) return null;
+  if (!('VideoEncoder' in window)) { senzaCompressione = true; return null; }
   let mb;
-  try { mb = await import(MEDIABUNNY); } catch (e) { return null; }
+  try { mb = await import(MEDIABUNNY); } catch (e) { senzaCompressione = true; return null; }
   let migliore = null;
   for (let i = 0; i < PASSATE_VIDEO.length; i++) {
     const p = PASSATE_VIDEO[i];
@@ -2313,8 +2319,11 @@ async function comprimiVideo(f, avanza) {
         },
         audio: { numberOfChannels: 1, bitrate: p.audio, forceTranscode: true }
       });
-      /* senza la parte video non e' piu' un video: si lascia com'era */
-      if (!conv.isValid || conv.discardedTracks.some(d => d.track.type === 'video')) break;
+      /* senza la parte video non e' piu' un video: si lascia com'era. Se e'
+         perche' il browser non sa scrivere H.264, non ce la fara' con nessuno */
+      const viaVideo = conv.discardedTracks.filter(d => d.track.type === 'video');
+      if (viaVideo.some(d => d.reason === 'no_encodable_target_codec')) senzaCompressione = true;
+      if (!conv.isValid || viaVideo.length) break;
       conv.onProgress = x => { if (avanza) avanza((i + x) / (i + 1)); };
       await conv.execute();
       const b = new Blob([target.buffer], { type: 'video/mp4' });
@@ -2328,7 +2337,7 @@ async function comprimiVideo(f, avanza) {
 /* I video gia' caricati prima, ancora pesanti: si alleggeriscono una volta,
    quando vanno nella cartella di qualcuno. La copia nel telefono diventa
    quella leggera. Chi e' gia' stato provato non si riprova. */
-const LEGGERI_KEY = 'wk-leggeri-v1';
+const LEGGERI_KEY = 'wk-leggeri-v2';
 const LEGGERO_SOGLIA = 3 * 1024 * 1024;
 const leggeri = (() => { try { const v = JSON.parse(localStorage.getItem(LEGGERI_KEY) || '[]'); return new Set(Array.isArray(v) ? v : []); } catch (e) { return new Set(); } })();
 function segnaLeggero(nome) {
@@ -2339,6 +2348,8 @@ const eVideo = n => /\.(mp4|webm|mov|m4v)$/.test(n);
 async function alleggerisci(nome, blob, dice) {
   if (!eVideo(nome) || blob.size <= LEGGERO_SOGLIA || leggeri.has(nome)) return blob;
   const piccolo = await comprimiVideo(blob, x => { if (dice) dice('comprimo… ' + Math.min(99, Math.round(x * 100)) + '%'); });
+  /* il browser non ce la fa: non si segna, cosi' ci riprova un altro dispositivo */
+  if (senzaCompressione) return blob;
   segnaLeggero(nome);
   if (!piccolo || piccolo.size > blob.size * 0.85) return blob;
   const nuovo = new Blob([piccolo], { type: tipoVideo(nome) });
@@ -3627,6 +3638,7 @@ async function pushTasks(opts) {
    tiene lo schermo acceso. Un video tolto dal piano esce dalla coda. */
 let caricandoVideo = false;
 let ritentaVideo = null;
+let pesanti = 0;                /* video rimasti pesanti perche' questo browser non comprime */
 
 let coda = (() => {
   try {
@@ -3682,6 +3694,7 @@ async function codaVideo() {
   try { if (navigator.wakeLock) luce = await navigator.wakeLock.request('screen'); } catch (e) { /* niente */ }
   try {
     const lista = coda.slice();
+    pesanti = 0;
     for (let i = 0; i < lista.length; i++) {
       const x = lista[i];
       const riga = 'carico il video ' + (i + 1) + ' di ' + lista.length;
@@ -3689,6 +3702,7 @@ async function codaVideo() {
       const esito = await caricaVideo(x, p => paintSync(riga + '… ' + Math.round(p * 100) + '%'), t => paintSync(riga + ': ' + t));
       if (!esito) continue;
       if (esito === true) segnaCaricato(x.f, x.n);
+      else if (senzaCompressione) pesanti++;
       coda = coda.filter(y => !(y.f === x.f && y.n === x.n));
       scriviCoda();
     }
@@ -3700,6 +3714,8 @@ async function codaVideo() {
   if (n) {
     paintSync(n + ' video ancora da caricare: riprovo fra un minuto', true);
     ritentaVideo = setTimeout(codaVideo, 60000);
+  } else if (senzaCompressione && pesanti) {
+    paintSync('questo telefono non sa comprimere i video: ' + pesanti + ' restano pesanti. Apri l\'app da un altro dispositivo (per esempio il PC) per alleggerirli', true);
   } else if (!daSalvare()) {
     paintSync('video a posto alle ' + fmtTime.format(new Date()));
   }
