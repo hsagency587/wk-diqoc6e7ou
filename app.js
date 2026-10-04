@@ -3455,7 +3455,8 @@ async function pullTasks(opts) {
   }
   const f = fidCorrente, pass = chiave;
   let r;
-  try { r = await leggi(); } catch (e) { paintSync('senza rete: uso la copia di questo telefono'); return; }
+  /* senza rete si resta sulla copia di questo telefono, senza dirlo */
+  try { r = await leggi(); } catch (e) { return; }
   let tokenKo = false;
   if (r.status === 401 && token) {
     tokenKo = true;
