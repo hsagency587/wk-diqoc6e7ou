@@ -130,6 +130,20 @@
   </form>
 </dialog>
 
+<!-- La prima schermata dopo il collegamento: l'app e' collegata, e come si
+     installa sul telefono. I passi li scrive app.js, per iPhone o Android. -->
+<dialog class="chiusura" id="benvenuto" aria-labelledby="benvenutoTit">
+  <form method="dialog" class="chiusura-box">
+    <h2 class="chiusura-tit" id="benvenutoTit">La tua app è collegata</h2>
+    <p class="benv-testo">Con questo collegamento l'app è collegata a te: le tue schede arrivano da sole, ogni volta che vengono aggiornate.</p>
+    <p class="commento-lab">Installala sul telefono</p>
+    <ol class="benv-passi" id="benvenutoPassi"></ol>
+    <div class="chiusura-btn">
+      <button type="submit" class="btn btn-ok" value="ok">Vai alla mia scheda</button>
+    </div>
+  </form>
+</dialog>
+
 <!-- Le persone: chi tiene le schede sceglie qui di chi si vede e si scrive
      il piano, ne aggiunge di nuove e manda a ognuna il suo collegamento. -->
 <dialog class="chiusura" id="persone" aria-labelledby="personeTit">

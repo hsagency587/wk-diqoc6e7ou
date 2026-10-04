@@ -1142,3 +1142,8 @@ body.ed-aperto{overflow:hidden}
 .incolla .btn{flex:0 0 auto;padding:0 var(--s3)}
 .avviso-home{margin:0 0 var(--s3);padding:var(--s2) var(--s3);border:1px solid var(--accent);border-radius:var(--radius);color:var(--text)}
 #wlist .incolla,#wlist .incolla + .nota{margin-left:var(--s4);margin-right:var(--s4)}
+
+/* la prima schermata dopo il collegamento */
+.benv-testo{margin:0 0 var(--s3);font-size:17px;line-height:1.45;color:var(--text)}
+.benv-passi{margin:var(--s2) 0 0;padding-left:1.4em;font-size:17px;line-height:1.5;color:var(--text-2)}
+.benv-passi li{margin-bottom:var(--s2)}

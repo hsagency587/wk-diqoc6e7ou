@@ -3388,6 +3388,22 @@ const installata = () => matchMedia('(display-mode: standalone)').matches || nav
 const suIphone = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const incollaQui = () => !token && suIphone() && installata();
 
+/* La prima schermata dopo il collegamento: l'app e' collegata, e i passi
+   per installarla, quelli dell'iPhone o quelli di Android. */
+function benvenuto() {
+  const passi = suIphone()
+    ? ['Tocca Condividi: il quadrato con la freccia, in basso o in alto.',
+       'Scorri e tocca «Aggiungi alla schermata Home», poi «Aggiungi».',
+       'Da adesso apri l\'app dall\'icona Workout sulla schermata Home.']
+    : ['Tocca il menu ⋮ in alto a destra.',
+       'Tocca «Installa app» oppure «Aggiungi a schermata Home».',
+       'Da adesso apri l\'app dall\'icona Workout sul telefono.'];
+  const ol = $('benvenutoPassi');
+  ol.textContent = '';
+  for (const t of passi) ol.appendChild(el('li', null, t));
+  $('benvenuto').showModal();
+}
+
 /* Una chiave presa da un collegamento incollato, o scritta a mano. */
 async function usaCollegamento(testo) {
   const m = String(testo || '').match(/[#&]k=([A-Za-z0-9-]+)/);
@@ -3903,8 +3919,8 @@ async function cambiaPersona(p) {
    SMS, mail); dove non c'e', il messaggio si copia. */
 async function invia(p) {
   const link = location.origin + location.pathname + '#k=' + p.chiave;
-  const testo = 'Ciao ' + p.nome + ', questa è la tua scheda di allenamento. Apri il collegamento (su iPhone con Safari); ' +
-                'poi aggiungila alla schermata Home: dal menu del browser, o su iPhone da Condividi.';
+  const testo = 'Ciao ' + p.nome + ', ecco la tua app di allenamento. Tocca il collegamento (su iPhone aprilo con Safari) ' +
+                'e segui le istruzioni che compaiono. Il collegamento è solo tuo: non condividerlo.';
   if (navigator.share) {
     try { await navigator.share({ title: 'Workout', text: testo, url: link }); return; }
     catch (e) { if (e && e.name === 'AbortError') return; }
@@ -4007,6 +4023,8 @@ async function avvia() {
     if (installata()) history.replaceState(history.state, '', location.pathname + location.search);
     const k = pulisciChiave(h[1]);
     if (k) scriviChiave(PERSONA_KEY, { k: k, f: await codiceDi(k) });
+    /* appena toccato il collegamento, nel browser: come installare l'app */
+    if (k && !token && !installata()) benvenuto();
   }
   if (token && mia) {
     const m = readStore(MIO_KEY);
