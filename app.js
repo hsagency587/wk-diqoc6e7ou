@@ -835,9 +835,12 @@ function disegnaW() {
       editore()       ? 'Ancora nessuna persona. Tocca "Persone" in alto per aggiungerne una.'
       : token && !mia ? 'Per scrivere le schede serve la tua chiave: ⚙ Impostazioni → Sviluppatore.'
       : token         ? 'Controlla la tua chiave in ⚙ Impostazioni → Sviluppatore.'
-      :                 'Per vedere la tua scheda apri il collegamento che hai ricevuto, oppure copialo e incollalo qui.'));
-    /* chi si allena e non ha ancora la chiave: il collegamento si incolla */
-    if (!token) {
+      : incollaQui()  ? 'Copia il collegamento che hai ricevuto e incollalo qui.'
+      :                 'Per vedere la tua scheda apri il collegamento che hai ricevuto.'));
+    /* Solo su iPhone, aperta dall'icona: li' l'icona non vede la memoria di
+       Safari, e la chiave arrivata col collegamento puo' non esserci. Allora
+       il collegamento si incolla, una volta. Altrove basta aprirlo. */
+    if (incollaQui()) {
       const riga = el('div', 'incolla');
       const inp = el('input', 'campo');
       inp.type = 'text'; inp.autocomplete = 'off'; inp.placeholder = 'il collegamento ricevuto';
@@ -2844,10 +2847,6 @@ let miaNuova = '';
 
 function openImpostazioni() {
   $('sviluppo').open = false;        /* si riapre sempre chiusa */
-  /* il collegamento si incolla solo dove non c'e' ancora una chiave: chi ha
-     la sua scheda non deve poterla cambiare, e chi scrive ha la sua chiave */
-  $('collBox').hidden = !!token || !!leggiChiave(PERSONA_KEY);
-  $('collInput').value = '';
   $('tokenInput').value = token;
   $('miaInput').value = mia ? mia.k : '';
   miaNuova = '';
@@ -2897,15 +2896,7 @@ $('temaScelta').addEventListener('click', ev => {
 });
 paintTema();
 
-$('collIncolla').addEventListener('click', async () => {
-  try { $('collInput').value = await navigator.clipboard.readText(); } catch (e) { $('collInput').focus(); }
-});
-
 $('impostazioniForm').addEventListener('submit', async () => {
-  /* un collegamento incollato: da qui si legge la scheda di quella chiave */
-  const coll = $('collInput').value.trim();
-  $('collInput').value = '';
-  if (coll && !(await usaCollegamento(coll))) paintSync('il collegamento incollato non è giusto: copialo di nuovo dal messaggio', true);
   token = $('tokenInput').value.trim();
   try {
     if (token) localStorage.setItem(TOKEN_KEY, token);
@@ -3374,6 +3365,7 @@ function apriSenzaElenco() {
    browser. Su iPhone l'icona ha una memoria sua, separata da Safari. */
 const installata = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 const suIphone = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const incollaQui = () => !token && suIphone() && installata();
 
 /* Una chiave presa da un collegamento incollato, o scritta a mano. */
 async function usaCollegamento(testo) {

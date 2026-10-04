@@ -106,18 +106,6 @@
       <button type="button" class="chip" data-tema="dark">Scuro</button>
       <button type="button" class="chip" data-tema="light">Chiaro</button>
     </div>
-    <p class="nota">Vale solo su questo dispositivo: ogni telefono tiene il suo.</p>
-
-    <!-- Il collegamento ricevuto: se l'app non mostra la propria scheda (per
-         esempio il collegamento si e' aperto in un altro browser), si incolla qui. -->
-    <div id="collBox" hidden>
-      <p class="commento-lab">Il tuo collegamento</p>
-      <div class="incolla">
-        <input class="campo" id="collInput" type="text" autocomplete="off" placeholder="il collegamento ricevuto" aria-label="Il collegamento ricevuto">
-        <button type="button" class="btn" id="collIncolla">Incolla</button>
-      </div>
-      <p class="nota">Se la tua scheda non compare, incolla qui il collegamento che hai ricevuto e premi Salva.</p>
-    </div>
 
     <!-- Token e chiave stanno chiusi in una tendina: servono una volta sola, e
          chi usa l'app per allenarsi non li deve vedere. -->
@@ -126,13 +114,11 @@
       <div class="sviluppo-corpo">
       <label class="commento-lab" for="tokenInput">GitHub token</label>
       <input class="campo" id="tokenInput" type="password" autocomplete="off" placeholder="github_pat_…">
-      <p class="nota">Fine-grained, limitato a questo repository, permesso <b>Contents</b> in lettura e scrittura. Serve per salvare le schede; per leggerle non serve.</p>
       <p class="nota" id="tokenStato"></p>
 
       <label class="commento-lab" for="miaInput">La tua chiave</label>
       <input class="campo chiavecampo" id="miaInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="xxxx-xxxx-xxxx-xxxx">
       <button type="button" class="btn btn-largo" id="miaCrea">Crea la mia chiave</button>
-      <p class="nota">Apre l'elenco delle persone e la libreria. Si crea una volta sola, sul primo dispositivo: scrivila sul foglio. Sugli altri tuoi dispositivi scrivi la stessa.</p>
       <p class="nota" id="miaStato"></p>
       </div>
     </details>
