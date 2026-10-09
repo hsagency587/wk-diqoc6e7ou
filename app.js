@@ -1098,11 +1098,13 @@ function righeScheda(tab, sc, src, nome) {
                  { t: r[1], cls: 'val' }])
       : tabRiga([{ t: r[0], cls: 'eti' }], 'solo');
     /* con una descrizione dentro, la riga si tocca e si apre. La freccia dice
-       che sotto c'e' qualcosa da leggere o da guardare. In un Tabata si apre
-       ogni esercizio, anche senza descrizione: da li' parte la sequenza, che
-       comincia sempre dal primo del gruppo. */
+       che sotto c'e' qualcosa da leggere, da guardare o da far partire. In un
+       Tabata si apre ogni esercizio, anche senza descrizione: da li' parte la
+       sequenza, che comincia sempre dal primo del gruppo. Si apre anche un
+       esercizio senza descrizione che ha dei tempi da tenere ("1'", "2' + 2'",
+       "10min"): dentro trova il tasto del timer. */
     const tabata = !!tipoDi(sc, r0) || (r[2] || []).some(x => /tabata/i.test(x));
-    if (r[3] || r[4] || tabata) {
+    if (r[3] || r[4] || tabata || pianoTimer(sc, r0)) {
       riga.classList.add('condesc');
       riga.dataset.desces = JSON.stringify([src, nome, i]);
       riga.lastChild.appendChild(el('span', 'desfrec', '▾'));   /* uguale per tutti: con o senza video */
