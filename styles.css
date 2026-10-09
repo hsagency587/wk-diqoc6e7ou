@@ -317,6 +317,21 @@ body{overflow-x:clip}
 }
 
 .grp{margin:0;padding:var(--s4) var(--s4) var(--s2);font-size:15px;font-weight:700;letter-spacing:.08em;color:var(--muted)}
+
+/* Sotto la lista di tutti i giorni, quando sotto ci sono i workout di oggi:
+   una riga verde con due etichette ai lati, una che punta su e una giu' */
+.rigaoggi{
+  position:relative;display:flex;justify-content:space-between;align-items:center;
+  margin:0 var(--s3) var(--s3);padding:0 var(--s2);
+}
+.rigaoggi::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;margin-top:-1px;background:var(--accent)}
+.rigaoggi-eti{
+  position:relative;height:20px;padding:0 8px;display:inline-flex;align-items:center;gap:5px;
+  background:var(--bg);border:1px solid rgba(61,220,132,.55);border-radius:10px;
+  font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--accent);white-space:nowrap;
+}
+.rigaoggi-eti svg{flex:0 0 auto}
 .grpcli{display:flex;align-items:center;gap:var(--s2);width:100%;
   background:none;border:0;text-align:left;
   padding:var(--s4) var(--s4) var(--s3);cursor:pointer;font-family:inherit}
@@ -529,7 +544,7 @@ body{overflow-x:clip}
   }
   /* chi si allena non ha la barra in alto: la colonna si ferma in cima */
   .top:not(.admin) ~ .pagina .col-sx{top:var(--s4);max-height:calc(100vh - 2 * var(--s4))}
-  .col .tab,.col .schapri,.col .wconta,.col .lpiu{margin-left:0;margin-right:0}
+  .col .tab,.col .schapri,.col .wconta,.col .lpiu,.col .rigaoggi{margin-left:0;margin-right:0}
   .col .lpiu{width:100%}
   .col .grp,.col .grpcli{padding-left:0;padding-right:0}
   .col .chiprow{padding-left:0;padding-right:0}

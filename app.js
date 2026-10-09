@@ -969,11 +969,16 @@ function disegnaW() {
   cal.appendChild(tab);
 
   if (!pAnt) postille(box, 'every');
-  paintMorning(box, oggi, kOggi);
+  const every = paintMorning(box, oggi, kOggi);
+  /* sotto la lista di tutti i giorni, una riga verde con due etichette: su
+     quello che si fa sempre, giu' i workout di oggi. Solo se ci sono tutti e
+     due: senza workout sotto, la riga non avrebbe dove puntare */
+  const riga = every ? box.appendChild(rigaOggi()) : null;
   if (!pAnt) postille(box, 'oggi');
   /* chi si allena ha "Allenamento di oggi" in testata: qui non si ripete */
-  paintOggi(box, oggi, kOggi, t0.getDay(), pAnt ? 'ALLENAMENTI DI ' + GIORNI_IT[t0.getDay()].toUpperCase() + ' ' + t0.getDate()
-                                                : editore() ? 'ALLENAMENTI DI OGGI' : '');
+  const conOggi = paintOggi(box, oggi, kOggi, t0.getDay(), pAnt ? 'ALLENAMENTI DI ' + GIORNI_IT[t0.getDay()].toUpperCase() + ' ' + t0.getDate()
+                                                               : editore() ? 'ALLENAMENTI DI OGGI' : '');
+  if (riga && !conOggi) riga.remove();
 
   /* la tendina della programmazione: in anteprima resta aperta, si guarda
      proprio quella */
@@ -1204,15 +1209,35 @@ function listeDelGiorno(pi, k) {
 }
 
 function paintMorning(box, pi, k) {
-  for (const l of listeDelGiorno(pi, k)) {
+  const liste = listeDelGiorno(pi, k);
+  for (const l of liste) {
     const sc = pi.schede[l.chiave];
     const tab = tabScheda(l.nome, sc);
     box.appendChild(righeScheda(tab, { es: sc.es, rec: '', tipi: sc.tipi }, pi.src, l.chiave));
   }
+  return liste.length;
+}
+
+/* Fra la lista di tutti i giorni e i workout di oggi: una riga verde con due
+   etichette ai lati, una che punta in su e una in giu'. */
+function rigaOggi() {
+  const r = el('div', 'rigaoggi');
+  r.setAttribute('aria-hidden', 'true');
+  /* la freccia e' disegnata, col tratto grosso: un carattere verrebbe sottile */
+  const freccia = giu => '<svg viewBox="0 0 12 14" width="11" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">' +
+    (giu ? '<path d="M6 2v10M2 8l4 4 4-4"/>' : '<path d="M6 12V2M2 6l4-4 4 4"/>') + '</svg>';
+  const su = el('span', 'rigaoggi-eti');
+  su.innerHTML = freccia(false) + '<span>tutti i giorni</span>';
+  const giu = el('span', 'rigaoggi-eti');
+  giu.innerHTML = '<span>workout di oggi</span>' + freccia(true);
+  r.appendChild(su);
+  r.appendChild(giu);
+  return r;
 }
 
 /* Quello che si fa oggi, senza aprire niente: le schede del giorno, solo se
-   hanno degli esercizi scritti. Senza titolo, niente scritta sopra. */
+   hanno degli esercizi scritti. Senza titolo, niente scritta sopra. Torna
+   true se ha disegnato qualcosa. */
 function paintOggi(box, pi, k, g, titolo) {
   let capo = false;
   for (const nome of workoutDelGiorno(pi, g)) {
@@ -1238,6 +1263,7 @@ function paintOggi(box, pi, k, g, titolo) {
     t.classList.add('tab-oggi');
     box.appendChild(righeScheda(t, sc, pi.src, nome));
   }
+  return capo;
 }
 
 /* Le schede del piano che vale oggi, dentro una tendina: una barra con il
