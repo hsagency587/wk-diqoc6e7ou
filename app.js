@@ -1105,7 +1105,7 @@ function righeScheda(tab, sc, src, nome) {
     /* con una descrizione dentro, la riga si tocca e si apre. La freccia dice
        che sotto c'e' qualcosa da leggere, da guardare o da far partire. In un
        Tabata si apre ogni esercizio, anche senza descrizione: da li' parte la
-       sequenza, che comincia sempre dal primo del gruppo. Si apre anche un
+       sequenza, da quell'esercizio in poi. Si apre anche un
        esercizio senza descrizione che ha dei tempi da tenere ("1'", "2' + 2'",
        "10min"): dentro trova il tasto del timer. */
     const tabata = !!tipoDi(sc, r0) || (r[2] || []).some(x => /tabata/i.test(x));
@@ -1506,7 +1506,7 @@ function apriDesc(src, nome, i) {
   /* se i tempi sono tempi veri, accanto c'e' il tasto del timer */
   tPiano = pianoTimer(sc, sc.es[i]);
   $('tAvvia').hidden = !tPiano;
-  if (tPiano) $('tAvviaTxt').textContent = tPiano.sequenza ? 'Inizia sequenza' : 'Inizia';
+  if (tPiano) $('tAvviaTxt').textContent = !tPiano.sequenza ? 'Inizia' : tPiano.da ? 'Inizia da qui' : 'Inizia sequenza';
   $('descQtaRiga').hidden = !quanto.length && !tPiano;
   /* i link video scritti nel testo salgono nello slot, dopo i video caricati */
   testoDesc($('descTesto'), r[3], true);
@@ -1652,13 +1652,15 @@ const detto = t => t.t === 'tabata'
    `fase(i)` dice la fase numero i: { pausa, sec, nome, info }, o null alla fine.
    Un gruppo col suo tipo (Tabata, EMOM) comanda. Senza tipo, un Tabata si
    riconosce ancora dal nome; un EMOM no: c'e' solo se il gruppo e' di tipo
-   EMOM. */
+   EMOM. In un Tabata la sequenza parte dalla riga aperta, `r`, e va avanti
+   da li' fino alla fine: `da` dice il passo da cui si parte. */
 let tPiano = null;
 function pianoTimer(sc, r) {
   if (!r) return null;
   const righe = sc.es;
   const g = r[2] || [];
-  const nomi = via => righe.filter(x => x[0] && dentroVia(x[2] || [], via)).map(x => x[0]);
+  const righeDi = via => righe.filter(x => x[0] && dentroVia(x[2] || [], via));
+  const nomi = via => righeDi(via).map(x => x[0]);
   const tg = tipoDi(sc, r);
 
   const kt = tg ? -1 : g.findIndex(x => /tabata/i.test(x));
@@ -1666,16 +1668,20 @@ function pianoTimer(sc, r) {
     const via = tg ? tg.via : g.slice(0, kt + 1), t = tg ? null : tempiIn(g[kt]);
     const lav = tg ? tg.tipo.l : t[0] || 20, rec = tg ? tg.tipo.r : (t.length > 1 ? t[1] : 10);
     const giri = tg ? tg.tipo.g : giriIn(g[kt]);
-    /* un esercizio con piu' lati ha un intervallo per lato */
+    /* un esercizio con piu' lati ha un intervallo per lato. Si parte dal
+       passo della riga aperta: giri e numeri restano quelli di tutta la
+       sequenza, solo che i passi prima si saltano */
     const passi = [];
-    for (const x of nomi(via)) {
-      const L = latiDi(tg && tg.tipo, x);
-      for (let q = 1; q <= L; q++) passi.push(x + (L > 1 ? ' · lato ' + q + ' di ' + L : ''));
+    let da = 0;
+    for (const x of righeDi(via)) {
+      if (x === r) da = passi.length;
+      const L = latiDi(tg && tg.tipo, x[0]);
+      for (let q = 1; q <= L; q++) passi.push(x[0] + (L > 1 ? ' · lato ' + q + ' di ' + L : ''));
     }
     const es = passi, n = es.length;
     if (!n) return null;
-    return { sequenza: true, fase: i => {
-      const passo = Math.floor(i / 2), pausa = i % 2 === 1;
+    return { sequenza: true, da: da, fase: i => {
+      const passo = da + Math.floor(i / 2), pausa = i % 2 === 1;
       const giro = Math.floor(passo / n), j = passo % n;
       if (giri && giro >= giri) return null;
       const ultimo = giri && giro === giri - 1 && j === n - 1;
