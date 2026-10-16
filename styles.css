@@ -380,6 +380,7 @@ body{overflow-x:clip}
 .chips.chipsch .chip.sel{border-color:var(--accent);color:var(--accent)}
 .btn.btn-del{flex:0 0 auto;color:var(--danger);border-color:rgba(255,69,58,.45)}
 .btn-largo{width:100%;margin-bottom:var(--s3)}
+.campo-lungo{min-height:150px;padding:var(--s2);line-height:1.4;resize:vertical}
 .nota{margin:var(--s2) 0 0;font-size:15px;line-height:1.45;color:var(--muted)}
 .nota.err{color:var(--danger)}
 

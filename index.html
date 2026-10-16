@@ -110,6 +110,10 @@
       <button type="button" class="chip" data-tema="light">Chiaro</button>
     </div>
 
+    <!-- Chi si allena racconta cosa non ha funzionato: parte come messaggio. -->
+    <p class="commento-lab">Segnalazione bug</p>
+    <button type="button" class="btn btn-largo" id="bugApri">Scrivi cosa non ha funzionato</button>
+
     <!-- Token e chiave stanno chiusi in una tendina: servono una volta sola, e
          chi usa l'app per allenarsi non li deve vedere. -->
     <details class="sviluppo" id="sviluppo">
@@ -171,6 +175,19 @@
      grande, perche' e' fatta per essere letta mentre ci si allena. Un link
      scritto da solo su una riga diventa un video. Qui si legge e basta: si
      scrive nell'editor. -->
+<dialog class="chiusura" id="bug" aria-labelledby="bugTit">
+  <form method="dialog" class="chiusura-box" id="bugForm">
+    <h2 class="chiusura-tit" id="bugTit">Segnalazione bug</h2>
+    <label class="commento-lab" for="bugTesto">Cosa non ha funzionato</label>
+    <textarea class="campo campo-lungo" id="bugTesto" rows="6" autocomplete="off" placeholder="Scrivi, o detta col microfono della tastiera: dove eri, cosa hai toccato, cosa ti aspettavi."></textarea>
+    <p class="nota" id="bugNota"></p>
+    <div class="chiusura-btn">
+      <button type="button" class="btn" id="bugAnnulla">Annulla</button>
+      <button type="button" class="btn btn-ok" id="bugInvia">Invia</button>
+    </div>
+  </form>
+</dialog>
+
 <dialog class="descbox" id="descrizione" aria-labelledby="descTit">
   <div class="descbox-in">
     <h2 class="desctit" id="descTit"></h2>

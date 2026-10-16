@@ -2978,6 +2978,53 @@ $('impostazioniForm').addEventListener('submit', async () => {
 });
 $('tokenAnnulla').addEventListener('click', () => dlgImp.close());
 
+/* ------------------------------------------------ segnalazione bug ---- */
+
+/* Chi si allena scrive (o detta, col microfono della tastiera) cosa non ha
+   funzionato, e il testo parte come messaggio: sul telefono si apre la
+   condivisione (WhatsApp, SMS, mail), come per Invia. In fondo ci sono gia'
+   data e ora, il workout di oggi e la versione dell'app: quello che serve per
+   capire, senza doverlo chiedere. Dove la condivisione non c'e', il messaggio
+   si copia. Senza token non si puo' scrivere su GitHub: il messaggio e' l'unica
+   via, e la piu' diretta. */
+const dlgBug = $('bug');
+let bugVersione = '';
+function contestoBug() {
+  const d = today(), ora = new Date(), pi = pianoDi(chiaveData(d));
+  const nomi = workoutDelGiorno(pi, d.getDay()).filter(Boolean).map(n => eLista(n) ? nomeLista(pi, n) || 'Every day' : n);
+  const quando = d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }) + ' ' + pad2(ora.getHours()) + ':' + pad2(ora.getMinutes());
+  return [quando, nomi.length ? 'oggi: ' + nomi.join(', ') : '', pi.prep ? 'preparazione: ' + pi.prep.nome : '',
+          bugVersione, installata() ? 'app installata' : 'nel browser'].filter(Boolean).join(' · ');
+}
+$('bugApri').addEventListener('click', async () => {
+  dlgImp.close();
+  $('bugNota').className = 'nota';
+  $('bugNota').textContent = '';
+  dlgBug.showModal();
+  $('bugTesto').focus();
+  /* la versione e' il nome della cache del service worker: si legge prima,
+     cosi' Invia non aspetta niente e la condivisione parte dal tocco */
+  try { bugVersione = ((await caches.keys()).find(k => /^wk-v/.test(k)) || '').replace('wk-', 'app '); } catch (e) { bugVersione = ''; }
+});
+async function inviaBug() {
+  const t = $('bugTesto').value.trim();
+  if (!t) { $('bugTesto').focus(); return; }
+  const testo = 'Problema con l\'app Workout\n' + t + '\n\n' + contestoBug();
+  if (navigator.share) {
+    try { await navigator.share({ title: 'Workout', text: testo }); $('bugTesto').value = ''; dlgBug.close(); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  const n = $('bugNota');
+  try {
+    await navigator.clipboard.writeText(testo);
+    n.className = 'nota'; n.textContent = 'Messaggio copiato: incollalo in un messaggio a chi ti prepara la scheda.';
+  } catch (e) {
+    n.className = 'nota err'; n.textContent = 'Non riesco a copiare: seleziona il testo e copialo tu.';
+  }
+}
+$('bugInvia').addEventListener('click', inviaBug);
+$('bugAnnulla').addEventListener('click', () => dlgBug.close());
+
 async function provaToken() {
   try {
     const r = await fetch(API, { headers: ghHeaders(), cache: 'no-store' });
