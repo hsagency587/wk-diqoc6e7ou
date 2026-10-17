@@ -569,8 +569,11 @@ function validPersone(l) {
              chiave: x.chiave, f: x.f };
   }).filter(Boolean);
 }
-/* Il numero per le chiamate urgenti: solo cifre, col + davanti se c'e'. Sta
-   nel mio file e va nel file di ogni persona, mai nel codice. */
+/* Il numero per le chiamate urgenti: solo cifre, col + davanti se c'e'. Ce
+   n'e' uno fisso nell'app, per scelta di chi la tiene (il codice e'
+   pubblico, e il numero con lui); dalle Impostazioni se ne puo' scrivere un
+   altro, che va nel mio file e nel file di ogni persona. */
+const TELEFONO_URGENTE = '+393920660255';
 const validTelefono = x => { const t = String(x == null ? '' : x).replace(/[\s().-]/g, ''); return /^\+?\d{6,15}$/.test(t) ? t : ''; };
 const datiMio = m => ({ persone: validPersone(m.persone), libreria: validLibreria(m.libreria), esercizi: validEsercizi(m.esercizi),
                         telefono: validTelefono(m.telefono) });
@@ -2902,7 +2905,7 @@ function openImpostazioni() {
   $('tokenInput').value = token;
   $('miaInput').value = mia ? mia.k : '';
   $('telBox').hidden = !mio;
-  $('telInput').value = mio ? mio.telefono || '' : '';
+  $('telInput').value = mio ? mio.telefono || TELEFONO_URGENTE : '';
   miaNuova = '';
   const s = $('tokenStato');
   s.className = 'nota';
@@ -3043,8 +3046,8 @@ $('bugApri').addEventListener('click', async () => {
   $('bugNota').className = 'nota';
   $('bugNota').textContent = '';
   opzioniBug($('bugEs'));
-  /* il tasto per chiamare c'e' solo se nel piano e' arrivato un numero */
-  const tel = validTelefono(tstore.telefono);
+  /* il tasto per chiamare: il numero arrivato col piano, o quello fisso */
+  const tel = validTelefono(tstore.telefono) || TELEFONO_URGENTE;
   $('bugChiama').hidden = !tel;
   $('bugChiama').href = tel ? 'tel:' + tel : '';
   dlgBug.showModal();

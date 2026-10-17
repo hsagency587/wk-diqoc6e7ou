@@ -113,13 +113,6 @@
     <!-- Chi si allena racconta cosa non ha funzionato: parte come messaggio. -->
     <p class="commento-lab">Segnalazione bug</p>
     <button type="button" class="btn btn-largo" id="bugApri">Scrivi cosa non ha funzionato</button>
-    <!-- il numero per le chiamate urgenti: lo scrive chi prepara le schede,
-         e arriva cifrato nel file di ogni persona. Mai nel codice. -->
-    <div id="telBox" hidden>
-      <label class="commento-lab" for="telInput">Il tuo numero, per le chiamate urgenti</label>
-      <input class="campo" id="telInput" type="tel" autocomplete="off" placeholder="+39 333 1234567">
-      <p class="nota">Chi apre la sua app trova "Se urgente, chiamami" nella segnalazione. Arriva con Pubblica.</p>
-    </div>
 
     <!-- Token e chiave stanno chiusi in una tendina: servono una volta sola, e
          chi usa l'app per allenarsi non li deve vedere. -->
@@ -134,6 +127,15 @@
       <input class="campo chiavecampo" id="miaInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="xxxx-xxxx-xxxx-xxxx">
       <button type="button" class="btn btn-largo" id="miaCrea">Crea la mia chiave</button>
       <p class="nota" id="miaStato"></p>
+
+      <!-- il numero per le chiamate urgenti: nell'app ce n'e' uno fisso; qui
+           chi prepara le schede lo puo' cambiare, e con Pubblica arriva a
+           ogni persona -->
+      <div id="telBox" hidden>
+      <label class="commento-lab" for="telInput">Il tuo numero, per le chiamate urgenti</label>
+      <input class="campo" id="telInput" type="tel" autocomplete="off" placeholder="+39 333 1234567">
+      <p class="nota">Nella segnalazione c'e' "Se urgente, chiamami". Un numero diverso arriva con Pubblica.</p>
+      </div>
       </div>
     </details>
 
