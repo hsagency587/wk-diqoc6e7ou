@@ -2902,6 +2902,10 @@ let miaNuova = '';
 
 function openImpostazioni() {
   $('sviluppo').open = false;        /* si riapre sempre chiusa */
+  /* Sviluppatore la vede chi ha il token, e un dispositivo vuoto, senza
+     nessun piano aperto: li' si mettono token e chiave la prima volta. Chi
+     si allena, arrivato col suo collegamento, non la vede. */
+  $('sviluppo').hidden = !token && !!fidCorrente;
   $('tokenInput').value = token;
   $('miaInput').value = mia ? mia.k : '';
   $('telBox').hidden = !mio;
