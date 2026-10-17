@@ -381,6 +381,13 @@ body{overflow-x:clip}
 .btn.btn-del{flex:0 0 auto;color:var(--danger);border-color:rgba(255,69,58,.45)}
 .btn-largo{width:100%;margin-bottom:var(--s3)}
 .campo-lungo{min-height:150px;padding:var(--s2);line-height:1.4;resize:vertical}
+/* il tasto che chiama: un link vestito da tasto, rosso come le cose urgenti */
+.btn-chiama{
+  display:flex;align-items:center;justify-content:center;
+  margin-top:var(--s3);text-decoration:none;
+  color:var(--danger);border-color:rgba(255,69,58,.45);
+}
+.btn-chiama[hidden]{display:none}
 .nota{margin:var(--s2) 0 0;font-size:15px;line-height:1.45;color:var(--muted)}
 .nota.err{color:var(--danger)}
 

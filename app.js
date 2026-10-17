@@ -399,7 +399,7 @@ const contenuto = s => JSON.stringify({ workout: validWorkout(s.workout), schede
                                          mattinaVia: !!s.mattinaVia, prep: validPrep(s.prep),
                                          mattinaQuando: validQuando(s.mattinaQuando), altre: validAltre(s.altre),
                                          sorprese: validSorprese(s.sorprese), libreria: validLibreria(s.libreria),
-                                         esercizi: validEsercizi(s.esercizi) });
+                                         esercizi: validEsercizi(s.esercizi), telefono: validTelefono(s.telefono) });
 
 /* --- due telefoni che scrivono insieme -------------------------------------
    Ogni telefono tiene `base`: il piano come era online l'ultima volta che si
@@ -555,6 +555,7 @@ function inForma(v) {
   if (!Array.isArray(s.sorprese)) s.sorprese = [];
   if (!Array.isArray(s.libreria)) s.libreria = [];
   s.esercizi = validEsercizi(s.esercizi);
+  s.telefono = validTelefono(s.telefono);
   s.dirty = !!s.dirty;
   return s;
 }
@@ -568,13 +569,18 @@ function validPersone(l) {
              chiave: x.chiave, f: x.f };
   }).filter(Boolean);
 }
-const datiMio = m => ({ persone: validPersone(m.persone), libreria: validLibreria(m.libreria), esercizi: validEsercizi(m.esercizi) });
+/* Il numero per le chiamate urgenti: solo cifre, col + davanti se c'e'. Sta
+   nel mio file e va nel file di ogni persona, mai nel codice. */
+const validTelefono = x => { const t = String(x == null ? '' : x).replace(/[\s().-]/g, ''); return /^\+?\d{6,15}$/.test(t) ? t : ''; };
+const datiMio = m => ({ persone: validPersone(m.persone), libreria: validLibreria(m.libreria), esercizi: validEsercizi(m.esercizi),
+                        telefono: validTelefono(m.telefono) });
 const contenutoMio = m => JSON.stringify(datiMio(m));
 function inFormaMio(v) {
   const m = v && typeof v === 'object' ? v : {};
   m.persone = validPersone(m.persone);
   if (!Array.isArray(m.libreria)) m.libreria = [];
   m.esercizi = validEsercizi(m.esercizi);
+  m.telefono = validTelefono(m.telefono);
   if (!Array.isArray(m.known)) m.known = [];
   /* il contenuto dell'ultima versione online: se e' diverso, c'e' da salvare.
      Un elenco appena aperto, ancora vuoto, non ha niente da salvare. */
@@ -616,9 +622,12 @@ function allineaLib() {
   const usati = nomiUsati(tstore);
   const sub = JSON.parse(JSON.stringify(validLibreria(mio.libreria).filter(r => usati.has(normEs(r[0])))));
   const J = JSON.stringify;
-  if (J(sub) === J(validLibreria(tstore.libreria)) && !Object.keys(tstore.esercizi || {}).length) return false;
+  /* col numero per le chiamate urgenti: va nel file della persona come la libreria */
+  const tel = validTelefono(mio.telefono);
+  if (J(sub) === J(validLibreria(tstore.libreria)) && !Object.keys(tstore.esercizi || {}).length && tel === (tstore.telefono || '')) return false;
   tstore.libreria = sub;
   tstore.esercizi = {};
+  tstore.telefono = tel;
   return true;
 }
 
@@ -2892,6 +2901,8 @@ function openImpostazioni() {
   $('sviluppo').open = false;        /* si riapre sempre chiusa */
   $('tokenInput').value = token;
   $('miaInput').value = mia ? mia.k : '';
+  $('telBox').hidden = !mio;
+  $('telInput').value = mio ? mio.telefono || '' : '';
   miaNuova = '';
   const s = $('tokenStato');
   s.className = 'nota';
@@ -2972,6 +2983,11 @@ $('impostazioniForm').addEventListener('submit', async () => {
   miaNuova = '';
   if (scritta.trim() && !k) paintSync('la tua chiave non è scritta giusta: 16 lettere e numeri', true);
   else if (k !== (mia ? mia.k : '') || (token && mia && !mio) || (!token && mio)) await cambiaMia(k, nuova);
+  /* il numero: nel mio file, e nella persona aperta se ce n'e' una */
+  if (mio && validTelefono($('telInput').value) !== (mio.telefono || '')) {
+    mio.telefono = validTelefono($('telInput').value);
+    if (scrive()) touch(); else saveMio();
+  }
   paintTutto();
   if (token && !syncErr) provaToken();
   pullTasks();
@@ -2989,6 +3005,32 @@ $('tokenAnnulla').addEventListener('click', () => dlgImp.close());
    via, e la piu' diretta. */
 const dlgBug = $('bug');
 let bugVersione = '';
+/* Gli esercizi fra cui scegliere, se il problema e' su uno di loro: prima
+   quelli di oggi, poi gli altri workout, poi le liste di tutti i giorni. */
+function opzioniBug(sel) {
+  const d = today(), pi = pianoDi(chiaveData(d));
+  sel.textContent = '';
+  const nessuno = el('option', null, 'Nessuno: riguarda l\'app');
+  nessuno.value = '';
+  sel.appendChild(nessuno);
+  const visti = new Set();
+  const metti = (k, nome) => {
+    const sc = pi.schede[k];
+    if (visti.has(k) || !sc || !sc.es.length) return;
+    visti.add(k);
+    const g = el('optgroup');
+    g.label = nome;
+    for (const n of [...new Set(sc.es.map(r => r[0]).filter(Boolean))]) g.appendChild(el('option', null, n));
+    sel.appendChild(g);
+  };
+  for (const k of workoutDelGiorno(pi, d.getDay())) if (k) metti(k, eLista(k) ? nomeLista(pi, k) || 'Every day' : k);
+  for (const k of allenamentiDi(pi)) metti(k, k);
+  for (const l of listeDi(pi)) metti(l.chiave, l.nome);
+}
+const esercizioBug = () => {
+  const o = $('bugEs').selectedOptions[0];
+  return o && o.value !== '' && o.parentElement.label ? 'Esercizio: ' + o.textContent + ' · ' + o.parentElement.label : '';
+};
 function contestoBug() {
   const d = today(), ora = new Date(), pi = pianoDi(chiaveData(d));
   const nomi = workoutDelGiorno(pi, d.getDay()).filter(Boolean).map(n => eLista(n) ? nomeLista(pi, n) || 'Every day' : n);
@@ -3000,6 +3042,11 @@ $('bugApri').addEventListener('click', async () => {
   dlgImp.close();
   $('bugNota').className = 'nota';
   $('bugNota').textContent = '';
+  opzioniBug($('bugEs'));
+  /* il tasto per chiamare c'e' solo se nel piano e' arrivato un numero */
+  const tel = validTelefono(tstore.telefono);
+  $('bugChiama').hidden = !tel;
+  $('bugChiama').href = tel ? 'tel:' + tel : '';
   dlgBug.showModal();
   $('bugTesto').focus();
   /* la versione e' il nome della cache del service worker: si legge prima,
@@ -3009,9 +3056,9 @@ $('bugApri').addEventListener('click', async () => {
 async function inviaBug() {
   const t = $('bugTesto').value.trim();
   if (!t) { $('bugTesto').focus(); return; }
-  const testo = 'Problema con l\'app Workout\n' + t + '\n\n' + contestoBug();
+  const testo = 'Problema con l\'app Workout\n' + t + '\n\n' + [esercizioBug(), contestoBug()].filter(Boolean).join('\n');
   if (navigator.share) {
-    try { await navigator.share({ title: 'Workout', text: testo }); $('bugTesto').value = ''; dlgBug.close(); return; }
+    try { await navigator.share({ title: 'Workout', text: testo }); $('bugTesto').value = ''; $('bugEs').value = ''; dlgBug.close(); return; }
     catch (e) { if (e && e.name === 'AbortError') return; }
   }
   const n = $('bugNota');
