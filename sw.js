@@ -4,7 +4,7 @@
    l'app nel telefono. */
 
 /* Il numero della cache: si alza quando un telefono resta indietro. */
-const CACHE = 'wk-v92';
+const CACHE = 'wk-v93';
 
 const SHELL = [
   './',
