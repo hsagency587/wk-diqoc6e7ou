@@ -642,8 +642,8 @@ body.vland .vslot{
 
 /* In cima: il giorno, con una freccia per parte. Per chi si allena sta in
    testata al posto del titolo; per chi scrive in cima alla pagina, sotto la
-   barra. Sopra la data, piccola, la distanza da oggi e il giorno della
-   settimana, verde quando non e' oggi; toccando la data si torna a oggi. */
+   barra. Sopra la data, piccolo, il giorno della settimana, verde quando non
+   e' oggi; toccando la data si torna a oggi. */
 .gnav{display:flex;align-items:center;gap:var(--s1)}
 /* in testata non si allarga su tutto lo schermo del PC: le frecce stanno
    vicine alla data, l'ingranaggio resta a destra */

@@ -1028,9 +1028,9 @@ function disegnaW() {
   paintSchede(dx, oggi);
 }
 
-/* In cima alla pagina: il giorno che si guarda, scritto per esteso, con una
-   freccia per parte. Sopra la data una parola dice quanto si e' lontani da
-   oggi; toccando la data si torna a oggi. */
+/* In cima alla pagina: il giorno che si guarda, con una freccia per parte.
+   Sopra, piccolo, il giorno della settimana; sotto la data. Toccando la data
+   si torna a oggi. */
 function navGiorno(t0, vero) {
   const n = giorniFra(chiaveData(vero), chiaveData(t0));
   const nav = el('div', 'gnav' + (n ? ' altro' : ''));
@@ -1040,9 +1040,7 @@ function navGiorno(t0, vero) {
   const tit = el('button', 'gnav-tit');
   tit.type = 'button'; tit.dataset.giorno = '0';
   tit.setAttribute('aria-label', n ? 'Torna a oggi' : 'Oggi');
-  const eti = n === 0 ? 'oggi' : n === -1 ? 'ieri' : n === -2 ? "l'altro ieri" : n === 1 ? 'domani' : n === 2 ? 'dopodomani'
-            : n < 0 ? (-n) + ' giorni fa' : 'fra ' + n + ' giorni';
-  tit.appendChild(el('span', 'gnav-eti', eti + ' · ' + GIORNI_IT[t0.getDay()]));
+  tit.appendChild(el('span', 'gnav-eti', GIORNI_IT[t0.getDay()]));
   tit.appendChild(el('span', 'gnav-data', t0.getDate() + ' ' + MESI_IT[t0.getMonth()]));
   const dx = el('button', 'gnav-btn', '›');
   dx.type = 'button'; dx.dataset.giorno = '1';
