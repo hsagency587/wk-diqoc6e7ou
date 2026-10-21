@@ -745,6 +745,7 @@ const SETTIMANA = [1, 2, 3, 4, 5, 6, 0];
 const GIORNI_IT  = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
 const GIORNI2_IT = ['Do', 'Lu', 'Ma', 'Me', 'Gi', 'Ve', 'Sa'];
 const MESI3_IT   = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+const MESI_IT    = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
 const ORDINALI_IT = ['1°', '2°', '3°', '4°'];      /* da lunedi' a domenica */
 
 /* Una riga di tabella: le celle in ordine, ognuna con le sue classi. */
@@ -831,6 +832,10 @@ let chipX = 0;
 /* L'anteprima di una preparazione che sta per iniziare: la pagina si
    disegna come se fosse gia' il primo giorno. null = la pagina di oggi. */
 let anteprima = null;
+/* Il giorno che si guarda, contato da oggi: 0 oggi, -1 ieri, 1 domani. Con le
+   frecce in cima alla pagina si va indietro a controllare i giorni passati e
+   avanti a vedere cosa viene. Aprendo l'app si parte sempre da oggi. */
+let giornoVista = 0;
 /* Le postille (easter egg) accese adesso: spariscono al primo tocco,
    scorrendo, o uscendo dall'app. */
 let festa = [];
@@ -842,6 +847,8 @@ function disegnaW() {
   pagina.textContent = '';
   /* nessuna persona aperta: si dice cosa fare */
   if (!fidCorrente) {
+    $('gnav').hidden = true;
+    $('titolo').hidden = false;
     const box = el('section', 'col col-sx');
     box.appendChild(el('p', 'vuoto',
       editore()       ? 'Ancora nessuna persona. Tocca "Persone" in alto per aggiungerne una.'
@@ -880,9 +887,22 @@ function disegnaW() {
   const vero = today();
   const pAnt = anteprima ? tstore.prep.find(x => x.id === anteprima) : null;
   if (!pAnt) anteprima = null;
-  const t0 = pAnt ? daChiave(pAnt.dal) : vero;
+  if (pAnt) giornoVista = 0;
+  const t0 = pAnt ? daChiave(pAnt.dal) : piuGiorni(vero, giornoVista);
   const kOggi = chiaveData(t0);
   const oggi = pianoDi(kOggi);
+  /* e' il giorno di oggi quello che si guarda: niente anteprima, niente frecce */
+  const eOggi = !pAnt && giornoVista === 0;
+
+  /* in cima a tutto: il giorno che si guarda, con le frecce per cambiarlo.
+     Per chi si allena sta in testata, al posto del titolo; per chi scrive la
+     barra in alto e' gia' piena, e sta in cima alla pagina. In anteprima no:
+     la pagina e' quella del primo giorno della preparazione */
+  const slot = $('gnav');
+  slot.textContent = '';
+  slot.hidden = !!pAnt || editore();
+  $('titolo').hidden = !slot.hidden;
+  if (!pAnt) (editore() ? pagina : slot).appendChild(navGiorno(t0, vero));
 
   const box = el('section', 'col col-sx');
   const dx = el('section', 'col col-dx');
@@ -923,10 +943,10 @@ function disegnaW() {
     box.appendChild(bar);
   }
 
-  if (!pAnt) postille(box, 'top');
+  if (eOggi) postille(box, 'top');
 
   /* una preparazione che inizia fra poco: l'avviso, con l'anteprima */
-  if (!pAnt) {
+  if (eOggi) {
     const kVero = chiaveData(vero);
     const pross = tstore.prep.find(x => x.dal > kVero && giorniFra(kVero, x.dal) <= AVVISO_GIORNI);
     if (pross) {
@@ -959,7 +979,7 @@ function disegnaW() {
     return { g: g, d: d, k: k, pi: pi, w: workoutDelGiorno(pi, g) };
   }).filter(x => !pAnt || (x.k >= pAnt.dal && x.k <= pAnt.al));   /* in anteprima: solo i giorni della preparazione */
   const n = Math.max(1, ...giorni.map(x => x.pi.conti[x.g] || 0));
-  if (!pAnt) postille(cal, 'week');
+  if (eOggi) postille(cal, 'week');
   const tab = el('div', 'tab tab-w');
   tab.style.setProperty('--wcol', n);
   /* in cima alla tabella, sempre la stessa scritta, su tutta la riga */
@@ -980,16 +1000,17 @@ function disegnaW() {
   }
   cal.appendChild(tab);
 
-  if (!pAnt) postille(box, 'every');
+  if (eOggi) postille(box, 'every');
   const every = paintMorning(box, oggi, kOggi);
   /* sotto la lista di tutti i giorni, una riga verde con due etichette: su
      quello che si fa sempre, giu' i workout di oggi. Solo se ci sono tutti e
      due: senza workout sotto, la riga non avrebbe dove puntare */
-  const riga = every ? box.appendChild(rigaOggi()) : null;
-  if (!pAnt) postille(box, 'oggi');
-  /* chi si allena ha "Allenamento di oggi" in testata: qui non si ripete */
-  const conOggi = paintOggi(box, oggi, kOggi, t0.getDay(), pAnt ? 'ALLENAMENTI DI ' + GIORNI_IT[t0.getDay()].toUpperCase() + ' ' + t0.getDate()
-                                                               : editore() ? 'ALLENAMENTI DI OGGI' : '');
+  const riga = every ? box.appendChild(rigaOggi(eOggi)) : null;
+  if (eOggi) postille(box, 'oggi');
+  /* la scritta sopra i workout del giorno: "DI OGGI" guardando oggi, se no
+     il giorno che si guarda */
+  const conOggi = paintOggi(box, oggi, kOggi, t0.getDay(), eOggi ? 'ALLENAMENTI DI OGGI'
+                                                           : 'ALLENAMENTI DI ' + GIORNI_IT[t0.getDay()].toUpperCase() + ' ' + t0.getDate());
   if (riga && !conOggi) riga.remove();
 
   /* la tendina della programmazione: in anteprima resta aperta, si guarda
@@ -1003,8 +1024,31 @@ function disegnaW() {
   bar.appendChild(el('span', 'wkbar-frec', '▾'));
   dx.appendChild(bar);
   if (aperta) dx.appendChild(cal);
-  if (!pAnt) postille(dx, 'wk');
+  if (eOggi) postille(dx, 'wk');
   paintSchede(dx, oggi);
+}
+
+/* In cima alla pagina: il giorno che si guarda, scritto per esteso, con una
+   freccia per parte. Sopra la data una parola dice quanto si e' lontani da
+   oggi; toccando la data si torna a oggi. */
+function navGiorno(t0, vero) {
+  const n = giorniFra(chiaveData(vero), chiaveData(t0));
+  const nav = el('div', 'gnav' + (n ? ' altro' : ''));
+  const sx = el('button', 'gnav-btn', '‹');
+  sx.type = 'button'; sx.dataset.giorno = '-1';
+  sx.setAttribute('aria-label', 'Giorno prima');
+  const tit = el('button', 'gnav-tit');
+  tit.type = 'button'; tit.dataset.giorno = '0';
+  tit.setAttribute('aria-label', n ? 'Torna a oggi' : 'Oggi');
+  const eti = n === 0 ? 'oggi' : n === -1 ? 'ieri' : n === -2 ? "l'altro ieri" : n === 1 ? 'domani' : n === 2 ? 'dopodomani'
+            : n < 0 ? (-n) + ' giorni fa' : 'fra ' + n + ' giorni';
+  tit.appendChild(el('span', 'gnav-eti', eti + ' · ' + GIORNI_IT[t0.getDay()]));
+  tit.appendChild(el('span', 'gnav-data', t0.getDate() + ' ' + MESI_IT[t0.getMonth()]));
+  const dx = el('button', 'gnav-btn', '›');
+  dx.type = 'button'; dx.dataset.giorno = '1';
+  dx.setAttribute('aria-label', 'Giorno dopo');
+  nav.appendChild(sx); nav.appendChild(tit); nav.appendChild(dx);
+  return nav;
 }
 
 /* Gli allenamenti diversi scritti in un piano, nell'ordine della settimana. */
@@ -1232,7 +1276,7 @@ function paintMorning(box, pi, k) {
 
 /* Fra la lista di tutti i giorni e i workout di oggi: una riga verde con due
    etichette ai lati, una che punta in su e una in giu'. */
-function rigaOggi() {
+function rigaOggi(eOggi) {
   const r = el('div', 'rigaoggi');
   r.setAttribute('aria-hidden', 'true');
   /* la freccia e' disegnata, col tratto grosso: un carattere verrebbe sottile */
@@ -1241,7 +1285,7 @@ function rigaOggi() {
   const su = el('span', 'rigaoggi-eti');
   su.innerHTML = freccia(false) + '<span>tutti i giorni</span>';
   const giu = el('span', 'rigaoggi-eti');
-  giu.innerHTML = '<span>workout di oggi</span>' + freccia(true);
+  giu.innerHTML = '<span>' + (eOggi ? 'workout di oggi' : 'workout del giorno') + '</span>' + freccia(true);
   r.appendChild(su);
   r.appendChild(giu);
   return r;
@@ -1270,7 +1314,7 @@ function paintOggi(box, pi, k, g, titolo) {
     if (!sc || (!sc.es.length && !sc.rec)) continue;
     if (!capo && titolo) box.appendChild(el('p', 'grp', titolo));
     capo = true;
-    if (!anteprima) postille(box, 'w:' + nome);
+    if (!anteprima && !giornoVista) postille(box, 'w:' + nome);
     const t = tabScheda(nome, sc);
     t.classList.add('tab-oggi');
     box.appendChild(righeScheda(t, sc, pi.src, nome));
@@ -1328,12 +1372,23 @@ function paintSchede(box, pi) {
   box.appendChild(lista);
   for (const nome of visti) {
     const sc = pi.schede[nome];
-    if (!anteprima) postille(lista, 'w:' + nome);
+    if (!anteprima && !giornoVista) postille(lista, 'w:' + nome);
     lista.appendChild(righeScheda(tabScheda(nome, sc), sc, pi.src, nome));
   }
 }
 
 /* ------------------------------------------------- i tocchi sulla pagina ---- */
+
+/* Le frecce del giorno: una indietro, una avanti; la data riporta a oggi. */
+function tocoGiorno(ev) {
+  const b = ev.target.closest('button[data-giorno]');
+  if (!b) return false;
+  const n = +b.dataset.giorno;
+  giornoVista = n ? giornoVista + n : 0;
+  paintW();
+  return true;
+}
+$('gnav').addEventListener('click', tocoGiorno);
 
 $('wlist').addEventListener('click', ev => {
   const ant = ev.target.closest('button[data-anteprima]');
@@ -1345,6 +1400,7 @@ $('wlist').addEventListener('click', ev => {
     return;
   }
   if (ev.target.closest('button[data-antindietro]')) { history.back(); return; }
+  if (tocoGiorno(ev)) return;
   if (ev.target.closest('button[data-calroot]')) {
     mostra.cal = !mostra.cal;
     salvaMostra();
@@ -4155,7 +4211,7 @@ window.addEventListener('online', () => { riprovaSalva(); pullTasks(); codaVideo
 let giornoVisto = today().getTime();
 setInterval(() => {
   const t = today().getTime();
-  if (t !== giornoVisto) { giornoVisto = t; paintW(); }
+  if (t !== giornoVisto) { giornoVisto = t; giornoVista = 0; paintW(); }
 }, 60000);
 
 /* All'apertura. Prima la chiave arrivata col collegamento, se c'e': resta

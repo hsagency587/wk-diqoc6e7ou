@@ -638,6 +638,37 @@ body.vland .vslot{
 .sviluppo[open] .sviluppo-tit::before{content:'\25be'}
 .sviluppo-corpo .commento-lab:first-child{margin-top:var(--s1)}
 
+/* ---------- il giorno che si guarda ---------- */
+
+/* In cima: il giorno, con una freccia per parte. Per chi si allena sta in
+   testata al posto del titolo; per chi scrive in cima alla pagina, sotto la
+   barra. Sopra la data, piccola, la distanza da oggi e il giorno della
+   settimana, verde quando non e' oggi; toccando la data si torna a oggi. */
+.gnav{display:flex;align-items:center;gap:var(--s1)}
+/* in testata non si allarga su tutto lo schermo del PC: le frecce stanno
+   vicine alla data, l'ingranaggio resta a destra */
+.top .gnav{max-width:440px}
+.menu{margin-left:auto}
+.pagina > .gnav{margin:0 var(--s2) var(--s2)}
+.gnav-btn{
+  flex:0 0 auto;width:44px;height:48px;
+  border-radius:var(--radius);font-size:34px;line-height:1;color:var(--text-2);
+}
+.gnav-btn:active{background:var(--surface-2)}
+.gnav-tit{
+  flex:1;min-width:0;min-height:48px;padding:0 var(--s1);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border-radius:var(--radius);line-height:1.15;text-align:center;
+}
+.gnav-tit:active{background:var(--surface-2)}
+.gnav-eti{
+  max-width:100%;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.gnav.altro .gnav-eti{color:var(--accent)}
+.gnav-data{max-width:100%;font-size:22px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (min-width:1000px){ .pagina > .gnav{grid-column:1/-1;max-width:440px;margin:0} }
+
 /* ---------- la pagina: preparazione, settimana, tendina ---------- */
 
 /* la preparazione in corso: una banda in cima, con le date e quanto manca */

@@ -29,14 +29,16 @@
 </head>
 <body>
 
-<!-- La testata. Per chi si allena: "Allenamento di oggi" e le impostazioni,
-     in cima alla pagina, e scorre via con il resto. Per chi scrive: una barra
-     che resta in alto, senza titolo, con a sinistra lo stato del file online
-     e dei caricamenti, Salva quando serve, la persona aperta, l'editor e le
-     impostazioni. -->
+<!-- La testata. Per chi si allena: il giorno che si guarda con le frecce
+     per cambiarlo (lo scrive app.js), e le impostazioni, in cima alla pagina;
+     scorre via con il resto. "Allenamento di oggi" resta per quando non c'e'
+     un giorno da mostrare. Per chi scrive: una barra che resta in alto, senza
+     titolo, con a sinistra lo stato del file online e dei caricamenti, Salva
+     quando serve, la persona aperta, l'editor e le impostazioni. -->
 <header class="top" id="top">
   <div class="bar">
-    <h1 class="titolo">Allenamento di oggi</h1>
+    <h1 class="titolo" id="titolo">Allenamento di oggi</h1>
+    <div class="titolo" id="gnav" hidden></div>
     <p class="sync" id="sync"></p>
     <button type="button" class="salva" id="salva" hidden>Salva</button>
     <!-- solo per chi scrive: la persona aperta, e il menu per cambiarla -->
